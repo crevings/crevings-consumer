@@ -1,56 +1,185 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Mic, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface VoiceSearchModalProps {
-  isOpen: boolean;
   onClose: () => void;
-  onResult?: (text: string) => void;
+  onResult: (text: string) => void;
 }
 
-export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ isOpen, onClose, onResult }) => {
-  const [isListening, setIsListening] = useState(false);
+type VoiceStatus = 'listening' | 'error' | 'success' | 'idle';
+
+export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onResult }) => {
+  const [status, setStatus] = useState<VoiceStatus>('idle');
+  const [transcript, setTranscript] = useState('');
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setIsListening(true);
-      // Simulate listening for 3 seconds
-      const timer = setTimeout(() => {
-        setIsListening(false);
-        if (onResult) {
-          onResult('Simulated voice input');
-        }
-        onClose();
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, onClose, onResult]);
+    // Initialize Speech Recognition
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
 
-  if (!isOpen) return null;
+      recognitionRef.current.onstart = () => {
+        setStatus('listening');
+        setTranscript('');
+      };
+
+      recognitionRef.current.onresult = (event: any) => {
+        const current = event.resultIndex;
+        const result = event.results[current][0].transcript;
+        setTranscript(result);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setStatus('error');
+      };
+
+      recognitionRef.current.onend = () => {
+        if (recognitionRef.current.successTranscript) {
+          setStatus('success');
+          setTimeout(() => {
+            onResult(recognitionRef.current.successTranscript);
+            onClose();
+          }, 1000);
+        } else {
+          setStatus('error');
+        }
+      };
+    } else {
+      setStatus('error'); // Not supported
+    }
+
+    startListening();
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [onClose, onResult]);
+
+  // Keep the latest transcript accessible for onend
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.successTranscript = transcript;
+    }
+  }, [transcript]);
+
+  const startListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        // Already started
+      }
+    }
+  };
+
+  const handleMicClick = () => {
+    if (status === 'error' || status === 'idle') {
+      startListening();
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
-      <div className="bg-[#FFFFFF] w-full max-w-sm rounded-[32px] p-8 flex flex-col items-center relative shadow-2xl animate-in zoom-in-95 duration-300">
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 bg-slate-50 rounded-full transition-colors"
-        >
-          <X size={18} />
-        </button>
-        
-        <div className="mb-6 relative">
-          <div className={`absolute inset-0 bg-blue-500 rounded-full opacity-20 ${isListening ? 'animate-ping' : ''}`}></div>
-          <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center relative z-10 border-4 border-white shadow-sm">
-            <Mic size={40} className="text-blue-600" />
-          </div>
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 z-[100]"
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[110] overflow-hidden flex flex-col max-h-[60vh] w-full max-w-md mx-auto"
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold text-slate-900">Voice Search</h2>
+          <button 
+            onClick={onClose} 
+            className="p-2 bg-slate-50 rounded-full text-slate-500"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        
-        <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
-          {isListening ? 'Listening...' : 'Processing...'}
-        </h3>
-        <p className="text-slate-500 text-center text-sm font-medium">
-          {isListening ? 'Speak now, we are listening to your command.' : 'Please wait a moment.'}
-        </p>
-      </div>
-    </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
+          
+          {status === 'listening' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-900 mb-8">{transcript || 'Listening...'}</h2>
+              
+              <div className="relative mb-8">
+                {/* Pulsing animation */}
+                <div className="absolute inset-0 bg-[#00bd6f] rounded-full opacity-20 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
+                <div className="absolute inset-[-15px] bg-[#00bd6f] rounded-full opacity-10 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]"></div>
+                
+                {/* Large circular microphone button */}
+                <button 
+                  onClick={() => recognitionRef.current?.stop()}
+                  className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10"
+                >
+                  <Mic className="w-8 h-8 text-white" />
+                </button>
+              </div>
+              
+              <p className="text-gray-500 text-sm">
+                Say a restaurant name or a dish
+              </p>
+            </>
+          )}
+
+          {(status === 'error' || status === 'idle') && (
+            <>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Sorry! Didn't hear that</h2>
+              <p className="text-gray-500 text-sm mb-8">
+                Try saying a restaurant name or a dish
+              </p>
+              
+              <div className="relative mb-8">
+                {/* Large circular microphone button */}
+                <button 
+                  onClick={handleMicClick}
+                  className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10 hover:scale-105 transition-transform"
+                >
+                  <Mic className="w-8 h-8 text-white" />
+                </button>
+              </div>
+              
+              <p className="text-gray-500 text-sm">
+                Tap the microphone to try again
+              </p>
+            </>
+          )}
+
+          {status === 'success' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-900 mb-8">"{transcript}"</h2>
+              
+              <div className="relative mb-8">
+                <button className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10 scale-110 transition-transform duration-300">
+                  <Mic className="w-8 h-8 text-white" />
+                </button>
+              </div>
+              
+              <p className="text-gray-500 text-sm opacity-0">
+                Placeholder
+              </p>
+            </>
+          )}
+
+        </div>
+      </motion.div>
+    </>
   );
 };

@@ -1,0 +1,120 @@
+import React, { useState, useEffect } from 'react';
+import { X, MapPin, Bell } from 'lucide-react';
+
+export const PermissionManager = () => {
+  const [step, setStep] = useState(0);
+  const [show, setShow] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
+
+  const permissions = [
+    {
+      id: 'location',
+      title: 'Where are you?',
+      desc: 'Allow location access to discover the best restaurants and fastest delivery options in your area.',
+      icon: <MapPin className="w-10 h-10 text-[#00bd6f]" />,
+      bgColor: 'bg-[#00bd6f]/10'
+    },
+    {
+      id: 'notification',
+      title: 'Stay in the loop',
+      desc: 'Turn on notifications to track your order in real-time and get exclusive deals.',
+      icon: <Bell className="w-10 h-10 text-blue-600" />,
+      bgColor: 'bg-blue-50'
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (!isCompleted) setShow(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [isCompleted]);
+
+  const handleAction = async (allowed: boolean) => {
+    const currentPerm = permissions[step];
+    
+    if (allowed) {
+        try {
+            if (currentPerm.id === 'location') {
+                navigator.geolocation.getCurrentPosition(() => {}, () => {});
+            } else if (currentPerm.id === 'notification') {
+                if ('Notification' in window) {
+                    await Notification.requestPermission();
+                }
+            }
+        } catch (e) {
+            console.error("Permission error", e);
+        }
+    }
+    
+    if (step < permissions.length - 1) {
+      setShow(false);
+      setTimeout(() => {
+        setStep(s => s + 1);
+        setShow(true);
+      }, 400); 
+    } else {
+      setShow(false);
+      setTimeout(() => {
+        setIsCompleted(true);
+      }, 400);
+    }
+  };
+
+  if (isCompleted) return null;
+
+  const current = permissions[step];
+
+  return (
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={() => handleAction(false)}
+      />
+      
+      {/* Centered Card */}
+      <div className={`relative bg-white w-full max-w-sm mx-auto rounded-[24px] flex flex-col overflow-hidden shadow-2xl transition-all duration-500 ease-out ${show ? 'scale-100 translate-y-0' : 'scale-95 translate-y-8'}`}>
+        
+        <button onClick={() => handleAction(false)} className="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 active:scale-95 transition-all z-10">
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Content */}
+        <div className="p-8 flex flex-col items-center text-center relative">
+            <div className={`w-24 h-24 rounded-full ${current.bgColor} flex items-center justify-center mb-6`}>
+              {current.icon}
+            </div>
+
+            <h3 className="text-2xl font-bold text-slate-900 mb-3">{current.title}</h3>
+            <p className="text-slate-500 text-[15px] mb-8 leading-relaxed">{current.desc}</p>
+            
+            <div className="flex flex-col gap-3 w-full">
+                <button 
+                    onClick={() => handleAction(true)}
+                    className="w-full py-4 rounded-2xl font-bold text-white text-[15px] transition-transform active:scale-[0.98] bg-[#00bd6f]"
+                >
+                    Allow Access
+                </button>
+                <button 
+                    onClick={() => handleAction(false)}
+                    className="w-full py-4 rounded-2xl font-bold text-slate-500 text-[15px] transition-colors hover:bg-slate-50 active:bg-slate-100"
+                >
+                    Not Now
+                </button>
+            </div>
+
+            {/* Pagination Dots */}
+            <div className="flex gap-1.5 mt-6">
+                {permissions.map((_, i) => (
+                    <div 
+                        key={i} 
+                        className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-[#00bd6f]' : 'w-1.5 bg-slate-200'}`}
+                    />
+                ))}
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};

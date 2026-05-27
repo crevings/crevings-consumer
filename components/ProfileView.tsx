@@ -1,368 +1,275 @@
-
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { 
+  User, MapPin, CreditCard, Heart, Settings, 
+  HelpCircle, ChevronRight, Edit2, Camera,
+  ShoppingBag, Crown, EyeOff,
+  RotateCcw, Gift, Phone, FileText, Scale, Building2, Accessibility,
   ArrowLeft,
-  Bell,
-  Settings,
-  Upload,
-  QrCode,
-  Download,
-  Share2,
-  CheckCircle2,
-  Store,
-  User,
-  Clock,
-  MenuSquare,
-  FileText,
-  Landmark,
-  Users,
-  ShoppingBag,
-  Blocks,
-  ChevronRight,
+  Cake,
   Star,
-  LogOut,
-  CreditCard,
-  Megaphone,
-  UserCircle,
-  TrendingUp,
-  PieChart,
-  Tag,
-  HeartHandshake,
-  Package,
-  RotateCcw,
-  Receipt,
-  MessageSquare,
-  Palette,
-  Scale
+  Zap,
+  CheckCircle2,
+  Info,
+  MessageSquareHeart,
+  LogOut
 } from 'lucide-react';
-import { Tab } from '../types';
+import { UserProfile } from '../types';
 
 interface ProfileViewProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onNavigateToTab?: (tab: Tab) => void;
-  onLogout?: () => void;
+  userProfile: UserProfile;
+  onUpdateProfileImage: (image: string) => void;
+  onEditProfileClick: () => void;
+  onWalletClick: () => void;
+  onOrdersClick: () => void;
+  onLogout: () => void;
+  onSettingsClick: () => void;
+  onHelpClick: () => void;
+  onNotificationsClick: () => void;
+  onRefundsClick: () => void;
+  onReferClick: () => void;
+  onPoliciesClick: () => void;
+  onLicensesClick: () => void;
+  onGstClick: () => void;
+  onAccessibilityClick: () => void;
+  onManageMembershipClick: () => void;
+  onAboutClick: () => void;
+  onFeedbackClick: () => void;
+  onBack: () => void;
+  onAddressBookClick: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ isOpen, onClose, onNavigateToTab, onLogout }) => {
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+export const ProfileView: React.FC<ProfileViewProps> = ({ 
+    userProfile,
+    onUpdateProfileImage,
+    onEditProfileClick,
+    onWalletClick, 
+    onOrdersClick, 
+    onLogout,
+    onSettingsClick,
+    onHelpClick,
+    onNotificationsClick,
+    onRefundsClick,
+    onReferClick,
+    onPoliciesClick,
+    onLicensesClick,
+    onGstClick,
+    onAccessibilityClick,
+    onManageMembershipClick,
+    onAboutClick,
+    onFeedbackClick,
+    onBack,
+    onAddressBookClick
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleNavigate = (tab: Tab) => {
-    onNavigateToTab?.(tab);
-    onClose();
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onUpdateProfileImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
+  const menuItems = [
+    { 
+      group: 'Food & Preferences',
+      items: [
+        { 
+            icon: ShoppingBag, 
+            label: 'Your Orders', 
+            sub: 'Track, view & reorder', 
+            onClick: onOrdersClick,
+            color: 'text-orange-600',
+            bg: 'bg-orange-50'
+        },
+        { 
+             icon: Heart, 
+             label: 'Favorites', 
+             sub: 'Your loved restaurants',
+             onClick: () => {
+                window.dispatchEvent(new CustomEvent('navigate', { detail: 'favourites' }));
+             },
+             color: 'text-rose-600',
+             bg: 'bg-rose-50'
+         },
+        { 
+            icon: EyeOff, 
+            label: 'Hidden Restaurants', 
+            sub: 'Manage blocked places',
+            onClick: () => {
+                window.dispatchEvent(new CustomEvent('navigate', { detail: 'hidden-restaurants' }));
+            },
+            color: 'text-slate-600',
+            bg: 'bg-slate-50'
+        },
+      ]
+    },
+    {
+      group: 'Payments & Refunds',
+      items: [
+        { 
+            icon: CreditCard, 
+            label: 'Money & Payments', 
+            sub: 'Wallet balance: ₹320.00', 
+            onClick: onWalletClick,
+            color: 'text-blue-600',
+            bg: 'bg-blue-50'
+        },
+        { 
+            icon: RotateCcw, 
+            label: 'Refunds', 
+            sub: 'Track active refunds',
+            onClick: onRefundsClick,
+            color: 'text-blue-600',
+            bg: 'bg-blue-50'
+        },
+        { 
+            icon: MapPin, 
+            label: 'Address Book', 
+            sub: 'Manage delivery addresses',
+            onClick: onAddressBookClick,
+            color: 'text-teal-600',
+            bg: 'bg-teal-50'
+        },
+      ]
+    },
+    {
+        group: 'App Settings',
+        items: [
+            { 
+                icon: Settings, 
+                label: 'Settings', 
+                sub: 'App preferences',
+                onClick: onSettingsClick,
+                color: 'text-slate-600',
+                bg: 'bg-slate-50'
+            },
+            { 
+                icon: HelpCircle, 
+                label: 'Help & Support', 
+                sub: 'FAQs & Chat',
+                onClick: onHelpClick,
+                color: 'text-cyan-600',
+                bg: 'bg-cyan-50'
+            },
+            { 
+                icon: Scale, 
+                label: 'Licence', 
+                sub: 'Legal information',
+                onClick: onLicensesClick,
+                color: 'text-gray-600',
+                bg: 'bg-gray-50'
+            },
+        ]
+    }
+  ];
+
   return (
-    <div className={`fixed inset-0 z-[110] w-full bg-slate-50 transform transition-transform duration-300 ease-out flex flex-col lg:bg-black/50 lg:items-center lg:justify-center lg:p-4 ${isOpen ? 'translate-x-0 lg:opacity-100 lg:translate-x-0' : '-translate-x-full lg:opacity-0 lg:pointer-events-none'}`}>
-      <div className="flex flex-col w-full h-full bg-slate-50 lg:h-auto lg:max-h-[90vh] lg:max-w-2xl lg:rounded-3xl lg:overflow-hidden lg:shadow-2xl">
-        {/* Page Header */}
-        <div className="h-[56px] bg-[#FFFFFF] border-b border-slate-100 flex items-center justify-between px-4 shrink-0 sticky top-0 z-20 lg:h-16 lg:px-6">
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center -ml-2 text-slate-700 active:scale-95 transition-transform lg:hidden">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-[18px] font-semibold text-slate-900 lg:text-xl">Restaurant Profile</h1>
-          <div className="flex items-center gap-2 -mr-2 lg:mr-0">
-            <button onClick={() => handleNavigate(Tab.SETTINGS)} className="w-10 h-10 flex items-center justify-center text-slate-700 active:scale-95 transition-transform lg:hidden">
-              <Settings size={22} />
-            </button>
-            <button onClick={onClose} className="hidden lg:flex w-10 h-10 items-center justify-center text-slate-700 hover:bg-slate-100 rounded-full transition-colors">
-              <ArrowLeft size={24} className="rotate-180" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-12 px-4 pt-4 space-y-6 lg:p-6 lg:space-y-8">
-        
-        {/* Restaurant Info Card */}
-        <div className="bg-[#FFFFFF] rounded-[16px] p-4 shadow-sm border border-slate-100">
-          <div className="flex flex-col items-center text-center">
-            <div 
-              className="w-[64px] h-[64px] rounded-[16px] border border-slate-100 flex flex-col items-center justify-center bg-slate-50 overflow-hidden shadow-sm mb-3"
-            >
-              <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?q=80&w=200&auto=format&fit=crop" className="w-full h-full object-cover" alt="Logo" />
-            </div>
-            
-            <h2 className="text-[18px] font-bold text-slate-900 leading-tight mb-2 tracking-tight">Gourmet Kitchen</h2>
-            
-            <button className="flex items-center justify-center gap-0.5 px-3 py-1 bg-slate-50 rounded-full font-bold text-[13px] text-slate-800 mb-3 transition-colors hover:bg-slate-100">
-              Civil Lines, Prayagraj
-              <ChevronRight size={14} className="text-slate-500" />
-            </button>
-
-            <p className="text-[13px] font-semibold text-slate-500 mb-1.5">North Indian, Chinese, Fast Food</p>
-            
-            <div className="flex items-center justify-center gap-2 text-[13px] font-semibold mb-4">
-              <span className="text-slate-600">₹800 for two</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-emerald-600">
-                Open
-              </span>
-            </div>
-
-            <button 
-              onClick={() => handleNavigate(Tab.OUTLET_INFO)}
-              className="w-full h-[36px] bg-slate-100 text-[#1E90FF] rounded-[10px] text-[13px] font-semibold active:scale-95 transition-transform hover:bg-[#EBF3FF]"
-            >
-              Edit Profile
-            </button>
-          </div>
-        </div>
-
-        {/* QR Code Card */}
-        <div className="bg-[#FFFFFF] rounded-[20px] p-4 shadow-sm border border-slate-100 flex items-center gap-4">
-          <div className="w-20 h-20 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center shrink-0">
-            <QrCode size={48} className="text-slate-800" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-slate-900">Restaurant QR Code</h3>
-            <p className="text-xs text-slate-500 mb-3">For Dine-in & Orders</p>
-            <div className="flex items-center gap-2">
-              <button className="flex-1 h-[36px] border border-[#E5E7EB] rounded-[10px] flex items-center justify-center gap-1.5 text-sm font-medium text-slate-700 active:scale-95 transition-transform">
-                <Download size={16} /> Download
-              </button>
-              <button className="flex-1 h-[36px] border border-[#E5E7EB] rounded-[10px] flex items-center justify-center gap-1.5 text-sm font-medium text-slate-700 active:scale-95 transition-transform">
-                <Share2 size={16} /> Share
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Manage Outlet Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Manage Outlet</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Store, title: 'Outlet Info', desc: 'Cuisine, delivery radius', tab: Tab.OUTLET_INFO },
-              { icon: Clock, title: 'Opening Hours', desc: 'Configure timings', tab: Tab.OPENING_HOURS },
-              { icon: MenuSquare, title: 'Digital Menu', desc: 'Upload menu & PDFs', tab: Tab.DIGITAL_MENU },
-              { icon: Package, title: 'Inventory', desc: 'Manage item stock', tab: Tab.INVENTORY }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Growth Tools Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Growth Tools</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Megaphone, title: 'Ads & Mktg', desc: 'Promote your store', tab: Tab.ADS_MARKETING },
-              { icon: Tag, title: 'Offers', desc: 'Manage discounts', tab: Tab.OFFERS },
-              { icon: Upload, title: 'Upload Banners', desc: 'Manage brand banners', tab: Tab.UPLOAD_BANNERS }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Finance and Payout Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Finance and Payout</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Landmark, title: 'Payout', desc: 'Manage payouts', tab: Tab.PAYOUT },
-              { icon: Landmark, title: 'Bank DB', desc: 'Linked account info', tab: Tab.BANK_ACCOUNTS },
-              { icon: RotateCcw, title: 'Refunds', desc: 'Manage requests', tab: Tab.REFUNDS },
-              { icon: Receipt, title: 'Manage Billing', desc: 'Billing details & charges', tab: Tab.MANAGE_BILLING }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Business Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Business</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Store, title: 'Business Setup', desc: 'Outlets & staff config', tab: Tab.BUSINESS_SETUP },
-              { icon: User, title: 'Owner Info', desc: 'Name, contact, email', tab: Tab.OWNER_INFO },
-              { icon: ShoppingBag, title: 'Partner Store', desc: 'Manage your store', tab: Tab.PARTNER_STORE },
-              { icon: CheckCircle2, title: 'Subscription', desc: 'Manage active plan', tab: Tab.SUBSCRIPTION },
-              { icon: FileText, title: 'Order History', desc: 'View past orders', tab: Tab.ORDER_HISTORY }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Analytics and Insights Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Analytics and Insights</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: PieChart, title: 'Analytics', desc: 'View store insights', tab: Tab.ANALYTICS },
-              { icon: TrendingUp, title: 'Sales Report', desc: 'View sales data', tab: Tab.SALES_REPORT },
-              { icon: Star, title: 'Ratings', desc: 'View customer reviews', tab: Tab.CUSTOMER_RATINGS },
-              { icon: UserCircle, title: 'Customer Info', desc: 'View customers log', tab: Tab.CUSTOMER_INFO }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Others Section */}
-        <div>
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h3 className="text-sm font-bold text-slate-900">Others</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { icon: Blocks, title: 'Integrations', desc: 'Third-party apps', tab: Tab.INTEGRATIONS },
-              { icon: HeartHandshake, title: 'Rel. Manager', desc: 'Contact support', tab: Tab.RELATIONSHIP_MANAGER },
-              { icon: Palette, title: 'Crevings Studio', desc: 'Graphic design', tab: Tab.CREVINGS_STUDIO },
-              { icon: Scale, title: 'Crevings Legal', desc: 'FSSAI & trademark', tab: Tab.CREVINGS_LEGAL }
-            ].map((item, i) => (
-              <button 
-                key={i} 
-                onClick={() => item.tab && handleNavigate(item.tab)}
-                className="bg-[#FFFFFF] p-3.5 rounded-2xl border border-slate-100 flex flex-col hover:border-slate-200 active:scale-95 transition-all text-left group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#EBF3FF] flex items-center justify-center text-[#1E90FF] mb-3 transition-colors">
-                  <item.icon size={20} strokeWidth={2} />
-                </div>
-                <div className="flex flex-col flex-1">
-                  <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1 line-clamp-1">{item.title}</h4>
-                  <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{item.desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Support Button */}
-        <div className="pt-4 pb-2">
+    <div className="bg-slate-50 min-h-screen pb-24 animate-fadeInUp">
+       <div className="bg-white pt-12 pb-8 px-5 rounded-b-[32px] border-b border-slate-100 relative">
           <button 
-            onClick={() => handleNavigate(Tab.SUPPORT)}
-            className="w-full h-[52px] bg-slate-50 text-slate-700 rounded-[16px] border border-slate-200 font-semibold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            onClick={onBack}
+            className="absolute top-6 left-5 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-900 active:scale-95 transition-all"
           >
-            <MessageSquare size={20} />
-            Talk to Support
+            <ArrowLeft className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Logout Button */}
-        <div className="pt-2">
           <button 
-            onClick={() => setShowLogoutConfirm(true)}
-            className="w-full h-[52px] bg-rose-50 text-rose-500 rounded-[16px] border border-rose-100 font-semibold text-[16px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+            onClick={onEditProfileClick}
+            className="absolute top-6 right-5 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-900 active:scale-95 transition-all"
           >
-            <LogOut size={20} />
-            Logout
+            <Edit2 className="w-5 h-5" />
           </button>
-        </div>
-        </div>
-
-      </div>
-
-      {/* Logout Confirmation Bottom Sheet */}
-      {showLogoutConfirm && (
-        <div 
-          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 sm:items-center transition-opacity"
-          onClick={() => setShowLogoutConfirm(false)}
-        >
-          <div 
-            className="w-full bg-[#FFFFFF] rounded-t-2xl sm:rounded-2xl sm:max-w-md p-6 animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:fade-in duration-300"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <LogOut size={32} />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Logout</h3>
-            <p className="text-slate-500 text-center mb-6">Are you sure you want to logout from your account?</p>
-            
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-semibold rounded-xl active:scale-95 transition-transform"
+          
+          <div className="flex flex-col items-center mt-4">
+              <div 
+                className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden cursor-pointer mb-4"
+                onClick={() => fileInputRef.current?.click()}
               >
-                Cancel
-              </button>
-              <button 
-                onClick={() => {
-                  setShowLogoutConfirm(false);
-                  onClose();
-                  onLogout?.();
-                }}
-                className="flex-1 py-3 px-4 bg-rose-500 text-white font-semibold rounded-xl active:scale-95 transition-transform"
-              >
-                Yes, Logout
-              </button>
-            </div>
+                {userProfile.image ? (
+                    <img src={userProfile.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                    <User className="w-12 h-12 text-slate-400" />
+                )}
+              </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleImageUpload} 
+                className="hidden" 
+                accept="image/*"
+              />
+              <h2 className="text-2xl font-black text-slate-900 mb-1">
+                  {userProfile.name}
+              </h2>
+              <div className="flex items-center gap-4 text-slate-500 text-sm font-medium">
+                  <div className="flex items-center gap-1.5">
+                      <Phone className="w-4 h-4" />
+                      <span>{userProfile.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                      <Cake className="w-4 h-4" />
+                      <span>{userProfile.dob ? new Date(userProfile.dob).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '15 Sep 1999'}</span>
+                  </div>
+              </div>
           </div>
-        </div>
-      )}
+       </div>
+
+       <div className="px-5 mt-6 space-y-6">
+           <div onClick={onReferClick} className="bg-[#00bd6f] rounded-[24px] p-5 flex items-center justify-between cursor-pointer active:scale-95 transition-transform text-white">
+                <div>
+                    <div className="inline-block bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider mb-2">
+                        Invite Friends
+                    </div>
+                    <h3 className="font-bold text-lg leading-tight mb-1">Get ₹500 Free</h3>
+                    <p className="text-green-50 text-xs font-medium">When your friend orders first time.</p>
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <Gift className="w-6 h-6 text-white" />
+                </div>
+           </div>
+
+           {menuItems.map((group, groupIndex) => (
+               <div key={groupIndex} className="bg-white rounded-[24px] border border-slate-100 overflow-hidden">
+                   <div className="px-5 py-4 bg-slate-50/50 border-b border-slate-100">
+                       <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{group.group}</h3>
+                   </div>
+                   <div className="divide-y divide-slate-100">
+                       {group.items.map((item, itemIndex) => (
+                           <button 
+                              key={itemIndex}
+                              onClick={item.onClick}
+                              className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left"
+                           >
+                               <div className={`w-10 h-10 rounded-full ${item.bg} ${item.color} flex items-center justify-center shrink-0`}>
+                                   <item.icon className="w-5 h-5" />
+                               </div>
+                               <div className="flex-1">
+                                   <h4 className="text-sm font-bold text-slate-900">{item.label}</h4>
+                                   {item.sub && <p className="text-xs text-slate-500 mt-0.5">{item.sub}</p>}
+                               </div>
+                               <ChevronRight className="w-5 h-5 text-slate-300" />
+                           </button>
+                       ))}
+                   </div>
+               </div>
+           ))}
+           
+           <button 
+               onClick={onLogout}
+               className="w-full flex items-center justify-center gap-2 p-4 bg-white text-red-600 rounded-[24px] border border-red-100 font-bold active:scale-95 transition-transform"
+           >
+               <LogOut className="w-5 h-5" />
+               <span>Log Out</span>
+           </button>
+
+           <div className="text-center pt-4 pb-8">
+               <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Crevings App v2.5.0</p>
+           </div>
+       </div>
     </div>
   );
 };

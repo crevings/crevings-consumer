@@ -1,8 +1,7 @@
 {
-  "name": "Remix: CREVINGS FOOD PARTNER APP ",
-  "description": "A redesigned, high-performance dashboard for restaurant partners to manage orders, status, and insights.",
+  "name": "Copy of CREVINGS FOOD DELIVERY ( final )  ",
+  "description": "A comprehensive order tracking page for a food delivery application featuring active order monitoring, past order history, and AI-powered order assistance.",
   "requestFramePermissions": [
-    "camera",
     "microphone",
     "geolocation"
   ]
