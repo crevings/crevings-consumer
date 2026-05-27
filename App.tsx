@@ -1,11 +1,13 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
+import { SWRConfig } from "swr";
 import { AppProvider, useApp } from "./src/contexts/AppContext";
 import { UserProvider } from "./src/contexts/UserContext";
 import { LocationProvider } from "./src/contexts/LocationContext";
 import { RestaurantProvider } from "./src/contexts/RestaurantContext";
 import { CartProvider } from "./src/contexts/CartContext";
 import { AppRoutes } from "./src/app/routes";
+import { fetcher } from "./src/api/fetcher";
 
 const AppContent: React.FC = () => {
   const { isLoadingView, loadingViewType } = useApp();
@@ -38,16 +40,24 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <UserProvider>
-        <LocationProvider>
-          <RestaurantProvider>
-            <CartProvider>
-              <AppContent />
-            </CartProvider>
-          </RestaurantProvider>
-        </LocationProvider>
-      </UserProvider>
-    </AppProvider>
+    <SWRConfig
+      value={{
+        fetcher,
+        revalidateOnFocus: false,
+        shouldRetryOnError: false,
+      }}
+    >
+      <AppProvider>
+        <UserProvider>
+          <LocationProvider>
+            <RestaurantProvider>
+              <CartProvider>
+                <AppContent />
+              </CartProvider>
+            </RestaurantProvider>
+          </LocationProvider>
+        </UserProvider>
+      </AppProvider>
+    </SWRConfig>
   );
 }
