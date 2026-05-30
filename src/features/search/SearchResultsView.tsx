@@ -20,7 +20,7 @@ import {
   Bookmark
 } from 'lucide-react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
-import { ALL_RESTAURANTS } from "@/data/restaurants";
+import { useRestaurants } from "@/api/restaurants";
 import { MOCK_MENU } from "@/data/menu";;
 import { Restaurant, MenuItem, FilterOptions } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
@@ -43,6 +43,7 @@ const FILTER_CHIPS = [
 ];
 
 export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, initialQuery = 'Burger', onRestaurantClick, onItemAdd, onMicClick }) => {
+  const { restaurants } = useRestaurants();
   const [query, setQuery] = useState(initialQuery);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
   const [restaurantResults, setRestaurantResults] = useState<Restaurant[]>([]);
@@ -68,7 +69,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     const lowerQuery = query.toLowerCase();
     
     // Filter restaurants
-    const filteredRestaurants = ALL_RESTAURANTS.filter(r => {
+    const filteredRestaurants = restaurants.filter(r => {
       const matchQuery = r.name.toLowerCase().includes(lowerQuery) || r.cuisine.toLowerCase().includes(lowerQuery);
       const matchRating = r.rating >= activeFilters.minRating;
       const matchDietary = activeFilters.dietary === 'all' || r.dietary?.includes(activeFilters.dietary);
@@ -86,7 +87,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     }).map((item, index) => ({
       ...item,
       // Assign a deterministic restaurant for the mock data
-      restaurant: ALL_RESTAURANTS[index % ALL_RESTAURANTS.length]
+      restaurant: restaurants.length > 0 ? restaurants[index % restaurants.length] : { id: 'temp', name: 'Restaurant', cuisine: 'Food', rating: 4.5, time: '30 min', timeValue: 30, price: '₹400 for two', images: [], distance: '1.2 km', distanceValue: 1.2, dietary: [] }
     }));
     setDishResults(filteredDishes);
   }, [query, activeFilters]);

@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:42007/api";
+export const BASE_URL = (import.meta.env.VITE_PUBLIC_BASE_API_URL || "http://127.0.0.1:42007") + "/api";
 
 export class ResponseError extends Error {
   response: Response;
@@ -18,6 +18,7 @@ export const fetcher = async (url: string) => {
   const absoluteUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
   
   const res = await fetch(absoluteUrl, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       // Add Authorization headers here if token is present

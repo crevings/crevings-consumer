@@ -45,7 +45,7 @@ import { useRestaurant } from "../contexts/RestaurantContext";
 import { useCart } from "../contexts/CartContext";
 import { useApp } from "../contexts/AppContext";
 
-import { ALL_RESTAURANTS } from "../data/restaurants";
+import { useRestaurants } from "../api/restaurants";
 import { Order } from "@/types";
 
 // Coming Soon Component for tabs
@@ -71,9 +71,10 @@ const ComingSoonPage: React.FC<{ title: string }> = ({ title }) => {
 };
 
 export const AppRoutes: React.FC = () => {
+  const { restaurants } = useRestaurants();
   const navigate = useNavigate();
 
-  const { userProfile, setUserProfile, rawProfileImage, setRawProfileImage, reviews, setReviews } = useUser();
+  const { userProfile, setUserProfile, rawProfileImage, setRawProfileImage, reviews, setReviews, logout } = useUser();
   const { currentLocation, setCurrentLocation, addresses, setAddresses } = useAppLocation();
   const {
     selectedRestaurant,
@@ -156,7 +157,7 @@ export const AppRoutes: React.FC = () => {
     setCart(newCart);
     setMenuItems(newMenuItems);
 
-    const rest = ALL_RESTAURANTS.find((r) => r.name === order.restaurantName);
+    const rest = restaurants.find((r) => r.name === order.restaurantName);
     if (rest) {
       setSelectedRestaurant(rest);
     }
@@ -273,7 +274,7 @@ export const AppRoutes: React.FC = () => {
               onEditProfileClick={() => navigate("/edit-profile")}
               onWalletClick={() => navigate("/wallet")}
               onOrdersClick={() => navigate("/orders")}
-              onLogout={() => {}}
+              onLogout={logout}
               onSettingsClick={() => navigate("/settings")}
               onHelpClick={() => navigate("/help")}
               onNotificationsClick={() => navigate("/notifications")}
@@ -377,7 +378,7 @@ export const AppRoutes: React.FC = () => {
             selectedCollection ? (
               <CollectionDetailView
                 collection={selectedCollection}
-                restaurants={ALL_RESTAURANTS}
+                restaurants={restaurants}
                 hiddenIds={hiddenRestaurantIds}
                 favouriteIds={favouriteRestaurantIds}
                 onBack={() => navigate("/")}
@@ -411,7 +412,7 @@ export const AppRoutes: React.FC = () => {
           path="/hidden-restaurants"
           element={
             <HiddenRestaurantsView
-              hiddenRestaurants={ALL_RESTAURANTS.filter((r) => hiddenRestaurantIds.includes(String(r.id)))}
+              hiddenRestaurants={restaurants.filter((r) => hiddenRestaurantIds.includes(String(r.id)))}
               onUnhide={handleUnhideRestaurant}
               onBack={() => navigate(-1)}
             />
@@ -422,7 +423,7 @@ export const AppRoutes: React.FC = () => {
           path="/favourites"
           element={
             <FavoritesView
-              favorites={ALL_RESTAURANTS.filter((r) => favouriteRestaurantIds.includes(String(r.id)))}
+              favorites={restaurants.filter((r) => favouriteRestaurantIds.includes(String(r.id)))}
               onRemove={handleRemoveFavourite}
               onBack={() => navigate(-1)}
             />
@@ -483,10 +484,10 @@ export const AppRoutes: React.FC = () => {
                   navigate("/");
                 }, 2500);
               }}
-              onClose={() => navigate(-1)}
             />
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

@@ -6,7 +6,7 @@ import { CustomizationBottomSheet } from "@/features/restaurant/components/Custo
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
-import { MOCK_MENU } from "@/data/menu";;
+import { useRestaurantDetail } from "../../api/restaurants";
 
 interface RestaurantDetailViewProps {
   restaurant: Restaurant;
@@ -35,6 +35,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   onInfoClick,
   autoAddItem
 }) => {
+  const { menuItems, isLoading: isMenuLoading } = useRestaurantDetail(restaurant.id);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('default');
@@ -61,7 +62,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
   React.useEffect(() => {
     if (autoAddItem) {
-      const item = MOCK_MENU.find(i => i.id === autoAddItem);
+      const item = menuItems.find(i => i.id === autoAddItem);
       if (item && item.available !== false) {
         setSelectedAddonItem(item);
       }
@@ -99,7 +100,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   };
 
   const handleAdd = (id: string) => {
-    const item = MOCK_MENU.find(i => i.id === id);
+    const item = menuItems.find(i => i.id === id);
     if (item) {
       setSelectedAddonItem(item);
     }
@@ -135,7 +136,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   let totalItems = cart.reduce((sum, c) => sum + c.quantity, 0);
   let totalPrice = cart.reduce((sum, c) => sum + c.totalPrice, 0);
 
-  let filteredMenu = MOCK_MENU.filter(item => {
+  let filteredMenu = menuItems.filter(item => {
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (isFilterActive('Pure Veg') && !item.isVeg) return false;
     if (isFilterActive('Non Veg') && (item.isVeg || item.isEgg)) return false;
@@ -153,13 +154,18 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     filteredMenu.sort((a, b) => b.price - a.price);
   }
 
-  const categories = [
-    { name: 'Bestsellers', count: filteredMenu.filter(i => i.bestseller).length },
-    { name: 'Starters', count: filteredMenu.filter(i => i.category === 'Starters').length },
-    { name: 'Pizzas', count: filteredMenu.filter(i => i.category === 'Pizzas').length },
-    { name: 'Burgers', count: filteredMenu.filter(i => i.category === 'Burgers').length },
-    { name: 'Main Course', count: filteredMenu.filter(i => i.category === 'Main Course').length }
-  ].filter(c => c.count > 0);
+  // Dynamically extract unique categories from filteredMenu
+  const uniqueCategories = Array.from(new Set(filteredMenu.map(i => i.category || 'Main Course')));
+  const categories = uniqueCategories.map(catName => ({
+    name: catName,
+    count: filteredMenu.filter(i => (i.category || 'Main Course') === catName).length
+  })).filter(c => c.count > 0);
+  
+  // Add Bestsellers if any exist
+  const bestsellerCount = filteredMenu.filter(i => i.bestseller).length;
+  if (bestsellerCount > 0) {
+    categories.unshift({ name: 'Bestsellers', count: bestsellerCount });
+  }
 
   return (
     <div 
@@ -613,7 +619,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
               </div>
             </div>
             <button 
-              onClick={() => onCheckout(cart, MOCK_MENU)}
+              onClick={() => onCheckout(cart, menuItems)}
               className="flex items-center gap-1.5 font-bold text-[15px] bg-[#00bd6f] text-white px-5 py-2.5 rounded-xl active:scale-95 transition-transform"
             >
               View Cart <ChevronRight className="w-5 h-5" />
@@ -753,7 +759,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                 
                 if (cartItem.selectedSides) {
                   cartItem.selectedSides.forEach(side => {
-                    const sideItem = MOCK_MENU.find(m => m.id === side.id) || {
+                    const sideItem = menuItems.find(m => m.id === side.id) || {
                       id: side.id,
                       name: side.name,
                       price: side.price,

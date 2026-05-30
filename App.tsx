@@ -2,15 +2,30 @@ import React from "react";
 import { Loader2 } from "lucide-react";
 import { SWRConfig } from "swr";
 import { AppProvider, useApp } from "./src/contexts/AppContext";
-import { UserProvider } from "./src/contexts/UserContext";
+import { UserProvider, useUser } from "./src/contexts/UserContext";
 import { LocationProvider } from "./src/contexts/LocationContext";
 import { RestaurantProvider } from "./src/contexts/RestaurantContext";
 import { CartProvider } from "./src/contexts/CartContext";
 import { AppRoutes } from "./src/app/routes";
 import { fetcher } from "./src/api/fetcher";
+import { LoginView } from "./src/shared/components/LoginView";
 
 const AppContent: React.FC = () => {
   const { isLoadingView, loadingViewType } = useApp();
+  const { isAuthenticated, isLoadingAuth, onLoginSuccess } = useUser();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
+        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold text-sm">Initializing Crevings...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginView onLoginSuccess={onLoginSuccess} />;
+  }
 
   return (
     <>

@@ -1,26 +1,23 @@
 import useSWR from "swr";
 import { Restaurant, MenuItem } from "@/types";
 import { fetcher } from "../fetcher";
-import { ALL_RESTAURANTS } from "@/data/restaurants";
 import { MOCK_MENU } from "@/data/menu";
 
 /**
- * Fetch all restaurants with SWR.
- * Fallbacks to the static mock data if the API is offline or loading.
+ * Fetch all registered restaurants from the backend database with SWR.
  */
 export const useRestaurants = () => {
-  const { data, error, isLoading, mutate } = useSWR<Restaurant[]>(
-    "/restaurants",
+  const { data: responseData, error, isLoading, mutate } = useSWR<{ success: boolean; data: Restaurant[] }>(
+    "/consumer/restaurants",
     fetcher,
     {
-      fallbackData: ALL_RESTAURANTS,
       revalidateOnMount: true,
       revalidateOnFocus: false,
     }
   );
 
   return {
-    restaurants: data || ALL_RESTAURANTS,
+    restaurants: responseData?.success ? responseData.data : [],
     isLoading,
     isError: error,
     mutate,
@@ -28,23 +25,21 @@ export const useRestaurants = () => {
 };
 
 /**
- * Fetch restaurant menu details with SWR by restaurant ID.
- * Fallbacks to the static mock menu items if the API is offline.
+ * Fetch restaurant menu details with SWR by restaurant ID from the backend database.
  */
 export const useRestaurantDetail = (id: string | undefined) => {
-  const { data, error, isLoading, mutate } = useSWR<MenuItem[]>(
-    id ? `/restaurants/${id}/menu` : null,
+  const { data: responseData, error, isLoading, mutate } = useSWR<{ success: boolean; data: MenuItem[] }>(
+    id ? `/consumer/restaurants/${id}/menu` : null,
     fetcher,
     {
-      fallbackData: MOCK_MENU,
       revalidateOnMount: true,
       revalidateOnFocus: false,
     }
   );
 
   return {
-    menuItems: data || MOCK_MENU,
-    isLoading: !data && isLoading,
+    menuItems: responseData?.success ? responseData.data : [],
+    isLoading,
     isError: error,
     mutate,
   };

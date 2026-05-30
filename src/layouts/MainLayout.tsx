@@ -18,9 +18,10 @@ import { AIChatBot } from "../shared/ui/AIChatBot";
 import { VoiceSearchModal } from "../features/search/VoiceSearchModal";
 import { ConfirmationBottomSheet } from "../shared/components/ConfirmationBottomSheet";
 
-import { ALL_RESTAURANTS } from "../data/restaurants";
+import { useRestaurants } from "../api/restaurants";
 
 export const MainLayout: React.FC = () => {
+  const { restaurants } = useRestaurants();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -112,7 +113,7 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 ${isTabRoute ? "pt-20" : ""} pb-24`}>
+      <main className={`flex-1 pb-24`}>
         <Outlet />
       </main>
 
@@ -197,7 +198,7 @@ export const MainLayout: React.FC = () => {
         <ConfirmationBottomSheet
           type={confirmModal.type}
           restaurantName={
-            ALL_RESTAURANTS.find((r) => r.id === confirmModal.restaurantId)
+            restaurants.find((r) => r.id === confirmModal.restaurantId)
               ?.name || "this restaurant"
           }
           onConfirm={executeConfirmAction}

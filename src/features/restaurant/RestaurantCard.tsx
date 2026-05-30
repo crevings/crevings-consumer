@@ -19,6 +19,7 @@ interface RestaurantCardProps {
   onHide?: (id: string | number) => void;
   onFavourite?: (id: string | number) => void;
   onItemAdd?: (itemId: string) => void;
+  menuItems?: MenuItem[];
 }
 
 export const RestaurantCard: React.FC<RestaurantCardProps> = ({
@@ -36,16 +37,24 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
   dietary = [],
   onClick,
   onItemAdd,
+  menuItems: propMenuItems = [],
 }) => {
   // Use provided images for menu items if available, otherwise use mock
   const displayImages = images.length > 0 ? images : (image ? [image] : []);
   
-  const menuItems = MOCK_MENU.filter(item => item.available !== false).slice(0, 3).map((item, index) => ({
-    ...item,
-    price: `₹${item.price}`,
-    isPopular: item.bestseller || false,
-    image: displayImages[index % displayImages.length] || item.image
-  }));
+  const menuItems = (propMenuItems && propMenuItems.length > 0)
+    ? propMenuItems.slice(0, 3).map((item) => ({
+        ...item,
+        price: `₹${item.price}`,
+        isPopular: item.bestseller || false,
+        image: item.image
+      }))
+    : MOCK_MENU.filter(item => item.available !== false).slice(0, 3).map((item, index) => ({
+        ...item,
+        price: `₹${item.price}`,
+        isPopular: item.bestseller || false,
+        image: displayImages[index % displayImages.length] || item.image
+      }));
 
   const isPureVeg = dietary.length === 1 && dietary[0] === 'veg';
   const isAd = React.useMemo(() => Math.random() > 0.7, []); // Randomly show Ad tag for demo
@@ -98,7 +107,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
               
               {item.isPopular && (
-                <div className="absolute top-0 left-0 bg-white/95 backdrop-blur-sm text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-br-[10px] shadow-sm uppercase tracking-wider">
+                <div className="absolute top-1.5 left-1.5 bg-white/95 backdrop-blur-sm text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider">
                   Bestseller
                 </div>
               )}

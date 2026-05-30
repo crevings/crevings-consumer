@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, Bike, UtensilsCrossed } from "lucide-react";
 import { Restaurant, FilterOptions } from "@/types";
-import { ALL_RESTAURANTS } from "../../data/restaurants";
+import { useRestaurants } from "../../api/restaurants";
 import { CURATED_COLLECTIONS } from "../../data/collections";
 import { MIND_CATEGORIES } from "../../data/categories";
 import { FAMOUS_BRANDS } from "../../data/brands";
@@ -30,6 +30,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onItemAdd,
   onCollectionClick,
 }) => {
+  const { restaurants, isLoading: isApiLoading } = useRestaurants();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +52,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   }, []);
 
   const visibleRestaurants = useMemo(() => {
-    let list = ALL_RESTAURANTS.filter((r) => !hiddenIds.includes(String(r.id)));
+    let list = restaurants.filter((r) => !hiddenIds.includes(String(r.id)));
 
     if (selectedBrand) {
       list = list.filter((r) =>
@@ -66,10 +67,10 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       const matchOffers = !activeFilters.offersOnly || !!r.offer;
       const matchDietary =
         activeFilters.dietary === "all" ||
-        r.dietary.includes(activeFilters.dietary);
+        (r.dietary && Array.isArray(r.dietary) && r.dietary.includes(activeFilters.dietary));
 
       let matchPrice = true;
-      if (activeFilters.priceRange) {
+      if (activeFilters.priceRange && r.price) {
         const pricePerPerson = parseInt(r.price.replace(/\D/g, "")) / 2;
         if (activeFilters.priceRange === "under49") {
           matchPrice = pricePerPerson <= 49;
@@ -113,9 +114,9 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       );
 
     return list;
-  }, [hiddenIds, activeFilters, sortMode, selectedBrand]);
+  }, [restaurants, hiddenIds, activeFilters, sortMode, selectedBrand]);
 
-  if (isLoading) {
+  if (isLoading || isApiLoading) {
     return <HomeSkeleton />;
   }
 
