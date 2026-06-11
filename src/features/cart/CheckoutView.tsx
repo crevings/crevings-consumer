@@ -37,12 +37,13 @@ import { useRestaurant } from "../../contexts/RestaurantContext";
 import { useApp } from "../../contexts/AppContext";
 import { CartItem, Order } from "@/types";
 import { CartPreviewSheet } from "./components/CartPreviewSheet";
+import { ConfirmationBottomSheet } from "../../shared/components/ConfirmationBottomSheet";
 
 export const CheckoutView: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, setCart, selectedRestaurant, menuItems } = useCart();
+  const { cart, setCart, menuItems } = useCart();
   const { currentLocation } = useAppLocation();
-  const { setActiveOrder } = useRestaurant();
+  const { setActiveOrder, selectedRestaurant } = useRestaurant();
   const { setIsLoadingView, setLoadingViewType } = useApp();
 
   // Filter suggestions purely from the restaurant's menuItems (no mock data fallback for production)
@@ -71,8 +72,10 @@ export const CheckoutView: React.FC = () => {
 
   const [orderType, setOrderType] = useState<"Delivery" | "Takeaway">("Delivery");
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [note, setNote] = useState("");
   const [showNoteSheet, setShowNoteSheet] = useState(false);
+  const [showTaxesSheet, setShowTaxesSheet] = useState(false);
   const [tempNote, setTempNote] = useState("");
   const [showCouponSheet, setShowCouponSheet] = useState(false);
   const [showCartPreview, setShowCartPreview] = useState(false);
@@ -244,10 +247,7 @@ export const CheckoutView: React.FC = () => {
           <h1 className="text-lg font-bold text-slate-900">Checkout</h1>
         </div>
         <button
-          onClick={() => {
-            setCart([]);
-            navigate("/");
-          }}
+          onClick={() => setShowClearConfirm(true)}
           className="p-2 bg-red-50 text-red-500 rounded-full active:scale-95 transition-transform"
         >
           <Trash2 className="w-4 h-4" />
@@ -645,7 +645,13 @@ export const CheckoutView: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center text-[15px]">
-              <span className="text-slate-500">GST & Other Charges</span>
+              <div 
+                className="flex items-center gap-1.5 cursor-pointer group"
+                onClick={() => setShowTaxesSheet(true)}
+              >
+                <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST & Other Charges</span>
+                <Info size={14} className="text-slate-400" />
+              </div>
               <span className="text-slate-700 font-medium">₹{taxes + platformFee}</span>
             </div>
 
@@ -899,6 +905,60 @@ export const CheckoutView: React.FC = () => {
         </div>
       )}
 
+      {/* Taxes & Charges Bottom Sheet */}
+      {showTaxesSheet && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 transition-opacity"
+          onClick={() => setShowTaxesSheet(false)}
+        >
+          <div
+            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[18px] font-bold text-slate-900">
+                GST & Other Charges
+              </h3>
+              <button
+                onClick={() => setShowTaxesSheet(false)}
+                className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-100 rounded-full"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between items-start text-[14px]">
+                <div className="flex flex-col">
+                  <span className="text-slate-700 font-medium">Restaurant GST</span>
+                  <span className="text-[12px] text-slate-500 mt-1 max-w-[240px] leading-snug">
+                    This is collected by the restaurant to pay to the government.
+                  </span>
+                </div>
+                <span className="text-slate-900 font-medium">₹{taxes}</span>
+              </div>
+              
+              <div className="border-b border-slate-100" />
+
+              <div className="flex justify-between items-start text-[14px]">
+                <div className="flex flex-col">
+                  <span className="text-slate-700 font-medium">Platform Fee</span>
+                  <span className="text-[12px] text-slate-500 mt-1 max-w-[240px] leading-snug">
+                    This helps us operate and improve the app experience for you.
+                  </span>
+                </div>
+                <span className="text-slate-900 font-medium">₹{platformFee}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
+              <span>Total</span>
+              <span>₹{taxes + platformFee}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Method Bottom Sheet */}
       {showPaymentSheet && (
         <div
@@ -1020,6 +1080,19 @@ export const CheckoutView: React.FC = () => {
           </div>
         </div>
       )}
+      <AnimatePresence>
+        {showClearConfirm && (
+          <ConfirmationBottomSheet
+            type="clear_cart"
+            onConfirm={() => {
+              setCart([]);
+              setShowClearConfirm(false);
+              navigate("/");
+            }}
+            onClose={() => setShowClearConfirm(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

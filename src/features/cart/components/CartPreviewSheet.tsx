@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShoppingCart, Trash2, X, Plus, Minus, ChevronRight } from 'lucide-react';
 import { CartItem } from '@/types';
+import { ConfirmationBottomSheet } from '../../../shared/components/ConfirmationBottomSheet';
 
 interface CartPreviewSheetProps {
   showCartPreview: boolean;
@@ -28,7 +29,10 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
   checkoutButtonText = "Proceed to Checkout",
   checkoutButtonPrice
 }) => {
+  const [showClearConfirm, setShowClearConfirm] = React.useState(false);
+
   return (
+    <>
     <AnimatePresence>
       {showCartPreview && totalItems > 0 && (
         <>
@@ -59,7 +63,10 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => { setCart([]); setShowCartPreview(false); }}
+                  onClick={() => {
+                    setShowCartPreview(false);
+                    setShowClearConfirm(true);
+                  }}
                   className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-full active:scale-95 transition-transform"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -129,5 +136,21 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
         </>
       )}
     </AnimatePresence>
+    <AnimatePresence>
+      {showClearConfirm && (
+        <ConfirmationBottomSheet
+          type="clear_cart"
+          onConfirm={() => {
+            setCart([]);
+            setShowClearConfirm(false);
+          }}
+          onClose={() => {
+            setShowClearConfirm(false);
+            setShowCartPreview(true);
+          }}
+        />
+      )}
+    </AnimatePresence>
+    </>
   );
 };

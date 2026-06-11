@@ -2,17 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, MoreVertical, Heart, Share2, Info, EyeOff, Star, ChevronRight } from 'lucide-react';
 
+import { Restaurant } from '@/types';
+
 interface RestaurantHeaderProps {
-  restaurant: {
-    name: string;
-    images?: string[];
-    cuisine: string;
-    rating: number;
-    ratingCount: string;
-    distance: string;
-    time: string;
-    price: string;
-  };
+  restaurant: Restaurant;
   onBack: () => void;
   isFavourite?: boolean;
   onFavourite?: () => void;
@@ -170,7 +163,7 @@ export const RestaurantHeader: React.FC<RestaurantHeaderProps> = ({
               <span className="text-[12px] leading-none pb-[1px]">{restaurant.rating}</span>
               <Star className="w-3 h-3 fill-white" />
             </div>
-            <span className="text-slate-500 text-[10px] font-medium mt-1 leading-none whitespace-nowrap">{restaurant.ratingCount} ratings</span>
+            <span className="text-slate-500 text-[10px] font-medium mt-1 leading-none whitespace-nowrap">{restaurant.ratingCount || "100+"} ratings</span>
           </div>
           <span className="text-slate-300 text-[10px] pt-1.5">●</span>
           <span className="text-[13px] font-bold text-slate-700 pt-0.5">{restaurant.distance}</span>

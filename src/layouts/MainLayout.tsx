@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { ChevronUp, Trash2 } from "lucide-react";
@@ -17,6 +17,8 @@ import { ActiveOrderSnackbar } from "../features/orders/components/ActiveOrderSn
 import { AIChatBot } from "../shared/ui/AIChatBot";
 import { VoiceSearchModal } from "../features/search/VoiceSearchModal";
 import { ConfirmationBottomSheet } from "../shared/components/ConfirmationBottomSheet";
+import { FloatingCartBar } from "../features/restaurant/components/FloatingCartBar";
+import { CartPreviewSheet } from "../features/cart/components/CartPreviewSheet";
 
 import { useRestaurants } from "../api/restaurants";
 
@@ -26,7 +28,36 @@ export const MainLayout: React.FC = () => {
   const location = useLocation();
 
   const { isVoiceSearchOpen, setIsVoiceSearchOpen, setSearchQuery, setIsLoadingView, setLoadingViewType } = useApp();
-  const { cart, setCart, selectedRestaurant } = useCart();
+  const { cart, setCart } = useCart();
+  const [showCartPreview, setShowCartPreview] = useState(false);
+  
+  const totalItems = cart.reduce((sum, c) => sum + c.quantity, 0);
+  const totalPrice = cart.reduce((sum, c) => sum + c.totalPrice, 0);
+
+  const handleCartQuantityChange = (cartItemId: string, delta: number) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.cartItemId === cartItemId);
+      if (!existing) return prev;
+
+      if (existing.quantity + delta <= 0) {
+        return prev.filter((item) => item.cartItemId !== cartItemId);
+      }
+
+      return prev.map((item) => {
+        if (item.cartItemId === cartItemId) {
+          const newQuantity = item.quantity + delta;
+          const unitPrice = item.totalPrice / item.quantity;
+          return {
+            ...item,
+            quantity: newQuantity,
+            totalPrice: unitPrice * newQuantity,
+          };
+        }
+        return item;
+      });
+    });
+  };
+
   const { currentLocation, addresses } = useAppLocation();
   const {
     activeOrder,
@@ -37,6 +68,7 @@ export const MainLayout: React.FC = () => {
     setFavouriteRestaurantIds,
     hiddenRestaurantIds,
     setHiddenRestaurantIds,
+    selectedRestaurant,
   } = useRestaurant();
 
   const { showBackToTop, isNavVisible, scrollToTop } = useScrollBehavior();
@@ -142,39 +174,41 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Cart Snackbar (Sticky bottom checkout bar) */}
-      {isHome && cart.length > 0 && selectedRestaurant && (
-        <div className="fixed bottom-[80px] left-4 right-4 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 p-4 z-40 flex items-center justify-between animate-fadeInUp">
-          <div className="flex-1 overflow-hidden pr-2">
-            <h4 className="font-bold text-slate-900 text-sm truncate">
-              {selectedRestaurant.name}
-            </h4>
-            <p className="text-xs text-slate-500 font-medium">
-              {cart.length} item{cart.length > 1 ? "s" : ""} in cart
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setIsLoadingView(true);
-                setLoadingViewType("checkout");
-                setTimeout(() => {
-                  navigate("/checkout");
-                  setIsLoadingView(false);
-                }, 2500);
-              }}
-              className="text-xs font-bold text-white bg-green-600 px-4 py-2.5 rounded-xl active:scale-95 transition-all shadow-sm shadow-green-600/20"
-            >
-              View Cart
-            </button>
-            <button
-              onClick={() => setCart([])}
-              className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl active:scale-95 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+      {isTabRoute && cart.length > 0 && selectedRestaurant && (
+        <FloatingCartBar
+          className="bottom-20"
+          totalItems={totalItems}
+          totalPrice={totalPrice}
+          onPreviewClick={() => setShowCartPreview(true)}
+          onCheckoutClick={() => {
+            setIsLoadingView(true);
+            setLoadingViewType("checkout");
+            setTimeout(() => {
+              navigate("/checkout");
+              setIsLoadingView(false);
+            }, 2500);
+          }}
+        />
       )}
+
+      {/* Cart Preview Sheet */}
+      <CartPreviewSheet
+        showCartPreview={showCartPreview}
+        setShowCartPreview={setShowCartPreview}
+        cart={cart}
+        setCart={setCart}
+        totalItems={totalItems}
+        totalPrice={totalPrice}
+        handleQuantityChange={handleCartQuantityChange}
+        onCheckoutClick={() => {
+          setIsLoadingView(true);
+          setLoadingViewType("checkout");
+          setTimeout(() => {
+            navigate("/checkout");
+            setIsLoadingView(false);
+          }, 2500);
+        }}
+      />
 
       {/* AI Chatbot */}
       <AIChatBot

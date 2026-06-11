@@ -7,6 +7,7 @@ interface FloatingCartBarProps {
   onPreviewClick: () => void;
   onCheckoutClick: () => void;
   checkoutButtonText?: string;
+  className?: string;
 }
 
 export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
@@ -14,12 +15,13 @@ export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
   totalPrice,
   onPreviewClick,
   onCheckoutClick,
-  checkoutButtonText = "Checkout"
+  checkoutButtonText = "Checkout",
+  className = "bottom-4"
 }) => {
   if (totalItems <= 0) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 animate-[slideUp_0.3s_ease-out]">
+    <div className={`fixed ${className} left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 animate-[slideUp_0.3s_ease-out]`}>
       <div className="bg-white rounded-2xl p-3.5 flex items-center justify-between text-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
         <button 
           onClick={onPreviewClick}

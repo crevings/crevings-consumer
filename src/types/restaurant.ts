@@ -14,6 +14,7 @@ export interface Restaurant {
   name: string;
   cuisine: string;
   rating: number;
+  ratingCount?: string;
   time: string;
   timeValue: number;
   price: string;
