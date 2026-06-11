@@ -41,20 +41,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 5; // 20 steps
-      });
-      setTimeLeft(prev => {
-        if (prev <= 0) return 0;
-        return prev - 3; // 60s total
-      });
-    }, 3000);
-    return () => clearInterval(interval);
+    // Auto-advancing progress animation disabled so the status remains static at the initial stage.
   }, []);
 
   return (
@@ -193,6 +180,25 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </div>
           </div>
 
+          {/* Map Card */}
+          <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden relative border border-slate-100 shadow-sm">
+            <img 
+              src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&h=450&fit=crop" 
+              alt="Live tracking map" 
+              className="w-full h-full object-cover"
+            />
+            {/* Overlay button */}
+            {order.type === 'Delivery' && (
+              <button 
+                onClick={() => setShowMap(true)}
+                className="absolute bottom-4 right-4 bg-white/90 backdrop-blur text-slate-800 text-sm font-bold px-4 py-2 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-2"
+              >
+                <MapIcon className="w-4 h-4 text-blue-600" /> 
+                Live Track
+              </button>
+            )}
+          </div>
+
           {/* OTP Card (MOST IMPORTANT) */}
           {order.type === 'Takeaway' ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-center">
@@ -245,8 +251,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
               {order.type === 'Delivery' && (
                 <button 
                   onClick={() => setShowMap(true)}
-                  disabled={progress < 50}
-                  className={`text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${progress >= 50 ? 'bg-blue-50 text-blue-600 active:scale-95' : 'bg-slate-50 text-slate-400 cursor-not-allowed'}`}
+                  className="text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors bg-blue-50 text-blue-600 active:scale-95"
                 >
                   <MapIcon className="w-4 h-4" /> View Map
                 </button>
@@ -254,8 +259,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </div>
             
             <div className="relative pl-3">
-              <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-slate-100" />
-              <div className="absolute left-[15px] top-3 w-0.5 bg-[#00bd6f] transition-all duration-1000" style={{ height: `${progress}%` }} />
+              <div className="absolute left-[27px] top-3 bottom-3 w-0.5 bg-slate-100" />
+              <div className="absolute left-[27px] top-3 w-0.5 bg-[#00bd6f] transition-all duration-1000" style={{ height: `${progress}%` }} />
               
               <div className="space-y-6 relative">
                 <div className="flex gap-4">

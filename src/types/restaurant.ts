@@ -9,6 +9,7 @@ export interface FilterOptions {
 }
 
 export interface Restaurant {
+  [x: string]: string;
   id: string;
   name: string;
   cuisine: string;

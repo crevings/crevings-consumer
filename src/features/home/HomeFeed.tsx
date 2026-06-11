@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, Bike, UtensilsCrossed } from "lucide-react";
+import { SlidersHorizontal, Bike, UtensilsCrossed, Star, Store, ChevronRight } from "lucide-react";
 import { Restaurant, FilterOptions } from "@/types";
 import { useRestaurants } from "../../api/restaurants";
 import { CURATED_COLLECTIONS } from "../../data/collections";
 import { MIND_CATEGORIES } from "../../data/categories";
-import { FAMOUS_BRANDS } from "../../data/brands";
-import { HomeSkeleton } from "./HomeSkeleton";
+import { Skeleton } from "boneyard-js/react";
 import { RestaurantCard } from "../restaurant/RestaurantCard";
 import { FilterBottomSheet } from "../../shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "../../shared/components/SortBottomSheet";
+import { ITEMS_UNDER_89 } from "../../data/itemsUnder89";
 
 interface HomeFeedProps {
   onCategoryClick: (name: string) => void;
@@ -116,17 +116,15 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     return list;
   }, [restaurants, hiddenIds, activeFilters, sortMode, selectedBrand]);
 
-  if (isLoading || isApiLoading) {
-    return <HomeSkeleton />;
-  }
 
   const firstFive = visibleRestaurants.slice(0, 5);
   const remaining = visibleRestaurants.slice(5);
 
   return (
-    <div className="pb-8 animate-fadeInUp">
-      <div className="mb-8 pl-4">
-        <div className="flex gap-4 overflow-x-auto no-scrollbar pr-4">
+    <Skeleton name="home-feed" loading={isLoading || isApiLoading}>
+      <div className="pb-8 animate-fadeInUp">
+      <div className="mb-8 px-4">
+        <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4">
           <div className="w-[340px] h-[112px] bg-slate-900 rounded-[24px] p-4 text-white relative overflow-hidden shrink-0">
             <div className="relative z-10 h-full flex justify-between items-center">
               <div>
@@ -228,51 +226,72 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
         </div>
       </div>
 
-      {/* Famous Brands Section */}
+      {/* Items Under ₹99 Section */}
       <div className="mb-10 px-4">
-        <h3 className="text-base font-bold text-slate-900 mb-4 tracking-tight">
-          Top Brands for You
-        </h3>
-        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-          {FAMOUS_BRANDS.map((brand) => (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[19px] font-black text-slate-900 tracking-tight">
+            Items under ₹99
+          </h3>
+          <span className="text-[13px] font-bold text-blue-600 active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer">
+            See all <ChevronRight className="w-4 h-4" />
+          </span>
+        </div>
+        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 snap-x -mt-1">
+          {ITEMS_UNDER_89.map((item) => (
             <div
-              key={brand.id}
-              onClick={() =>
-                setSelectedBrand(
-                  selectedBrand === brand.name ? null : brand.name
-                )
-              }
-              className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer active:scale-95 transition-transform"
+              key={item.id}
+              className="min-w-[140px] w-[140px] flex flex-col shrink-0 snap-center cursor-pointer group"
             >
-              <div
-                className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden transition-all ${
-                  selectedBrand === brand.name
-                    ? "border-blue-500 ring-4 ring-blue-100"
-                    : "border-slate-100/50"
-                }`}
-              >
+              {/* Image Container */}
+              <div className="relative rounded-[20px] overflow-hidden aspect-square border border-slate-100/50 mb-2.5 transform transition-all duration-300 group-active:scale-95">
                 <img
-                  src={brand.image}
-                  alt={brand.name}
-                  className="w-full h-full object-cover transition-transform duration-500"
+                  src={item.image}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  alt={item.name}
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                {/* Rating Badge */}
+                <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-md rounded-lg px-1.5 py-1 flex items-center gap-0.5 shadow-sm">
+                  <Star className="w-3 h-3 text-orange-500 fill-orange-500" strokeWidth={2} />
+                  <span className="text-slate-800 text-[10px] font-bold leading-none mt-0.5">
+                    {item.rating}
+                  </span>
+                </div>
+
+                {/* Price + ADD button */}
+                <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-end justify-between z-10">
+                  <div className="flex flex-col">
+                    <span className="text-white/70 text-[10px] font-semibold leading-none line-through mb-0.5">
+                      {item.originalPrice}
+                    </span>
+                    <span className="text-white font-black text-[16px] leading-none">
+                      {item.price}
+                    </span>
+                  </div>
+                  <button className="bg-white text-[#f34a6e] border border-white px-3 py-1.5 rounded-[10px] text-[12px] font-bold shadow-md hover:bg-slate-50 active:scale-90 transition-transform">
+                    ADD
+                  </button>
+                </div>
               </div>
-              <span
-                className={`text-xs font-bold transition-colors ${
-                  selectedBrand === brand.name
-                    ? "text-blue-600"
-                    : "text-slate-600 group-hover:text-slate-900"
-                }`}
-              >
-                {brand.name}
-              </span>
+
+              {/* Details */}
+              <div className="flex flex-col gap-0.5 px-0.5">
+                <h4 className="text-slate-900 font-bold text-[15px] leading-snug line-clamp-1 group-hover:text-[#f34a6e] transition-colors">
+                  {item.name}
+                </h4>
+                <div className="flex items-center gap-1 text-slate-500 text-[12px] font-medium leading-tight">
+                  <Store className="w-3 h-3 opacity-70" />
+                  <span className="truncate">{item.restaurant}</span>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
       <div className="px-4 mb-6">
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center -mx-4 px-4">
           <button
             onClick={() => setIsFilterOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0 active:bg-slate-50"
@@ -473,5 +492,6 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
         )}
       </div>
     </div>
+    </Skeleton>
   );
 };

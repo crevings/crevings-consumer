@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical, Sparkles, ShoppingCart } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Restaurant, MenuItem, CartItem } from "@/types";
 import { CustomizationBottomSheet } from "@/features/restaurant/components/CustomizationBottomSheet";
@@ -7,6 +7,8 @@ import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
 import { useRestaurantDetail } from "../../api/restaurants";
+import { useCart } from "../../contexts/CartContext";
+import { Skeleton } from "boneyard-js/react";
 
 interface RestaurantDetailViewProps {
   restaurant: Restaurant;
@@ -36,7 +38,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   autoAddItem
 }) => {
   const { menuItems, isLoading: isMenuLoading } = useRestaurantDetail(restaurant.id);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const { cart, setCart } = useCart();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('default');
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -50,6 +52,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   const [selectedMenuItemDetail, setSelectedMenuItemDetail] = useState<MenuItem | null>(null);
   const [isMenuItemDetailOpen, setIsMenuItemDetailOpen] = useState(false);
   const [isBannerMenuOpen, setIsBannerMenuOpen] = useState(false);
+  const [showCartPreview, setShowCartPreview] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     'Bestsellers': true,
     'Starters': true,
@@ -59,6 +62,19 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   });
   const [showBackToTop, setShowBackToTop] = useState(false);
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+  const [isCopied, setIsCopied] = useState(false);
+
+  React.useEffect(() => {
+    setIsCopied(false);
+  }, [selectedOffer]);
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setIsCopied(true);
+    setTimeout(() => {
+      setIsCopied(false);
+    }, 2000);
+  };
 
   React.useEffect(() => {
     if (autoAddItem) {
@@ -67,7 +83,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         setSelectedAddonItem(item);
       }
     }
-  }, [autoAddItem]);
+  }, [autoAddItem, menuItems]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -126,6 +142,35 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     });
   };
 
+  const handleCartQuantityChange = (cartItemId: string, delta: number) => {
+    setCart(prev => {
+      const updated = prev
+        .map(item => {
+          if (item.cartItemId === cartItemId) {
+            const newQty = item.quantity + delta;
+            if (newQty <= 0) return null;
+            const basePrice = item.item.price;
+            const variantPrice = item.variant ? item.variant.price : 0;
+            const addonsPrice = (item.selectedAddons || []).reduce((s, a) => s + a.price * a.quantity, 0);
+            const sidesPrice = (item.selectedSides || []).reduce((s, a) => s + a.price * a.quantity, 0);
+            const singlePrice = basePrice + variantPrice + addonsPrice + sidesPrice;
+            return {
+              ...item,
+              quantity: newQty,
+              totalPrice: singlePrice * newQty
+            };
+          }
+          return item;
+        })
+        .filter(Boolean) as CartItem[];
+
+      if (updated.length === 0) {
+        setShowCartPreview(false);
+      }
+      return updated;
+    });
+  };
+
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -164,15 +209,19 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   // Add Bestsellers if any exist
   const bestsellerCount = filteredMenu.filter(i => i.bestseller).length;
   if (bestsellerCount > 0) {
-    categories.unshift({ name: 'Bestsellers', count: bestsellerCount });
+    if (!categories.some(c => c.name === 'Bestsellers')) {
+      categories.unshift({ name: 'Bestsellers', count: bestsellerCount });
+    }
   }
 
+
   return (
-    <div 
-      ref={scrollContainerRef}
-      onScroll={handleScroll}
-      className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto no-scrollbar pb-24"
-    >
+    <Skeleton name="restaurant-detail" loading={isMenuLoading}>
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto no-scrollbar pb-24"
+      >
       
       {/* Hero Image Section */}
       <div className="relative aspect-[2/3] max-h-[500px] w-full shrink-0">
@@ -275,14 +324,21 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         
         {/* Restaurant Header Info */}
         <div className="flex flex-col items-center text-center gap-1.5 mb-6">
-          <div className="w-16 h-16 bg-white rounded-2xl border border-slate-100 flex items-center justify-center overflow-hidden mb-2 -mt-14 z-30 relative">
-            <img 
-              src={(restaurant.images && restaurant.images[0]) || "https://images.unsplash.com/photo-1498931299472-f7a63a5a1cfa?w=200&h=200&fit=crop"} 
-              alt={`${restaurant.name} logo`}
-              className="w-full h-full object-cover"
-            />
+          {/* Restaurant Quality Tags */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2 mb-2">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
+              <div className="w-3 h-3 flex items-center justify-center border border-green-600 rounded-[2px]">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+              </div>
+              <span className="text-[11px] font-bold text-green-700 leading-none">Pure Veg</span>
+            </div>
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#00bd6f]/10 border border-[#00bd6f]/20 rounded-lg">
+              <Star className="w-3.5 h-3.5 text-[#00bd6f] fill-[#00bd6f]" />
+              <span className="text-[11px] font-bold text-[#00bd6f] leading-none">Best in Pizzas</span>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none">{restaurant.name}</h1>
+
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none pt-2">{restaurant.name}</h1>
           
           <button onClick={() => setIsOutletsOpen(true)} className="flex items-center gap-1 text-sm text-slate-800 font-bold mt-1 active:scale-95 transition-transform bg-slate-50 px-3 py-1 rounded-full">
             <span>{selectedOutlet}</span>
@@ -292,42 +348,24 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
           <p className="text-sm text-slate-500 font-medium mt-1">
             {restaurant.cuisine}
           </p>
-          
-          <div className="flex items-center gap-2 text-sm font-medium mt-0.5">
+          <div className="flex items-start justify-center gap-2.5 mt-2">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-0.5 bg-[#21c55e] text-white px-1.5 py-0.5 rounded shadow-sm">
+                <span className="text-[12px] leading-none pb-[1px]">{restaurant.rating}</span>
+                <Star className="w-3 h-3 fill-white" />
+              </div>
+              <span className="text-slate-500 text-[10px] font-medium mt-1 leading-none whitespace-nowrap">{restaurant.ratingCount} ratings</span>
+            </div>
+            <span className="text-slate-300 text-[10px] pt-1.5">●</span>
+            <span className="text-[13px] font-bold text-slate-700 pt-0.5">{restaurant.distance}</span>
+            <span className="text-slate-300 text-[10px] pt-1.5">●</span>
+            <span className="text-[13px] font-bold text-slate-700 pt-0.5">{restaurant.time}</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-[12px] font-medium mt-2">
             <span className="text-slate-600">{restaurant.price}</span>
             <span className="text-slate-300">|</span>
             <span className="text-emerald-600 font-bold">Open</span>
-          </div>
-        </div>
-
-        {/* Metrics Row */}
-        <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
-          <div className="flex flex-col items-center gap-1 flex-1">
-            <div className="flex items-center gap-1 text-slate-900 font-bold">
-              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-              <span>{restaurant.rating}</span>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">Rating</span>
-          </div>
-          
-          <div className="w-px h-8 bg-slate-200" />
-          
-          <div className="flex flex-col items-center gap-1 flex-1">
-            <div className="flex items-center gap-1 text-slate-900 font-bold">
-              <MapPin className="w-4 h-4 text-blue-600" />
-              <span>{restaurant.distance}</span>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">Distance</span>
-          </div>
-          
-          <div className="w-px h-8 bg-slate-200" />
-          
-          <div className="flex flex-col items-center gap-1 flex-1">
-            <div className="flex items-center gap-1 text-slate-900 font-bold">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <span>{restaurant.time}</span>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">Delivery</span>
           </div>
         </div>
 
@@ -335,8 +373,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4">
           {/* Offer Card 1 */}
           <div 
-            onClick={() => setSelectedOffer({ title: '25% OFF', subtitle: 'Selected Items', code: 'TRYNEW' })}
-            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
+            onClick={() => setSelectedOffer({ title: 'Get 25% off upto ₹50', subtitle: 'On selected items', code: 'TRYNEW' })}
+            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold text-black leading-tight">Get 25% off upto ₹50</span>
@@ -347,8 +385,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
           {/* Offer Card 2 */}
           <div 
-            onClick={() => setSelectedOffer({ title: 'Flat ₹150 OFF', subtitle: 'Above ₹499', code: 'JUMBO' })}
-            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
+            onClick={() => setSelectedOffer({ title: 'Flat ₹150 OFF', subtitle: 'On orders above ₹499', code: 'JUMBO' })}
+            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold text-black leading-tight">Flat ₹150 OFF</span>
@@ -360,7 +398,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
           {/* Offer Card 3 */}
           <div 
             onClick={() => setSelectedOffer({ title: 'Free Delivery', subtitle: 'On all orders', code: 'FREEDEL' })}
-            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between shadow-sm cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
+            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
           >
             <div className="flex flex-col">
               <span className="text-sm font-bold text-black leading-tight">Free Delivery</span>
@@ -372,7 +410,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
         {/* Search Bar */}
         <div className="flex items-center gap-2 mb-6 relative z-10">
-          <div className="flex-1 flex items-center justify-between px-4 py-1.5 bg-white border border-slate-200 rounded-[1.25rem] shadow-sm transition-all focus-within:border-slate-300">
+          <div className="flex-1 flex items-center justify-between px-4 py-1.5 bg-white border border-slate-200 rounded-[1.25rem] transition-all focus-within:border-slate-300">
             <div className="flex items-center gap-3 flex-1">
               <Search className="w-5 h-5 text-slate-900 stroke-[2.5] shrink-0" />
               <input 
@@ -472,9 +510,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
               const isExpanded = expandedCategories[category.name];
               const categoryItems = category.name === 'Bestsellers' 
                 ? filteredMenu.filter(item => item.bestseller)
-                : filteredMenu.filter(item => item.category === category.name);
+                : filteredMenu.filter(item => (item.category || 'Main Course') === category.name);
               
-              // Show category if it has items
               if (categoryItems.length === 0) return null;
 
               return (
@@ -484,7 +521,15 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                     className="w-full flex items-center justify-between px-4 py-4 bg-gray-50/50 rounded-xl mb-4"
                   >
                     <div className="text-left">
-                      <h3 className="text-[18px] font-bold text-gray-900">{category.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[18px] font-bold text-gray-900">{category.name}</h3>
+                        {category.name === 'Bestsellers' && (
+                          <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">FLAT 30% OFF</span>
+                        )}
+                        {category.name === 'Pizzas' && (
+                          <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">BOGO OFFER</span>
+                        )}
+                      </div>
                       <p className="text-[13px] text-gray-500 font-medium mt-0.5">{category.count} items</p>
                     </div>
                     {isExpanded ? (
@@ -495,101 +540,130 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                   </button>
 
                   {isExpanded && (
-                    <div className="flex overflow-x-auto gap-3 pb-4 snap-x snap-mandatory no-scrollbar -mx-4 px-4">
+                    <div className="flex flex-col gap-4 pb-4 px-4 -mx-4">
                       {categoryItems.map((item) => (
                         <div 
                           key={item.id} 
-                          className={`relative flex flex-col p-1.5 rounded-2xl border transition-all shrink-0 w-[160px] snap-start ${
-                            getItemQuantity(item.id) > 0
-                              ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]' 
-                              : 'border-gray-200 bg-white shadow-sm'
+                          className={`flex border border-gray-200 rounded-2xl p-2.5 bg-white relative transition-all ${
+                            getItemQuantity(item.id) > 0 ? 'border-[#00bd6f] bg-[#f4fdf8]' : ''
                           } ${item.available === false ? 'opacity-50 grayscale' : ''}`}
                         >
-                          {/* Top: Image & Tags */}
+                          {/* Image side */}
                           {item.image && (
                             <div 
-                              className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 mb-2 cursor-pointer"
+                              className="relative w-[130px] h-[130px] shrink-0 mr-3 cursor-pointer"
                               onClick={() => {
                                 setSelectedMenuItemDetail(item);
                                 setIsMenuItemDetailOpen(true);
                               }}
                             >
-                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                              <div className="absolute top-1.5 left-1.5 bg-white/95 p-1 rounded-md shadow-sm">
-                                <div className={`w-3 h-3 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-[14px]" />
+                              
+                              {/* Veg/Nonveg badge top-left */}
+                              <div className="absolute top-1.5 left-1.5 bg-white p-0.5 rounded shadow-sm">
+                                <div className={`w-3.5 h-3.5 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
                                   {item.isVeg ? (
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
                                   ) : item.isEgg ? (
                                     <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
                                   ) : (
-                                    <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px] border-b-red-600" />
+                                    <div className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[5px] border-b-red-600" />
                                   )}
                                 </div>
                               </div>
-                              <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-green-50/95 backdrop-blur-sm px-1.5 py-0.5 rounded text-green-700 shadow-sm">
-                                <Star className="w-3 h-3 fill-current" />
-                                <span className="text-[11px] font-bold">{item.rating}</span>
-                                <span className="text-[10px] opacity-80">({item.ratingCount})</span>
-                              </div>
                             </div>
                           )}
+
                           {!item.image && (
-                            <div className="flex items-center justify-between mb-2 px-1.5 pt-1.5">
-                              <div className={`w-4 h-4 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-                                {item.isVeg ? (
-                                  <div className="w-2 h-2 rounded-full bg-green-600" />
-                                ) : item.isEgg ? (
-                                  <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                                ) : (
-                                  <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-red-600" />
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded text-green-700">
-                                <Star className="w-3 h-3 fill-current" />
-                                <span className="text-[11px] font-bold">{item.rating}</span>
-                                <span className="text-[10px] opacity-80">({item.ratingCount})</span>
+                            <div className="relative shrink-0 mr-3 w-[24px]">
+                              <div className="absolute top-1 bg-white p-0.5 rounded shadow-sm">
+                                <div className={`w-3.5 h-3.5 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
+                                  {item.isVeg ? (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
+                                  ) : item.isEgg ? (
+                                    <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                                  ) : (
+                                    <div className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[5px] border-b-red-600" />
+                                  )}
+                                </div>
                               </div>
                             </div>
                           )}
 
-                          {/* Middle: Name & Description */}
-                          <div className="flex-1 mb-2 px-1.5">
-                            <h4 className="text-[14px] font-bold text-gray-900 leading-tight mb-1">{item.name}</h4>
-                            {item.description && (
-                              <p className="text-[11px] text-gray-500 line-clamp-2 leading-snug">{item.description}</p>
-                            )}
-                            {item.available === false && (
-                              <span className="inline-block mt-1.5 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wide">Unavailable</span>
-                            )}
-                          </div>
-
-                          {/* Bottom: Price & Action */}
-                          <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 px-1.5 pb-1">
-                            <span className="text-[14px] font-black text-gray-900">₹{item.price}</span>
+                          {/* Content side */}
+                          <div className="flex-1 flex flex-col pt-1">
+                            <div className="flex gap-1.5 mb-1.5">
+                              {item.bestseller && (
+                                <span className="text-[10px] items-center font-bold text-[#b45309] bg-[#fef3c7] px-1.5 py-0.5 rounded uppercase tracking-wide">Bestseller</span>
+                              )}
+                              {item.spicy && (
+                                <span className="text-[10px] items-center font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded uppercase tracking-wide">Spicy</span>
+                              )}
+                            </div>
+                            <div className="flex justify-between items-start">
+                              <h4 className="text-[16px] font-bold text-gray-900 leading-tight pr-2">{item.name}</h4>
+                            </div>
                             
-                            {getItemQuantity(item.id) > 0 ? (
-                              <div className="flex items-center justify-between bg-[#00bd6f] rounded-lg h-7 px-1 min-w-[64px] shadow-sm">
-                                <button onClick={() => handleRemove(item.id)} className="w-6 h-full flex items-center justify-center text-white active:scale-95">
-                                  <Minus className="w-3.5 h-3.5 stroke-[3]" />
-                                </button>
-                                <span className="text-[12px] font-bold text-white">{getItemQuantity(item.id)}</span>
-                                <button onClick={() => handleAdd(item.id)} className="w-6 h-full flex items-center justify-center text-white active:scale-95">
-                                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                                </button>
-                              </div>
-                            ) : (
-                              <button 
-                                onClick={() => item.available !== false && handleAdd(item.id)} 
-                                disabled={item.available === false}
-                                className={`px-3 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 transition-transform shadow-sm ${
-                                  item.available === false 
-                                    ? 'bg-gray-50 text-gray-400 border border-gray-200' 
-                                    : 'bg-white text-[#00bd6f] border border-[#00bd6f]/30 hover:bg-[#f4fdf8] active:scale-95'
-                                }`}
-                              >
-                                ADD
-                              </button>
+                            {item.description && (
+                              <p className="text-[13px] text-gray-500 line-clamp-2 leading-snug mt-1.5">{item.description}</p>
                             )}
+
+                            {/* Individual Item Offer Tag */}
+                            {item.bestseller && (
+                              <div className="mt-2.5">
+                                <div className="inline-flex items-center gap-1 bg-[#00bd6f]/10 px-1.5 py-0.5 rounded-[4px] border border-[#00bd6f]/20">
+                                  <Percent className="w-3 h-3 text-[#00bd6f]" />
+                                  <span className="text-[9px] font-bold text-[#00bd6f] uppercase tracking-wider">Buy 1 Get 1 Free</span>
+                                </div>
+                              </div>
+                            )}
+                            {item.category === 'Pizzas' && !item.bestseller && (
+                              <div className="mt-2.5">
+                                <div className="inline-flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-[4px] border border-blue-100">
+                                  <Percent className="w-3 h-3 text-blue-600" />
+                                  <span className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Flat ₹100 Off</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Tags layer (if unavailable, show that) */}
+                            {item.available === false && (
+                              <div className="mt-1.5">
+                                <span className="inline-block text-[10px] items-center font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wide">Unavailable</span>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center justify-between mt-auto pt-2">
+                              {/* Price & Tags */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-[17px] font-black text-gray-900 leading-none">₹{item.price}</span>
+                              </div>
+                              
+                              {/* Action Button */}
+                              {getItemQuantity(item.id) > 0 ? (
+                                <div className="flex items-center justify-between bg-[#21c55e] rounded-full h-[32px] px-1 min-w-[80px]">
+                                  <button onClick={() => handleRemove(item.id)} className="w-7 h-full flex items-center justify-center text-white active:scale-95">
+                                    <Minus className="w-4 h-4 stroke-[3]" />
+                                  </button>
+                                  <span className="text-[14px] font-black text-white">{getItemQuantity(item.id)}</span>
+                                  <button onClick={() => handleAdd(item.id)} className="w-7 h-full flex items-center justify-center text-white active:scale-95">
+                                    <Plus className="w-4 h-4 stroke-[3]" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button 
+                                  onClick={() => item.available !== false && handleAdd(item.id)} 
+                                  disabled={item.available === false}
+                                  className={`px-5 py-1.5 rounded-full font-black text-[13px] flex items-center transition-transform tracking-wide ${
+                                    item.available === false 
+                                      ? 'bg-gray-100 text-gray-400' 
+                                      : 'bg-[#21c55e] text-white hover:bg-[#16a34a] active:scale-95'
+                                  }`}
+                                >
+                                  ADD
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -605,28 +679,126 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       {/* Bottom Cart Bar */}
       {totalItems > 0 && (
         <div className="fixed bottom-4 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 animate-[slideUp_0.3s_ease-out]">
-          <div className="bg-white rounded-2xl p-4 flex items-center justify-between text-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setCart([])}
-                className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-full active:scale-95 transition-transform"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-              <div>
-                <div className="font-bold text-[15px] text-gray-900">{totalItems} item{totalItems > 1 ? 's' : ''}</div>
-                <div className="text-[13px] font-medium text-[#00bd6f]">Total ₹{totalPrice}</div>
+          <div className="bg-white rounded-2xl p-3.5 flex items-center justify-between text-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
+            <button 
+              onClick={() => setShowCartPreview(true)}
+              className="flex items-center gap-3 flex-1 min-w-0"
+            >
+              <div className="relative w-10 h-10 flex items-center justify-center bg-[#00bd6f]/10 rounded-full shrink-0">
+                <ShoppingCart className="w-5 h-5 text-[#00bd6f]" />
+                <span className="absolute -top-1 -right-1 bg-[#00bd6f] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">{totalItems}</span>
               </div>
-            </div>
+              <div className="text-left min-w-0">
+                <div className="font-bold text-[15px] text-gray-900">{totalItems} item{totalItems > 1 ? 's' : ''}</div>
+                <div className="text-[13px] font-medium text-[#00bd6f]">₹{totalPrice} · Tap to view</div>
+              </div>
+            </button>
             <button 
               onClick={() => onCheckout(cart, menuItems)}
-              className="flex items-center gap-1.5 font-bold text-[15px] bg-[#00bd6f] text-white px-5 py-2.5 rounded-xl active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 font-bold text-[14px] bg-[#00bd6f] text-white px-4 py-2.5 rounded-xl active:scale-95 transition-transform shrink-0 ml-2"
             >
-              View Cart <ChevronRight className="w-5 h-5" />
+              Checkout <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
+
+      {/* Cart Preview Bottom Sheet */}
+      <AnimatePresence>
+        {showCartPreview && totalItems > 0 && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+              onClick={() => setShowCartPreview(false)}
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 max-h-[75vh] flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 pb-3 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#00bd6f]/10 rounded-full flex items-center justify-center">
+                    <ShoppingCart className="w-5 h-5 text-[#00bd6f]" />
+                  </div>
+                  <div>
+                    <h2 className="text-[18px] font-black text-slate-900">Your Cart</h2>
+                    <p className="text-[12px] text-slate-500 font-medium">{totalItems} item{totalItems > 1 ? 's' : ''} · ₹{totalPrice}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => { setCart([]); setShowCartPreview(false); }}
+                    className="w-9 h-9 flex items-center justify-center bg-red-50 text-red-500 rounded-full active:scale-95 transition-transform"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setShowCartPreview(false)}
+                    className="w-9 h-9 flex items-center justify-center bg-slate-100 rounded-full text-slate-600 active:scale-95 transition-transform"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Cart Items */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {cart.map((cartItem) => (
+                  <div key={cartItem.cartItemId} className="flex items-center gap-3 bg-slate-50/80 rounded-2xl p-3 border border-slate-100">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative bg-white">
+                      <img src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
+                      <div className="absolute top-0.5 right-0.5 bg-white/90 p-0.5 rounded">
+                        <div className={`w-2 h-2 border flex items-center justify-center rounded-sm ${cartItem.item.isVeg ? 'border-green-500' : 'border-red-500'}`}>
+                          <div className={`w-1 h-1 rounded-full ${cartItem.item.isVeg ? 'bg-green-500' : 'bg-red-500'}`} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-[13px] font-bold text-slate-900 truncate">{cartItem.item.name}</h4>
+                      {(cartItem.variant || (cartItem.selectedAddons && cartItem.selectedAddons.length > 0)) && (
+                        <span className="text-[10px] text-slate-500 font-medium block truncate">
+                          {[
+                            cartItem.variant?.name,
+                            ...(cartItem.selectedAddons?.map(a => a.name) || [])
+                          ].filter(Boolean).join(', ')}
+                        </span>
+                      )}
+                      <span className="text-[13px] font-bold text-slate-900 mt-0.5 block">₹{cartItem.totalPrice}</span>
+                    </div>
+                    <div className="flex items-center bg-white border border-slate-200 rounded-lg h-8 px-1 min-w-[70px] shrink-0">
+                      <button onClick={() => handleCartQuantityChange(cartItem.cartItemId, -1)} className="w-6 h-full flex items-center justify-center text-[#00bd6f] active:scale-95">
+                        <Minus size={12} className="stroke-[3]" />
+                      </button>
+                      <span className="text-xs font-bold text-slate-900 flex-1 text-center">{cartItem.quantity}</span>
+                      <button onClick={() => handleCartQuantityChange(cartItem.cartItemId, 1)} className="w-6 h-full flex items-center justify-center text-[#00bd6f] active:scale-95">
+                        <Plus size={12} className="stroke-[3]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Checkout Button */}
+              <div className="p-4 pt-3 border-t border-slate-100 shrink-0">
+                <button 
+                  onClick={() => { setShowCartPreview(false); onCheckout(cart, menuItems); }}
+                  className="w-full flex items-center justify-between bg-[#00bd6f] text-white py-3.5 px-5 rounded-2xl font-bold text-[15px] active:scale-[0.98] transition-transform shadow-sm shadow-green-600/20"
+                >
+                  <span>Proceed to Checkout</span>
+                  <span className="flex items-center gap-1.5">₹{totalPrice} <ChevronRight className="w-5 h-5" /></span>
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Floating Menu Button */}
       <div className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${totalItems > 0 ? 'bottom-[100px]' : 'bottom-8'}`}>
@@ -687,50 +859,91 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       </AnimatePresence>
 
       {/* Offer Details Modal */}
-      {selectedOffer && (
-        <>
-          <div 
-            className="fixed inset-0 bg-black/60 z-[60] animate-[fadeIn_0.2s_ease-out]"
-            onClick={() => setSelectedOffer(null)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] animate-[slideUp_0.3s_ease-out] pb-8">
-            <div className="relative pt-8 pb-6 px-4 text-center border-b border-gray-100">
-              <button 
-                onClick={() => setSelectedOffer(null)}
-                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center border-[1.5px] border-[#00bd6f] rounded-xl text-gray-600 active:scale-95 transition-transform"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <h2 className="text-[22px] font-black text-black mb-1.5">{selectedOffer.title}</h2>
-              <p className="text-[16px] text-gray-500">{selectedOffer.subtitle}</p>
-            </div>
-            <div className="px-4 pt-6">
-              {selectedOffer.code && (
-                <div className="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-blue-600 font-bold uppercase tracking-wider mb-1">Coupon Code</span>
-                    <span className="text-lg font-black text-blue-900">{selectedOffer.code}</span>
+      <AnimatePresence>
+        {selectedOffer && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+              onClick={() => setSelectedOffer(null)}
+            />
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 overflow-hidden max-h-[85vh] flex flex-col"
+            >
+              <div className="bg-[#00bd6f] p-6 pt-8 pb-10 relative shrink-0">
+                {/* SVG Pattern Background */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '12px 12px' }}></div>
+                <button 
+                  onClick={() => setSelectedOffer(null)}
+                  className="absolute top-4 right-4 w-8 h-8 bg-black/10 hover:bg-black/20 rounded-full flex items-center justify-center text-white transition-colors active:scale-95 z-30"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <div className="relative z-10">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+                    <Percent className="w-6 h-6 text-[#00bd6f]" />
                   </div>
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm active:scale-95 transition-transform">
-                    COPY
-                  </button>
+                  <h2 className="text-[24px] font-black text-white leading-tight mb-2 pr-8">{selectedOffer.title}</h2>
+                  <p className="text-[15px] font-medium text-white/90">{selectedOffer.subtitle}</p>
                 </div>
-              )}
-              <h3 className="text-[18px] font-bold text-black mb-4">Terms & Conditions</h3>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-3 text-[15px] text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0 mt-2" />
-                  Applicable once per user
-                </li>
-                <li className="flex items-start gap-3 text-[15px] text-gray-500">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0 mt-2" />
-                  Cannot be combined with other offers
-                </li>
-              </ul>
-            </div>
-          </div>
-        </>
-      )}
+              </div>
+              
+              <div className="p-6 overflow-y-auto -mt-6 bg-white rounded-t-3xl relative z-20">
+                {selectedOffer.code ? (
+                  <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-4 mb-8 flex items-center justify-between relative">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Coupon Code</span>
+                      <span className="text-[18px] font-black text-slate-900 tracking-wider font-mono">{selectedOffer.code}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleCopyCode(selectedOffer.code || '')}
+                      className="bg-[#00bd6f] text-white px-5 py-2.5 rounded-xl font-bold text-[14px] shadow-sm active:scale-95 transition-all"
+                    >
+                      {isCopied ? 'COPIED' : 'COPY'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-8 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-[#00bd6f] shrink-0 mt-0.5" />
+                    <div className="flex flex-col">
+                      <span className="text-[15px] font-bold text-slate-900 mb-0.5">Offer auto-applied</span>
+                      <p className="text-[13px] text-slate-600 font-medium leading-snug">No coupon code required. The discount will be applied automatically at checkout.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <h3 className="text-[16px] font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Info className="w-4 h-4 text-slate-400" /> Terms & Conditions
+                </h3>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#00bd6f] shrink-0 mt-2" />
+                    <span className="text-[14px] text-slate-600 leading-snug">Valid on all payment methods including UPI, Credit Cards, and Wallets.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#00bd6f] shrink-0 mt-2" />
+                    <span className="text-[14px] text-slate-600 leading-snug">Applicable once per user per day during the promotional period.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0 mt-2" />
+                    <span className="text-[14px] text-slate-500 leading-snug">Cannot be combined with other active restaurant offers or promo codes.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0 mt-2" />
+                    <span className="text-[14px] text-slate-500 leading-snug">Restaurant partner reserves the right to modify or withdraw the offer at any time without prior notice.</span>
+                  </li>
+                </ul>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Add-on Modal */}
       <AnimatePresence>
@@ -881,6 +1094,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         )}
       </AnimatePresence>
 
-    </div>
+      </div>
+    </Skeleton>
   );
 };

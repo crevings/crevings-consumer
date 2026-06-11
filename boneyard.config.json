@@ -1,0 +1,10 @@
+{
+  "breakpoints": [375, 768, 1280],
+  "out": "./src/bones",
+  "animate": "shimmer",
+  "color": "#f1f5f9",
+  "routes": [
+    "/",
+    "/restaurant/rest-1"
+  ]
+}

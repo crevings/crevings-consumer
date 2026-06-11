@@ -39,6 +39,12 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { data, error, mutate } = useVerifyToken();
 
   useEffect(() => {
+    if (typeof window !== "undefined" && (window as any).__BONEYARD_BUILD) {
+      setIsAuthenticated(true);
+      setIsLoadingAuth(false);
+      return;
+    }
+
     if (data && data.success && data.user) {
       setUserProfile({
         name: data.user.name,

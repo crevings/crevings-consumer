@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 
 import { MainLayout } from "../layouts/MainLayout";
@@ -68,6 +68,110 @@ const ComingSoonPage: React.FC<{ title: string }> = ({ title }) => {
       </button>
     </div>
   );
+};
+
+const RestaurantDetailRouteWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { restaurants, isLoading: isRestaurantsLoading } = useRestaurants();
+  const {
+    selectedRestaurant,
+    setSelectedRestaurant,
+    favouriteRestaurantIds,
+    setFavouriteRestaurantIds,
+    hiddenRestaurantIds,
+    setHiddenRestaurantIds,
+    autoAddItem,
+    setConfirmModal,
+  } = useRestaurant();
+  const { setCart, setMenuItems } = useCart();
+  const { setIsLoadingView, setLoadingViewType } = useApp();
+
+  React.useEffect(() => {
+    if (!selectedRestaurant && restaurants.length > 0 && id) {
+      const found = restaurants.find((r) => String(r.id) === id);
+      if (found) {
+        setSelectedRestaurant(found);
+      }
+    }
+  }, [id, restaurants, selectedRestaurant, setSelectedRestaurant]);
+
+  if (selectedRestaurant) {
+    return (
+      <RestaurantDetailView
+        restaurant={selectedRestaurant}
+        onBack={() => navigate("/")}
+        onCheckout={(newCart, items) => {
+          setIsLoadingView(true);
+          setLoadingViewType("checkout");
+          setTimeout(() => {
+            setCart(newCart);
+            setMenuItems(items);
+            navigate("/checkout");
+            setIsLoadingView(false);
+          }, 2500);
+        }}
+        onHide={() => setConfirmModal({ type: "hide", restaurantId: String(selectedRestaurant.id) })}
+        onUnhide={() => setHiddenRestaurantIds((prev) => prev.filter((hid) => hid !== String(selectedRestaurant.id)))}
+        onFavourite={() => setConfirmModal({ type: "favourite", restaurantId: String(selectedRestaurant.id) })}
+        onRemoveFavourite={() => setFavouriteRestaurantIds((prev) => prev.filter((fid) => fid !== String(selectedRestaurant.id)))}
+        isFavourite={favouriteRestaurantIds.includes(String(selectedRestaurant.id))}
+        isHidden={hiddenRestaurantIds.includes(String(selectedRestaurant.id))}
+        onInfoClick={() => navigate(`/restaurant/${selectedRestaurant.id}/info`)}
+        autoAddItem={autoAddItem}
+      />
+    );
+  }
+
+  if (isRestaurantsLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
+        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold text-sm">Loading Restaurant...</p>
+      </div>
+    );
+  }
+
+  if (restaurants.length > 0 && !selectedRestaurant) {
+    return <Navigate to="/" replace />;
+  }
+
+  return null;
+};
+
+const RestaurantInfoRouteWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { restaurants, isLoading: isRestaurantsLoading } = useRestaurants();
+  const { selectedRestaurant, setSelectedRestaurant } = useRestaurant();
+
+  React.useEffect(() => {
+    if (!selectedRestaurant && restaurants.length > 0 && id) {
+      const found = restaurants.find((r) => String(r.id) === id);
+      if (found) {
+        setSelectedRestaurant(found);
+      }
+    }
+  }, [id, restaurants, selectedRestaurant, setSelectedRestaurant]);
+
+  if (selectedRestaurant) {
+    return <RestaurantInfoView restaurant={selectedRestaurant} onBack={() => navigate(-1)} />;
+  }
+
+  if (isRestaurantsLoading) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
+        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold text-sm">Loading Restaurant...</p>
+      </div>
+    );
+  }
+
+  if (restaurants.length > 0 && !selectedRestaurant) {
+    return <Navigate to="/" replace />;
+  }
+
+  return null;
 };
 
 export const AppRoutes: React.FC = () => {
@@ -180,45 +284,12 @@ export const AppRoutes: React.FC = () => {
       <Route element={<BlankLayout />}>
         <Route
           path="/restaurant/:id"
-          element={
-            selectedRestaurant ? (
-              <RestaurantDetailView
-                restaurant={selectedRestaurant}
-                onBack={() => navigate("/")}
-                onCheckout={(newCart, items) => {
-                  setIsLoadingView(true);
-                  setLoadingViewType("checkout");
-                  setTimeout(() => {
-                    setCart(newCart);
-                    setMenuItems(items);
-                    navigate("/checkout");
-                    setIsLoadingView(false);
-                  }, 2500);
-                }}
-                onHide={() => handleHideRestaurant(selectedRestaurant.id)}
-                onUnhide={() => handleUnhideRestaurant(selectedRestaurant.id)}
-                onFavourite={() => handleFavouriteRestaurant(selectedRestaurant.id)}
-                onRemoveFavourite={() => handleRemoveFavourite(String(selectedRestaurant.id))}
-                isFavourite={favouriteRestaurantIds.includes(String(selectedRestaurant.id))}
-                isHidden={hiddenRestaurantIds.includes(String(selectedRestaurant.id))}
-                onInfoClick={() => navigate(`/restaurant/${selectedRestaurant.id}/info`)}
-                autoAddItem={autoAddItem}
-              />
-            ) : (
-              <Navigate to="/" />
-            )
-          }
+          element={<RestaurantDetailRouteWrapper />}
         />
 
         <Route
           path="/restaurant/:id/info"
-          element={
-            selectedRestaurant ? (
-              <RestaurantInfoView restaurant={selectedRestaurant} onBack={() => navigate(-1)} />
-            ) : (
-              <Navigate to="/" />
-            )
-          }
+          element={<RestaurantInfoRouteWrapper />}
         />
 
         <Route path="/checkout" element={<CheckoutView />} />

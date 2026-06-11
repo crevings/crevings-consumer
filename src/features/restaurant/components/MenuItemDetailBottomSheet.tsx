@@ -91,14 +91,6 @@ export const MenuItemDetailBottomSheet: React.FC<MenuItemDetailBottomSheetProps>
                       <span className="text-sm font-medium text-slate-500 line-through">₹{Math.round(item.price * 1.2)}</span>
                       <span className="text-lg font-bold text-slate-900">₹{item.price}</span>
                     </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex items-center gap-1 bg-green-50 text-green-700 px-1.5 py-0.5 rounded text-xs font-bold">
-                        <Star className="w-3 h-3 fill-current" />
-                        {item.rating}
-                      </div>
-                      <span className="text-xs text-slate-500 font-medium">({item.ratingCount})</span>
-                    </div>
                   </div>
 
                   {/* Add Button / Quantity Selector */}
