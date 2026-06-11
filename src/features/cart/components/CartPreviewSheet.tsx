@@ -13,6 +13,7 @@ interface CartPreviewSheetProps {
   handleQuantityChange: (cartItemId: string, delta: number) => void;
   onCheckoutClick: () => void;
   checkoutButtonText?: string;
+  checkoutButtonPrice?: number;
 }
 
 export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
@@ -24,7 +25,8 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
   totalPrice,
   handleQuantityChange,
   onCheckoutClick,
-  checkoutButtonText = "Proceed to Checkout"
+  checkoutButtonText = "Proceed to Checkout",
+  checkoutButtonPrice
 }) => {
   return (
     <AnimatePresence>
@@ -116,7 +118,9 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
               >
                 <span>{checkoutButtonText}</span>
                 <span className="flex items-center gap-1.5">
-                  ₹{checkoutButtonText.includes("Payment") ? totalPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : totalPrice} 
+                  ₹{checkoutButtonPrice !== undefined 
+                      ? checkoutButtonPrice.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) 
+                      : totalPrice} 
                   <ChevronRight className="w-5 h-5" />
                 </span>
               </button>
