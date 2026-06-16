@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, SlidersHorizontal, ChevronDown, Plus, Star } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, Star } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
-import { FilterOptions } from "@/types";
+import { FilterOptions } from '@/types';
+import { GridMenuItemCard } from './GridMenuItemCard';
 
 interface CategoryDetailViewProps {
   category: string;
@@ -123,7 +124,8 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
       const matchRating = item.rating >= activeFilters.minRating;
       const matchDietary = activeFilters.dietary === 'all' || 
                            (activeFilters.dietary === 'veg' && item.veg) || 
-                           (activeFilters.dietary === 'non-veg' && !item.veg);
+                           (activeFilters.dietary === 'non-veg' && !item.veg) ||
+                           (activeFilters.dietary === 'egg' && item.isEgg);
       return matchRating && matchDietary;
     });
 
@@ -136,176 +138,85 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
     return items;
   }, [data, activeFilters, sortMode]);
 
-  const sortLabel = useMemo(() => {
-    switch (sortMode) {
-      case 'rating': return 'Rating';
-      case 'priceLow': return 'Price: Low';
-      case 'priceHigh': return 'Price: High';
-      default: return 'Sort by';
-    }
-  }, [sortMode]);
-
   return (
-    <div className="min-h-screen bg-white pb-20 animate-fadeInRight">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100">
-        <div className="flex items-center gap-3 px-4 py-4">
+    <div className="min-h-screen bg-white pb-20 animate-fadeInRight relative">
+      {/* Header / Banner */}
+      <div className="relative w-full h-[260px] rounded-b-[40px] overflow-hidden mb-6 shadow-sm">
+        <img src={data.banner} alt={category} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-80"></div>
+        
+        {/* Top Actions */}
+        <div className="absolute top-0 left-0 right-0 pt-safe px-4 py-4 flex items-center justify-between z-10">
           <button 
             onClick={onBack}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 active:scale-95 transition-transform"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/30 backdrop-blur-md active:scale-95 transition-transform text-white/90"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-700" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-slate-900 leading-tight">{category}</h1>
-            <p className="text-xs text-slate-500 font-medium">{data.description}</p>
-          </div>
         </div>
 
-        {/* Filters */}
-        <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => setIsFilterOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0 active:bg-slate-50"
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Filter
-          </button>
-          <button 
-            onClick={() => setIsSortOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0 active:bg-slate-50"
-          >
-            {sortLabel}
-            <ChevronDown className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setActiveFilters(prev => ({ ...prev, priceRange: prev.priceRange === 'under49' ? null : 'under49' }))}
-            className={`flex items-center px-3 py-1.5 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.priceRange === 'under49' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-              <span className="text-sm font-medium">₹49 & under</span>
-          </button>
-          <button 
-            onClick={() => setActiveFilters(prev => ({ ...prev, priceRange: prev.priceRange === '49to99' ? null : '49to99' }))}
-            className={`flex items-center px-3 py-1.5 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.priceRange === '49to99' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-              <span className="text-sm font-medium">₹49 - ₹99</span>
-          </button>
-          <button 
-            onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'veg' ? 'all' : 'veg' }))}
-            className={`flex items-center px-3 py-1.5 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.dietary === 'veg' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-              <span className="text-sm font-medium">Veg</span>
-          </button>
-          <button 
-            onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'non-veg' ? 'all' : 'non-veg' }))}
-            className={`flex items-center px-3 py-1.5 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.dietary === 'non-veg' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-              <span className="text-sm font-medium">Non Veg</span>
-          </button>
-          <button 
-            onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'egg' ? 'all' : 'egg' }))}
-            className={`flex items-center px-3 py-1.5 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.dietary === 'egg' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}>
-              <span className="text-sm font-medium">Egg</span>
-          </button>
+        {/* Text Content */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pt-8 z-10">
+          <h2 className="text-amber-50 font-serif italic text-4xl sm:text-5xl tracking-tight mb-3 drop-shadow-md text-center px-4 leading-tight">Wholesome Meals</h2>
+          <div className="bg-black/30 backdrop-blur-sm px-4 py-1.5 rounded-full">
+            <span className="text-white font-bold text-[10px] uppercase tracking-[0.2em]">Curated for you</span>
+          </div>
         </div>
       </div>
 
-      {/* Category Banner */}
-      <div className="px-4 py-4">
-        <div className="w-full h-[180px] rounded-[24px] overflow-hidden relative shadow-sm">
-          <img src={data.banner} alt={category} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-          <div className="absolute bottom-4 left-4 right-4">
-            <h2 className="text-white font-black text-2xl leading-tight mb-1">Best of {category}</h2>
-            <p className="text-white/80 text-sm font-medium">{allItems.length} items to explore</p>
+      {/* Filters (Veg / Non-veg / Egg) */}
+      <div className="px-4 mb-6 flex gap-3 overflow-x-auto no-scrollbar">
+        <button 
+          onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'veg' ? 'all' : 'veg' }))}
+          className={`flex items-center gap-2 px-3 py-2 border rounded-[12px] bg-white transition-all shrink-0 shadow-sm ${activeFilters.dietary === 'veg' ? 'border-green-500 shadow-green-100' : 'border-slate-200'}`}
+        >
+          <div className="w-3.5 h-3.5 border border-green-600 flex items-center justify-center rounded-[3px]">
+             <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
           </div>
-        </div>
+          <span className="text-[13px] font-bold text-slate-700">Veg</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'non-veg' ? 'all' : 'non-veg' }))}
+          className={`flex items-center gap-2 px-3 py-2 border rounded-[12px] bg-white transition-all shrink-0 shadow-sm ${activeFilters.dietary === 'non-veg' ? 'border-red-500 shadow-red-100' : 'border-slate-200'}`}
+        >
+          <div className="w-3.5 h-3.5 border border-red-600 flex items-center justify-center rounded-[3px]">
+             <div className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[5px] border-b-red-600" />
+          </div>
+          <span className="text-[13px] font-bold text-slate-700">Non-Veg</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveFilters(prev => ({ ...prev, dietary: prev.dietary === 'egg' ? 'all' : 'egg' }))}
+          className={`flex items-center gap-2 px-3 py-2 border rounded-[12px] bg-white transition-all shrink-0 shadow-sm ${activeFilters.dietary === 'egg' ? 'border-yellow-500 shadow-yellow-100' : 'border-slate-200'}`}
+        >
+          <div className="w-3.5 h-3.5 border border-yellow-500 flex items-center justify-center rounded-[3px]">
+             <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+          </div>
+          <span className="text-[13px] font-bold text-slate-700">Egg</span>
+        </button>
       </div>
 
       {/* Food Items Grid */}
       <div className="px-4">
         {allItems.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 pb-6">
             {allItems.map((item: any) => (
-              <div 
-                key={item.id} 
+              <GridMenuItemCard
+                key={`${item.restaurant.id}-${item.id}`}
+                item={{...item, isVeg: item.veg ?? item.isVeg}} // Handle API mapping discrepancy
+                quantity={0}
+                restaurantName={item.restaurant.name}
+                onAdd={(id) => {
+                  onRestaurantClick(item.restaurant);
+                  onItemAdd(item.restaurant, id);
+                }}
+                onRemove={() => {}}
                 onClick={() => {
                   onRestaurantClick(item.restaurant);
-                  onItemAdd(item.restaurant, item.id);
                 }}
-                className={`flex flex-col bg-white rounded-2xl p-2 border border-gray-100 shadow-sm relative cursor-pointer active:scale-95 transition-transform ${item.available === false ? 'opacity-60' : ''}`}
-              >
-                {item.image && (
-                  <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-2.5">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    <div className="absolute top-1.5 left-1.5 bg-white/95 p-1 rounded-md shadow-sm">
-                      <div className={`w-3 h-3 border flex items-center justify-center rounded-sm ${item.veg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-                        {item.veg ? (
-                          <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
-                        ) : item.isEgg ? (
-                          <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-                        ) : (
-                          <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px] border-b-red-600" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 bg-green-50/95 backdrop-blur-sm px-1.5 py-0.5 rounded text-green-700 shadow-sm">
-                      <Star className="w-3 h-3 fill-current" />
-                      <span className="text-[11px] font-bold">{item.rating}</span>
-                      <span className="text-[10px] opacity-80">({item.ratingCount || '100+'})</span>
-                    </div>
-                  </div>
-                )}
-                {!item.image && (
-                  <div className="flex items-center justify-between mb-2 px-1.5 pt-1.5">
-                    <div className={`w-4 h-4 border flex items-center justify-center rounded-sm ${item.veg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-                      {item.veg ? (
-                        <div className="w-2 h-2 rounded-full bg-green-600" />
-                      ) : item.isEgg ? (
-                        <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                      ) : (
-                        <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-red-600" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 bg-green-50 px-1.5 py-0.5 rounded text-green-700">
-                      <Star className="w-3 h-3 fill-current" />
-                      <span className="text-[11px] font-bold">{item.rating}</span>
-                      <span className="text-[10px] opacity-80">({item.ratingCount || '100+'})</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Middle: Name & Description */}
-                <div className="flex-1 mb-2 px-1.5">
-                  <h4 className="text-[14px] font-bold text-gray-900 leading-tight mb-1">{item.name}</h4>
-                  <p className="text-[11px] font-medium text-gray-500 mb-1 truncate">from {item.restaurant.name}</p>
-                  {item.description && (
-                    <p className="text-[11px] text-gray-500 line-clamp-2 leading-snug">{item.description}</p>
-                  )}
-                  {item.available === false && (
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md uppercase tracking-wide">Unavailable</span>
-                  )}
-                </div>
-
-                {/* Bottom: Price & Action */}
-                <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100 px-1.5 pb-1">
-                  <span className="text-[14px] font-black text-gray-900">₹{item.price}</span>
-                  
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (item.available !== false) {
-                        onRestaurantClick(item.restaurant);
-                        onItemAdd(item.restaurant, item.id);
-                      }
-                    }} 
-                    disabled={item.available === false}
-                    className={`px-3 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 transition-transform shadow-sm ${
-                      item.available === false 
-                        ? 'bg-gray-50 text-gray-400 border border-gray-200' 
-                        : 'bg-white text-[#00bd6f] border border-[#00bd6f]/30 hover:bg-[#f4fdf8] active:scale-95'
-                    }`}
-                  >
-                    ADD
-                  </button>
-                </div>
-              </div>
+              />
             ))}
           </div>
         ) : (

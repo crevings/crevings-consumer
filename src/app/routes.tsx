@@ -342,6 +342,7 @@ export const AppRoutes: React.FC = () => {
             <ProfileView
               userProfile={userProfile}
               onUpdateProfileImage={(img) => setUserProfile((prev) => ({ ...prev, image: img }))}
+              onUpdateProfile={setUserProfile}
               onEditProfileClick={() => navigate("/edit-profile")}
               onWalletClick={() => navigate("/wallet")}
               onOrdersClick={() => navigate("/orders")}

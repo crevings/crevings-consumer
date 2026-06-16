@@ -1,23 +1,26 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
-  User, MapPin, CreditCard, Heart, Settings, 
-  HelpCircle, ChevronRight, Edit2, Camera,
-  ShoppingBag, Crown, EyeOff,
-  RotateCcw, Gift, Phone, FileText, Scale, Building2, Accessibility,
-  ArrowLeft,
+  User, MapPin, Heart, Settings, 
+  ChevronRight, Camera,
+  ShoppingBag, EyeOff, Wallet,
+  RotateCcw, Gift, Phone, FileText,
+  ChevronLeft,
   Cake,
-  Star,
-  Zap,
-  CheckCircle2,
-  Info,
-  MessageSquareHeart,
-  LogOut
+  LogOut,
+  Headphones,
+  Trash2,
+  X,
+  Mail,
+  Info
 } from 'lucide-react';
-import { UserProfile } from "@/types";
+import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { UserProfile } from '@/types';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
   onUpdateProfileImage: (image: string) => void;
+  onUpdateProfile?: (profile: UserProfile) => void;
   onEditProfileClick: () => void;
   onWalletClick: () => void;
   onOrdersClick: () => void;
@@ -31,36 +34,42 @@ interface ProfileViewProps {
   onLicensesClick: () => void;
   onGstClick: () => void;
   onAccessibilityClick: () => void;
+  onAddressBookClick: () => void;
   onManageMembershipClick: () => void;
   onAboutClick: () => void;
   onFeedbackClick: () => void;
   onBack: () => void;
-  onAddressBookClick: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ 
-    userProfile,
-    onUpdateProfileImage,
-    onEditProfileClick,
-    onWalletClick, 
-    onOrdersClick, 
-    onLogout,
-    onSettingsClick,
-    onHelpClick,
-    onNotificationsClick,
-    onRefundsClick,
-    onReferClick,
-    onPoliciesClick,
-    onLicensesClick,
-    onGstClick,
-    onAccessibilityClick,
-    onManageMembershipClick,
-    onAboutClick,
-    onFeedbackClick,
-    onBack,
-    onAddressBookClick
+export const ProfileView: React.FC<ProfileViewProps> = ({
+  userProfile,
+  onUpdateProfileImage,
+  onUpdateProfile,
+  onEditProfileClick, // keeping this just in case, though we handle it internally now
+  onWalletClick,
+  onOrdersClick,
+  onLogout,
+  onSettingsClick,
+  onHelpClick,
+  onNotificationsClick,
+  onRefundsClick,
+  onReferClick,
+  onPoliciesClick,
+  onLicensesClick,
+  onGstClick,
+  onAccessibilityClick,
+  onAddressBookClick,
+  onManageMembershipClick,
+  onAboutClick,
+  onFeedbackClick,
+  onBack
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bottomSheetFileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<UserProfile>(userProfile);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const navigate = useNavigate();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,130 +77,62 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       const reader = new FileReader();
       reader.onloadend = () => {
         onUpdateProfileImage(reader.result as string);
+        setEditForm(prev => ({...prev, image: reader.result as string}));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const menuItems = [
-    { 
-      group: 'Food & Preferences',
-      items: [
-        { 
-            icon: ShoppingBag, 
-            label: 'Your Orders', 
-            sub: 'Track, view & reorder', 
-            onClick: onOrdersClick,
-            color: 'text-orange-600',
-            bg: 'bg-orange-50'
-        },
-        { 
-             icon: Heart, 
-             label: 'Favorites', 
-             sub: 'Your loved restaurants',
-             onClick: () => {
-                window.dispatchEvent(new CustomEvent('navigate', { detail: 'favourites' }));
-             },
-             color: 'text-rose-600',
-             bg: 'bg-rose-50'
-         },
-        { 
-            icon: EyeOff, 
-            label: 'Hidden Restaurants', 
-            sub: 'Manage blocked places',
-            onClick: () => {
-                window.dispatchEvent(new CustomEvent('navigate', { detail: 'hidden-restaurants' }));
-            },
-            color: 'text-slate-600',
-            bg: 'bg-slate-50'
-        },
-      ]
-    },
-    {
-      group: 'Payments & Refunds',
-      items: [
-        { 
-            icon: CreditCard, 
-            label: 'Money & Payments', 
-            sub: 'Wallet balance: ₹320.00', 
-            onClick: onWalletClick,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50'
-        },
-        { 
-            icon: RotateCcw, 
-            label: 'Refunds', 
-            sub: 'Track active refunds',
-            onClick: onRefundsClick,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50'
-        },
-        { 
-            icon: MapPin, 
-            label: 'Address Book', 
-            sub: 'Manage delivery addresses',
-            onClick: onAddressBookClick,
-            color: 'text-teal-600',
-            bg: 'bg-teal-50'
-        },
-      ]
-    },
-    {
-        group: 'App Settings',
-        items: [
-            { 
-                icon: Settings, 
-                label: 'Settings', 
-                sub: 'App preferences',
-                onClick: onSettingsClick,
-                color: 'text-slate-600',
-                bg: 'bg-slate-50'
-            },
-            { 
-                icon: HelpCircle, 
-                label: 'Help & Support', 
-                sub: 'FAQs & Chat',
-                onClick: onHelpClick,
-                color: 'text-cyan-600',
-                bg: 'bg-cyan-50'
-            },
-            { 
-                icon: Scale, 
-                label: 'Licence', 
-                sub: 'Legal information',
-                onClick: onLicensesClick,
-                color: 'text-gray-600',
-                bg: 'bg-gray-50'
-            },
-        ]
+  const handleBottomSheetImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditForm(prev => ({...prev, image: reader.result as string}));
+      };
+      reader.readAsDataURL(file);
     }
-  ];
+  };
+
+  const handleNavigate = (view: string) => {
+    navigate(`/${view}`);
+  };
+
+  const saveProfile = () => {
+    if (onUpdateProfile) {
+      onUpdateProfile(editForm);
+    }
+    setIsEditOpen(false);
+  };
+
+  const handleOpenEdit = () => {
+    setEditForm(userProfile); // refresh from current state
+    setIsEditOpen(true);
+  };
 
   return (
-    <div className="bg-slate-50 min-h-screen pb-24 animate-fadeInUp">
-       <div className="bg-white pt-12 pb-8 px-5 rounded-b-[32px] border-b border-slate-100 relative">
-          <button 
-            onClick={onBack}
-            className="absolute top-6 left-5 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-900 active:scale-95 transition-all"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <button 
-            onClick={onEditProfileClick}
-            className="absolute top-6 right-5 w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center text-slate-900 active:scale-95 transition-all"
-          >
-            <Edit2 className="w-5 h-5" />
-          </button>
-          
-          <div className="flex flex-col items-center mt-4">
+    <div className="bg-white min-h-screen animate-fadeInUp pb-12 font-sans relative">
+       {/* App Bar */}
+       <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform">
+              <ChevronLeft className="w-6 h-6 text-slate-800" />
+            </button>
+            <h1 className="text-lg font-bold text-slate-900">Account</h1>
+          </div>
+       </div>
+       
+       <div className="px-4 pt-2 pb-6 space-y-6">
+           {/* Profile Header Card */}
+           <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100/60 relative overflow-hidden flex items-center gap-5">
               <div 
-                className="w-28 h-28 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden cursor-pointer mb-4"
+                className="w-20 h-20 rounded-[20px] bg-slate-50 flex items-center justify-center overflow-hidden cursor-pointer shrink-0 border border-slate-100"
                 onClick={() => fileInputRef.current?.click()}
               >
                 {userProfile.image ? (
                     <img src={userProfile.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                    <User className="w-12 h-12 text-slate-400" />
+                    <User className="w-8 h-8 text-slate-400 flex-shrink-0" strokeWidth={2} />
                 )}
               </div>
               <input 
@@ -201,75 +142,363 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 className="hidden" 
                 accept="image/*"
               />
-              <h2 className="text-2xl font-black text-slate-900 mb-1">
-                  {userProfile.name}
-              </h2>
-              <div className="flex items-center gap-4 text-slate-500 text-sm font-medium">
-                  <div className="flex items-center gap-1.5">
-                      <Phone className="w-4 h-4" />
-                      <span>{userProfile.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                      <Cake className="w-4 h-4" />
-                      <span>{userProfile.dob ? new Date(userProfile.dob).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '15 Sep 1999'}</span>
-                  </div>
+              <div className="flex flex-col flex-1">
+                  <h2 className="text-[20px] font-bold text-slate-900 tracking-tight leading-tight mb-1">
+                      {userProfile.name}
+                  </h2>
+                  <p className="text-slate-500 text-[14px] font-medium mb-3 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" />
+                      {userProfile.phone}
+                  </p>
+                  <button 
+                    onClick={handleOpenEdit}
+                    className="flex items-center gap-1.5 text-[#00bd6f] text-[14px] font-bold active:opacity-70 transition-opacity w-fit bg-emerald-50 px-3 py-1.5 rounded-lg"
+                  >
+                      Edit Profile <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                  </button>
               </div>
-          </div>
-       </div>
-
-       <div className="px-5 mt-6 space-y-6">
-           <div onClick={onReferClick} className="bg-[#00bd6f] rounded-[24px] p-5 flex items-center justify-between cursor-pointer active:scale-95 transition-transform text-white">
-                <div>
-                    <div className="inline-block bg-white/20 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider mb-2">
-                        Invite Friends
-                    </div>
-                    <h3 className="font-bold text-lg leading-tight mb-1">Get ₹500 Free</h3>
-                    <p className="text-green-50 text-xs font-medium">When your friend orders first time.</p>
-                </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <Gift className="w-6 h-6 text-white" />
-                </div>
            </div>
 
-           {menuItems.map((group, groupIndex) => (
-               <div key={groupIndex} className="bg-white rounded-[24px] border border-slate-100 overflow-hidden">
-                   <div className="px-5 py-4 bg-slate-50/50 border-b border-slate-100">
-                       <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{group.group}</h3>
+           {/* Metrics Grid */}
+           <div className="grid grid-cols-3 gap-3">
+               <button onClick={onOrdersClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
+                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+                       <ShoppingBag className="w-5 h-5" strokeWidth={2} />
                    </div>
-                   <div className="divide-y divide-slate-100">
-                       {group.items.map((item, itemIndex) => (
-                           <button 
-                              key={itemIndex}
-                              onClick={item.onClick}
-                              className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left"
-                           >
-                               <div className={`w-10 h-10 rounded-full ${item.bg} ${item.color} flex items-center justify-center shrink-0`}>
-                                   <item.icon className="w-5 h-5" />
-                               </div>
-                               <div className="flex-1">
-                                   <h4 className="text-sm font-bold text-slate-900">{item.label}</h4>
-                                   {item.sub && <p className="text-xs text-slate-500 mt-0.5">{item.sub}</p>}
-                               </div>
-                               <ChevronRight className="w-5 h-5 text-slate-300" />
-                           </button>
-                       ))}
+                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Your<br/>Orders</span>
+               </button>
+               
+               <button onClick={onWalletClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
+                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+                       <Wallet className="w-5 h-5" strokeWidth={2} />
+                   </div>
+                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Wallet<br/>Balance</span>
+               </button>
+               
+               <button onClick={onAddressBookClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
+                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+                       <MapPin className="w-5 h-5" strokeWidth={2} />
+                   </div>
+                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Saved<br/>Address</span>
+               </button>
+           </div>
+
+           {/* Refer & earn (temporarily disabled) */}
+           {/* <button onClick={onReferClick} className="w-full bg-[#E8F8F5] rounded-[24px] p-5 flex items-center justify-between border border-[#A3E4D7]/50 active:scale-[0.98] transition-all">
+               <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 flex items-center justify-center bg-white rounded-full shadow-sm text-[#00bd6f] shrink-0">
+                       <Gift className="w-5 h-5" strokeWidth={2.5} />
+                   </div>
+                   <div className="flex flex-col items-start gap-0.5">
+                       <span className="text-[16px] font-bold text-[#0E6655] tracking-tight">Refer & Earn</span>
+                       <span className="text-[13px] font-medium text-[#117A65]">Invite friends & get rewards</span>
                    </div>
                </div>
-           ))}
-           
-           <button 
-               onClick={onLogout}
-               className="w-full flex items-center justify-center gap-2 p-4 bg-white text-red-600 rounded-[24px] border border-red-100 font-bold active:scale-95 transition-transform"
-           >
-               <LogOut className="w-5 h-5" />
-               <span>Log Out</span>
-           </button>
+               <div className="w-8 h-8 rounded-full flex items-center justify-center text-[#117A65]">
+                   <ChevronRight className="w-5 h-5" strokeWidth={2.5} />
+               </div>
+           </button> */}
 
-           <div className="text-center pt-4 pb-8">
-               <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-4"></div>
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Crevings App v2.5.0</p>
+           {/* Personalize */}
+           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
+               <div className="px-5 pt-5 pb-2">
+                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Personalize</h3>
+               </div>
+               <div className="divide-y divide-slate-50">
+                   <button onClick={() => handleNavigate('favourites')} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <Heart className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Saved Restaurants</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={() => handleNavigate('hidden-restaurants')} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <EyeOff className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Hide Restaurants</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+               </div>
+           </div>
+
+           {/* Info & Support */}
+           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
+               <div className="px-5 pt-5 pb-2">
+                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Info & Support</h3>
+               </div>
+               <div className="divide-y divide-slate-50">
+                   <button onClick={onAboutClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <Info className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">About Us</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={onPoliciesClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <FileText className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Terms and Conditions</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={onHelpClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <Headphones className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Support</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={onRefundsClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <RotateCcw className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Refund Policy</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+               </div>
+           </div>
+
+           {/* Account Settings */}
+           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
+               <div className="px-5 pt-5 pb-2">
+                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Account</h3>
+               </div>
+               <div className="divide-y divide-slate-50">
+                   <button onClick={onSettingsClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
+                               <Settings className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Settings</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={() => setShowDeleteAccount(true)} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-red-600 bg-red-50 p-2.5 rounded-[12px]">
+                               <Trash2 className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-slate-700">Request Account Deletion</span>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                   </button>
+                   <button onClick={onLogout} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
+                       <div className="flex items-center gap-4">
+                           <div className="text-red-400">
+                               <LogOut className="w-5 h-5" strokeWidth={2} />
+                           </div>
+                           <span className="text-[15px] font-semibold text-red-600">Log Out</span>
+                       </div>
+                   </button>
+               </div>
+           </div>
+
+           {/* Version Footer */}
+           <div className="text-center pt-4 pb-8 opacity-60">
+               <p className="text-[11px] font-bold text-slate-400 tracking-wider">VERSION 2.0.1</p>
            </div>
        </div>
+
+       {/* Edit Profile Bottom Sheet */}
+       <AnimatePresence>
+         {isEditOpen && (
+           <>
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 animate-in fade-in duration-200"
+               onClick={() => setIsEditOpen(false)}
+             />
+             <motion.div
+               initial={{ y: "100%" }}
+               animate={{ y: 0 }}
+               exit={{ y: "100%" }}
+               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-50 h-[85vh] flex flex-col overflow-hidden shadow-2xl w-full max-w-md mx-auto"
+             >
+               {/* Sheet Handle */}
+               <div className="flex justify-center pt-3 pb-1 shrink-0 bg-white z-10 w-full relative">
+                 <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                 <button 
+                   onClick={() => setIsEditOpen(false)}
+                   className="absolute right-4 top-3 p-2 bg-slate-50 rounded-full text-slate-500 active:scale-95 transition-transform"
+                 >
+                   <X className="w-5 h-5" />
+                 </button>
+               </div>
+               
+               {/* Sheet Header */}
+               <div className="px-6 py-2 pb-4 bg-white z-10 shrink-0 border-b border-slate-100">
+                 <h2 className="text-xl font-bold text-slate-900">Edit Profile</h2>
+                 <p className="text-[13px] text-slate-500 mt-1 placeholder-text">Add your birthday for exclusive discounts!</p>
+               </div>
+
+               {/* Sheet scrollable content */}
+               <div className="p-6 flex-1 overflow-y-auto">
+                 <div className="flex flex-col items-center mb-8">
+                     <div className="relative group">
+                         <div className="w-24 h-24 rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-100 border-2 border-slate-100 shadow-sm">
+                             {editForm.image ? (
+                                 <img src={editForm.image} alt="Profile" className="w-full h-full object-cover" />
+                             ) : (
+                                 <User className="w-10 h-10 text-slate-400" />
+                             )}
+                         </div>
+                         <button 
+                             onClick={() => bottomSheetFileInputRef.current?.click()}
+                             className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md text-[#00bd6f] border border-slate-100 active:scale-95 transition-transform"
+                         >
+                             <Camera className="w-5 h-5" />
+                         </button>
+                         <input type="file" ref={bottomSheetFileInputRef} onChange={handleBottomSheetImageUpload} className="hidden" accept="image/*" />
+                     </div>
+                 </div>
+
+                 <div className="space-y-5">
+                   <div className="space-y-1.5">
+                       <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider pl-1">Full Name</label>
+                       <div className="flex items-center gap-3 bg-slate-50 rounded-[16px] px-4 py-3.5 border border-slate-100 focus-within:border-[#00bd6f] focus-within:bg-white transition-colors">
+                           <User className="w-5 h-5 text-slate-400" />
+                           <input 
+                               type="text"
+                               value={editForm.name}
+                               onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                               placeholder="Your name"
+                               className="bg-transparent w-full text-[15px] font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                           />
+                       </div>
+                   </div>
+
+                   <div className="space-y-1.5">
+                       <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider pl-1">Phone Number</label>
+                       <div className="flex items-center gap-3 bg-slate-50 rounded-[16px] px-4 py-3.5 border border-slate-100 focus-within:border-[#00bd6f] focus-within:bg-white transition-colors">
+                           <Phone className="w-5 h-5 text-slate-400" />
+                           <input 
+                               type="tel"
+                               value={editForm.phone}
+                               onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                               placeholder="+91 9876543210"
+                               className="bg-transparent w-full text-[15px] font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                           />
+                       </div>
+                   </div>
+                   
+                   <div className="space-y-1.5">
+                       <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider pl-1">Email Address</label>
+                       <div className="flex items-center gap-3 bg-slate-50 rounded-[16px] px-4 py-3.5 border border-slate-100 focus-within:border-[#00bd6f] focus-within:bg-white transition-colors">
+                           <Mail className="w-5 h-5 text-slate-400" />
+                           <input 
+                               type="email"
+                               value={editForm.email}
+                               onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                               placeholder="your@email.com"
+                               className="bg-transparent w-full text-[15px] font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                           />
+                       </div>
+                   </div>
+
+                   <div className="space-y-1.5">
+                       <label className="text-[12px] font-bold text-slate-500 uppercase tracking-wider pl-1 flex items-center justify-between">
+                         <span>Birthday</span>
+                         <span className="text-[#00bd6f] text-[10px] bg-[#00bd6f]/10 px-2 rounded-full py-0.5">For discounts</span>
+                       </label>
+                       <div className="flex items-center gap-3 bg-slate-50 rounded-[16px] px-4 py-3.5 border border-slate-100 focus-within:border-[#00bd6f] focus-within:bg-white transition-colors">
+                           <Cake className="w-5 h-5 text-slate-400" />
+                           <input 
+                               type="date"
+                               value={editForm.dob || ''}
+                               onChange={(e) => setEditForm({...editForm, dob: e.target.value})}
+                               className="bg-transparent w-full text-[15px] font-semibold text-slate-900 focus:outline-none placeholder:text-slate-400"
+                           />
+                       </div>
+                   </div>
+                   
+                   <div className="pb-10"></div>
+                 </div>
+               </div>
+               
+               {/* Fixed bottom save button */}
+               <div className="p-4 bg-white border-t border-slate-100 shrink-0 mb-4 pb-8 sm:pb-4">
+                 <button 
+                   onClick={saveProfile}
+                   className="w-full bg-[#00bd6f] text-white font-bold py-4 rounded-[16px] active:scale-[0.98] transition-transform text-[15px] shadow-lg shadow-[#00bd6f]/20"
+                 >
+                   Save Profile
+                 </button>
+               </div>
+             </motion.div>
+           </>
+         )}
+       </AnimatePresence>
+       
+       {/* Account Deletion Bottom Sheet */}
+       <AnimatePresence>
+         {showDeleteAccount && (
+           <>
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setShowDeleteAccount(false)}
+               className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm animate-in fade-in duration-200"
+             />
+             <motion.div 
+               initial={{ y: '100%' }}
+               animate={{ y: 0 }}
+               exit={{ y: '100%' }}
+               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.12)] w-full max-w-md mx-auto"
+             >
+               <div className="flex flex-col items-center pt-3 pb-6 px-6">
+                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mb-8"></div>
+                 
+                 <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-6 shrink-0 border border-red-100">
+                   <Trash2 className="w-8 h-8" strokeWidth={2} />
+                 </div>
+                 
+                 <h3 className="text-[20px] font-black text-slate-900 tracking-tight text-center mb-3">
+                   Request Account Deletion
+                 </h3>
+                 <p className="text-[15px] font-medium text-slate-500 text-center mb-8 px-2 leading-relaxed">
+                   Are you sure you want to delete your account? This action cannot be undone. You will lose access to all your saved addresses and order history.
+                 </p>
+                 
+                 <div className="w-full flex gap-3 pb-4">
+                   <button 
+                     onClick={() => setShowDeleteAccount(false)}
+                     className="flex-1 bg-slate-100 text-slate-700 font-bold py-4 rounded-[16px] active:scale-95 transition-all text-[15px]"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     onClick={() => {
+                       setShowDeleteAccount(false);
+                       // Add deletion logic here
+                     }}
+                     className="flex-1 bg-red-600 text-white font-bold py-4 rounded-[16px] active:scale-95 transition-all text-[15px] shadow-lg shadow-red-600/20"
+                   >
+                     Delete Account
+                   </button>
+                 </div>
+               </div>
+             </motion.div>
+           </>
+         )}
+       </AnimatePresence>
     </div>
   );
 };

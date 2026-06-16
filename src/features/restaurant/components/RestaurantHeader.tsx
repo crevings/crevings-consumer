@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, MoreVertical, Heart, Share2, Info, EyeOff, Star, ChevronRight } from 'lucide-react';
-
+import { ArrowLeft, MoreVertical, Heart, Share2, Info, EyeOff, Star, ChevronRight, Sparkles } from 'lucide-react';
 import { Restaurant } from '@/types';
 
 interface RestaurantHeaderProps {
@@ -18,7 +17,7 @@ interface RestaurantHeaderProps {
   onOutletClick: () => void;
 }
 
-export const RestaurantHeader: React.FC<RestaurantHeaderProps> = ({
+export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeaderProps>> = ({
   restaurant,
   onBack,
   isFavourite,
@@ -30,6 +29,7 @@ export const RestaurantHeader: React.FC<RestaurantHeaderProps> = ({
   onInfoClick,
   selectedOutlet,
   onOutletClick,
+  children
 }) => {
   const [isBannerMenuOpen, setIsBannerMenuOpen] = useState(false);
 
@@ -131,51 +131,61 @@ export const RestaurantHeader: React.FC<RestaurantHeaderProps> = ({
         </div>
       </div>
 
-      {/* Restaurant Header Info */}
-      <div className="flex flex-col items-center text-center gap-1.5 mb-6">
-        {/* Restaurant Quality Tags */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-2 mb-2">
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
-            <div className="w-3 h-3 flex items-center justify-center border border-green-600 rounded-[2px]">
-              <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+      {/* Restaurant Header Info (overlapping card container) */}
+      <div className="relative -mt-6 bg-white rounded-t-3xl pt-6 px-4 z-20 flex-1">
+        <div className="flex flex-col items-center text-center gap-1.5 mb-6">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none pt-4">{restaurant.name}</h1>
+          
+          <button onClick={onOutletClick} className="flex items-center gap-1 text-sm text-slate-800 font-bold mt-1 active:scale-95 transition-transform bg-slate-50 px-3 py-1 rounded-full">
+            <span>{selectedOutlet}</span>
+            <ChevronRight className="w-4 h-4 text-slate-500" />
+          </button>
+          
+          <p className="text-sm text-slate-500 font-medium mt-1">
+            {restaurant.cuisine}
+          </p>
+          
+          <div className="flex flex-col items-center gap-1.5 mt-2">
+            <div className="flex items-center justify-center gap-2.5 text-[13px] font-bold text-slate-700">
+              <div className="flex items-center gap-0.5 bg-[#21c55e] text-white px-1.5 py-0.5 rounded shadow-sm">
+                <span className="text-[12px] leading-none pb-[1px]">{restaurant.rating}</span>
+                <Star className="w-3 h-3 fill-white" />
+              </div>
+              <span className="text-slate-300 text-[10px]">●</span>
+              <span>{restaurant.distance}</span>
+              <span className="text-slate-300 text-[10px]">●</span>
+              <span>{restaurant.time}</span>
             </div>
-            <span className="text-[11px] font-bold text-green-700 leading-none">Pure Veg</span>
+            <span className="text-slate-500 text-[11px] font-medium border-b border-dashed border-slate-300 pb-0.5">{restaurant.ratingCount || '5K+'} ratings</span>
           </div>
-          <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#00bd6f]/10 border border-[#00bd6f]/20 rounded-lg">
-            <Star className="w-3.5 h-3.5 text-[#00bd6f] fill-[#00bd6f]" />
-            <span className="text-[11px] font-bold text-[#00bd6f] leading-none">Best in Pizzas</span>
+
+          {/* Restaurant Quality Tags */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4 mb-2">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-orange-50 border border-orange-100 rounded-lg">
+              <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+              <span className="text-[11px] font-bold text-orange-700 leading-none">Price match guarantee</span>
+            </div>
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-green-50 border border-green-100 rounded-lg">
+              <div className="w-3 h-3 flex items-center justify-center border border-green-600 rounded-[2px]">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+              </div>
+              <span className="text-[11px] font-bold text-green-700 leading-none">Pure Veg</span>
+            </div>
+            <div className="flex items-center gap-1 px-2.5 py-1.5 bg-[#00bd6f]/10 border border-[#00bd6f]/20 rounded-lg">
+              <Star className="w-3.5 h-3.5 text-[#00bd6f] fill-[#00bd6f]" />
+              <span className="text-[11px] font-bold text-[#00bd6f] leading-none">Best in Pizzas</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[12px] font-medium mt-2">
+            <span className="text-slate-600">{restaurant.price}</span>
+            <span className="text-slate-300">|</span>
+            <span className="text-emerald-600 font-bold">Open</span>
           </div>
         </div>
 
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none pt-2">{restaurant.name}</h1>
-        
-        <button onClick={onOutletClick} className="flex items-center gap-1 text-sm text-slate-800 font-bold mt-1 active:scale-95 transition-transform bg-slate-50 px-3 py-1 rounded-full">
-          <span>{selectedOutlet}</span>
-          <ChevronRight className="w-4 h-4 text-slate-500" />
-        </button>
-        
-        <p className="text-sm text-slate-500 font-medium mt-1">
-          {restaurant.cuisine}
-        </p>
-        <div className="flex items-start justify-center gap-2.5 mt-2">
-          <div className="flex flex-col items-center">
-            <div className="flex items-center gap-0.5 bg-[#21c55e] text-white px-1.5 py-0.5 rounded shadow-sm">
-              <span className="text-[12px] leading-none pb-[1px]">{restaurant.rating}</span>
-              <Star className="w-3 h-3 fill-white" />
-            </div>
-            <span className="text-slate-500 text-[10px] font-medium mt-1 leading-none whitespace-nowrap">{restaurant.ratingCount || "100+"} ratings</span>
-          </div>
-          <span className="text-slate-300 text-[10px] pt-1.5">●</span>
-          <span className="text-[13px] font-bold text-slate-700 pt-0.5">{restaurant.distance}</span>
-          <span className="text-slate-300 text-[10px] pt-1.5">●</span>
-          <span className="text-[13px] font-bold text-slate-700 pt-0.5">{restaurant.time}</span>
-        </div>
-
-        <div className="flex items-center gap-2 text-[12px] font-medium mt-2">
-          <span className="text-slate-600">{restaurant.price}</span>
-          <span className="text-slate-300">|</span>
-          <span className="text-emerald-600 font-bold">Open</span>
-        </div>
+        {/* Render rest of the page contents inside the same card */}
+        {children}
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical, Sparkles, ShoppingCart } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Restaurant, MenuItem, CartItem } from "@/types";
@@ -45,7 +45,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   onInfoClick,
   autoAddItem
 }) => {
-  const { menuItems, isLoading: isMenuLoading } = useRestaurantDetail(restaurant.id);
+  const { menuItems, isLoading: isMenuLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurantDetail(restaurant.id);
   const { cart, setCart } = useCart();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('default');
@@ -102,6 +102,18 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       }
     }
   };
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (isLoadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !isReachingEnd) {
+        setSize(size + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoadingMore, isReachingEnd, setSize, size]);
 
   const scrollToTop = () => {
     if (scrollContainerRef.current) {
@@ -231,7 +243,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto no-scrollbar pb-24"
       >
       
-      {/* Hero Image Section */}
+      {/* Hero Image & Content Card wrapper */}
       <RestaurantHeader 
         restaurant={restaurant}
         onBack={onBack}
@@ -244,11 +256,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         onInfoClick={onInfoClick}
         selectedOutlet={selectedOutlet}
         onOutletClick={() => setIsOutletsOpen(true)}
-      />
-
-      {/* Content Container (overlaps image) */}
-      <div className="relative -mt-6 bg-white rounded-t-3xl pt-6 px-4 z-20 flex-1">
-        
+      >
         <RestaurantOffers onSelectOffer={setSelectedOffer} />
 
         <RestaurantFilters 
@@ -274,8 +282,13 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
             setIsMenuItemDetailOpen(true);
           }}
         />
-
-      </div>
+        
+        <div ref={lastElementRef} className="py-6 flex items-center justify-center">
+          {isLoadingMore && (
+            <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+          )}
+        </div>
+      </RestaurantHeader>
 
       <FloatingCartBar 
         totalItems={totalItems}

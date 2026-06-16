@@ -139,6 +139,11 @@ export const MainLayout: React.FC = () => {
       {isTabRoute && (
         <Header
           currentLocation={currentLocation}
+          onSearchClick={() => {
+            setSearchQuery('');
+            navigate("/search-results");
+          }}
+          onMicClick={() => setIsVoiceSearchOpen(true)}
           onLocationClick={() => navigate("/location")}
           onProfileClick={() => navigate("/profile")}
         />

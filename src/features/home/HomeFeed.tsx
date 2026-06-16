@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
 import { SlidersHorizontal, Bike, UtensilsCrossed, Star, Store, ChevronRight } from "lucide-react";
 import { Restaurant, FilterOptions } from "@/types";
@@ -30,7 +30,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onItemAdd,
   onCollectionClick,
 }) => {
-  const { restaurants, isLoading: isApiLoading } = useRestaurants();
+  const { restaurants, isLoading: isApiLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurants();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +50,18 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     const timer = setTimeout(() => setIsLoading(false), 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (isLoadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !isReachingEnd) {
+        setSize(size + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoadingMore, isReachingEnd, setSize, size]);
 
   const visibleRestaurants = useMemo(() => {
     let list = restaurants.filter((r) => !hiddenIds.includes(String(r.id)));
@@ -458,7 +470,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                 onItemAdd={(itemId) => onItemAdd(rest, itemId)}
               />
             ))}
-            <div className="mt-8 text-left">
+            
+            <div ref={lastElementRef} className="py-6 flex items-center justify-center">
+              {isLoadingMore && (
+                <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+              )}
+              {!isLoadingMore && isReachingEnd && visibleRestaurants.length > 0 && (
+                <p className="text-xs text-slate-400 font-medium">You've reached the end!</p>
+              )}
+            </div>
+
+            <div className="mt-2 text-left">
               <p className="text-sm font-medium text-slate-400">
                 built with 💖
               </p>
