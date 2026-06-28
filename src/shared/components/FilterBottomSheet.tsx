@@ -1,11 +1,7 @@
 import { Star } from "lucide-react";
 import { useState } from "react";
 
-const StarIcon = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </svg>
-);
+
 
 const VegIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16">
@@ -28,14 +24,23 @@ const EggIcon = () => (
   </svg>
 );
 
-const dietaryIcons = { Veg: <VegIcon />, "Non-veg": <NonVegIcon />, Egg: <EggIcon /> };
+const dietaryIcons: Record<string, React.ReactNode> = { veg: <VegIcon />, "non-veg": <NonVegIcon />, egg: <EggIcon /> };
+const dietaryLabels: Record<string, string> = { veg: "Veg", "non-veg": "Non-veg", egg: "Egg" };
 
-export  function FilterBottomSheet({
+import { FilterOptions } from "@/types";
+
+interface FilterBottomSheetProps {
+  onClose?: () => void;
+  onApply?: (filters: FilterOptions) => void;
+  initialFilters?: FilterOptions;
+}
+
+export function FilterBottomSheet({
   onClose = () => {},
   onApply = () => {},
-  initialFilters = { minRating: null, maxDistance: 3, dietary: "all", offersOnly: false, sortBy: "default", maxTime: 60, priceRange: [0, 1000] },
-}) {
-  const [draftRating, setDraftRating] = useState(initialFilters.minRating);
+  initialFilters = { minRating: null, maxDistance: 3, dietary: "all", offersOnly: false, sortBy: "default", maxTime: 60, priceRange: null },
+}: FilterBottomSheetProps) {
+  const [draftRating, setDraftRating] = useState<number | null>(initialFilters.minRating);
   const [draftDistance, setDraftDistance] = useState(initialFilters.maxDistance);
   const [draftDietary, setDraftDietary] = useState(
     initialFilters.dietary === "all" ? [] : [initialFilters.dietary]
@@ -151,7 +156,7 @@ export  function FilterBottomSheet({
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>Dietary Preferences</p>
             <div style={{ display: "flex", gap: 8 }}>
-              {["Veg", "Non-veg", "Egg"].map((item) => (
+              {(["veg", "non-veg", "egg"] as const).map((item) => (
                 <button
                   key={item}
                   onClick={() => toggleDietary(item)}
@@ -159,13 +164,13 @@ export  function FilterBottomSheet({
                     padding: "8px 14px",
                     borderRadius: 12,
                     border: draftDietary.includes(item)
-                      ? item === "Veg" ? "1.5px solid #22c55e"
-                        : item === "Non-veg" ? "1.5px solid #ef4444"
+                      ? item === "veg" ? "1.5px solid #22c55e"
+                        : item === "non-veg" ? "1.5px solid #ef4444"
                         : "1.5px solid #f59e0b"
                       : "1.5px solid #e2e8f0",
                     background: draftDietary.includes(item)
-                      ? item === "Veg" ? "#f0fdf4"
-                        : item === "Non-veg" ? "#fef2f2"
+                      ? item === "veg" ? "#f0fdf4"
+                        : item === "non-veg" ? "#fef2f2"
                         : "#fffbeb"
                       : "#fff",
                     fontSize: 13, fontWeight: 500, color: "#334155",
@@ -174,7 +179,7 @@ export  function FilterBottomSheet({
                   }}
                 >
                   {dietaryIcons[item]}
-                  {item}
+                  {dietaryLabels[item]}
                 </button>
               ))}
             </div>
@@ -210,10 +215,10 @@ export  function FilterBottomSheet({
           {/* Sort by Price */}
           <div>
             <p style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>Sort by Price</p>
-            {[
-              { value: "low_to_high", label: "Low to High" },
-              { value: "high_to_low", label: "High to Low" },
-            ].map(({ value, label }) => (
+            {([
+              { value: "priceLow", label: "Low to High" },
+              { value: "priceHigh", label: "High to Low" },
+            ] as const).map(({ value, label }) => (
               <label
                 key={value}
                 style={{

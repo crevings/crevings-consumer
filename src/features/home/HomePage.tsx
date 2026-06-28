@@ -28,6 +28,28 @@ export const HomePage: React.FC = () => {
     setConfirmModal({ type: "favourite", restaurantId: String(id) });
   };
 
+  if (!currentLocation || !currentLocation.address) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center animate-fadeInUp pt-10">
+        <div className="w-32 h-32 bg-green-50 rounded-full flex items-center justify-center mb-8 shadow-inner animate-bounce">
+          <MapPin className="w-14 h-14 text-green-600" />
+        </div>
+        <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">
+          Please add your location
+        </h2>
+        <p className="text-slate-500 text-base max-w-[300px] leading-relaxed mb-10">
+          We need your delivery address to show nearby restaurants and place your food order.
+        </p>
+        <button
+          onClick={() => navigate("/location")}
+          className="w-full max-w-[280px] py-4 bg-[#00BD6F] text-white rounded-2xl text-base font-bold active:scale-95 transition-all shadow-md shadow-[#00BD6F]/20"
+        >
+          Add Location
+        </button>
+      </div>
+    );
+  }
+
   const isMotihari = currentLocation.address.toLowerCase().includes("motihari");
 
   if (isMotihari) {

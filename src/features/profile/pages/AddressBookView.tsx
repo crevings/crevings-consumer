@@ -9,6 +9,7 @@ interface AddressBookViewProps {
 export const AddressBookView: React.FC<AddressBookViewProps> = ({ onBack }) => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showEditAddress, setShowEditAddress] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [addresses, setAddresses] = useState([
@@ -58,7 +59,11 @@ export const AddressBookView: React.FC<AddressBookViewProps> = ({ onBack }) => {
 
   const handleEdit = (id: string) => {
     setActiveMenuId(null);
-    setShowEditAddress(true);
+    const addr = addresses.find(a => a.id === id);
+    if (addr) {
+      setEditingAddress(addr);
+      setShowEditAddress(true);
+    }
   };
 
   return (
@@ -183,8 +188,15 @@ export const AddressBookView: React.FC<AddressBookViewProps> = ({ onBack }) => {
         </button>
       </div>
 
-      {showEditAddress && (
-        <EditAddressView onClose={() => setShowEditAddress(false)} />
+      {showEditAddress && editingAddress && (
+        <EditAddressView 
+          address={editingAddress}
+          setAddresses={setAddresses as any}
+          onClose={() => {
+            setShowEditAddress(false);
+            setEditingAddress(null);
+          }} 
+        />
       )}
     </div>
   );

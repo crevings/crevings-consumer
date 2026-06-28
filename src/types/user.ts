@@ -12,5 +12,11 @@ export interface SavedAddress {
   type: string;
   icon: any;
   address: string;
+  building?: string;
+  street?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
   isDefault: boolean;
 }

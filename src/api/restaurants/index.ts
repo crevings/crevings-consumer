@@ -91,3 +91,45 @@ export const useRestaurantDetail = (id: string | undefined, limit: number = 20) 
     mutate,
   };
 };
+
+/**
+ * Fetch items under 99 with SWR Infinite.
+ */
+export const useItemsUnder99 = (limit: number = 10) => {
+  const getKey = (pageIndex: number, previousPageData: PaginatedResponse<any> | null) => {
+    // Reached the end
+    if (previousPageData && !previousPageData.nextCursor) return null;
+
+    // First page
+    if (pageIndex === 0) return `/consumer/items-under-99?limit=${limit}`;
+
+    // Subsequent pages
+    return `/consumer/items-under-99?limit=${limit}&cursor=${previousPageData!.nextCursor}`;
+  };
+
+  const { data, error, size, setSize, isValidating } = useSWRInfinite<PaginatedResponse<any>>(
+    getKey,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  const items = data ? data.flatMap(page => page.data || []) : [];
+  const isLoadingInitialData = !data && !error;
+  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.nextCursor === null);
+
+  return {
+    items,
+    isLoading: isLoadingInitialData,
+    isLoadingMore,
+    isReachingEnd,
+    isError: error,
+    size,
+    setSize,
+  };
+};
+
+export * from "./offers";

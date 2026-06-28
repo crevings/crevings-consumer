@@ -1,12 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical, Sparkles, ShoppingCart } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Restaurant, MenuItem, CartItem } from "@/types";
+import { Restaurant, MenuItem, CartItem, Offer } from "@/types";
 import { CustomizationBottomSheet } from "@/features/restaurant/components/CustomizationBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
-import { useRestaurantDetail } from "../../api/restaurants";
+import { useRestaurantDetail, useRestaurantOffers } from "../../api/restaurants";
 import { RestaurantHeader } from "./components/RestaurantHeader";
 import { RestaurantOffers } from "./components/RestaurantOffers";
 import { RestaurantFilters } from "./components/RestaurantFilters";
@@ -16,6 +16,7 @@ import { CartPreviewSheet } from "../cart/components/CartPreviewSheet";
 import { RestaurantOutletsSheet } from "./components/RestaurantOutletsSheet";
 import { OfferDetailsSheet } from "./components/OfferDetailsSheet";
 import { useCart } from "../../contexts/CartContext";
+import { useRestaurant } from "../../contexts/RestaurantContext";
 import { Skeleton } from "boneyard-js/react";
 
 interface RestaurantDetailViewProps {
@@ -46,13 +47,15 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   autoAddItem
 }) => {
   const { menuItems, isLoading: isMenuLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurantDetail(restaurant.id);
+  const { offers, isLoadingMore: isOffersLoadingMore, isReachingEnd: isOffersReachingEnd, size: offersSize, setSize: setOffersSize } = useRestaurantOffers(restaurant.id, 5);
   const { cart, setCart } = useCart();
+  const { setAutoAddItem } = useRestaurant();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>('default');
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOffer, setSelectedOffer] = useState<{title: string, subtitle: string, code?: string} | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [selectedAddonItem, setSelectedAddonItem] = useState<MenuItem | null>(null);
   const [showMenuCategories, setShowMenuCategories] = useState(false);
   const [isOutletsOpen, setIsOutletsOpen] = useState(false);
@@ -257,7 +260,13 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         selectedOutlet={selectedOutlet}
         onOutletClick={() => setIsOutletsOpen(true)}
       >
-        <RestaurantOffers onSelectOffer={setSelectedOffer} />
+        <RestaurantOffers 
+          offers={offers}
+          isLoadingMore={isOffersLoadingMore}
+          isReachingEnd={isOffersReachingEnd}
+          onLoadMore={() => setOffersSize(offersSize + 1)}
+          onSelectOffer={setSelectedOffer}
+        />
 
         <RestaurantFilters 
           searchQuery={searchQuery}
@@ -378,7 +387,10 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         {selectedAddonItem && (
           <CustomizationBottomSheet 
             item={selectedAddonItem}
-            onClose={() => setSelectedAddonItem(null)}
+            onClose={() => {
+              setSelectedAddonItem(null);
+              setAutoAddItem(null);
+            }}
             onAddToCart={(cartItem) => {
               setCart(prev => {
                 const newItems: CartItem[] = [];
@@ -421,6 +433,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                 return [...prev, ...newItems];
               });
               setSelectedAddonItem(null);
+              setAutoAddItem(null);
             }}
           />
         )}

@@ -9,7 +9,6 @@ export interface FilterOptions {
 }
 
 export interface Restaurant {
-  [x: string]: string;
   id: string;
   name: string;
   cuisine: string;
@@ -23,6 +22,7 @@ export interface Restaurant {
   distanceValue: number;
   offer?: string;
   dietary: string[];
+  address?: string;
 }
 
 export interface Brand {
@@ -31,3 +31,30 @@ export interface Brand {
   logo: string;
   image: string;
 }
+
+export interface Offer {
+  offerId: string;
+  restaurantId: string;
+  name: string;
+  description?: string;
+  offerType: 'percentage' | 'flat' | 'bogo' | 'free_item';
+  discountPercent?: number;
+  maxCap?: number;
+  discountAmount?: number;
+  freeItemName?: string;
+  applicableScope: 'all' | 'category' | 'items';
+  applicableIds: string[];
+  customerType: 'all' | 'new' | 'returning';
+  orderTypes: {
+    delivery: boolean;
+    takeaway: boolean;
+    dineIn: boolean;
+  };
+  paymentMode: 'all' | 'prepaid';
+  allowClubbing: boolean;
+  minOrder?: number;
+  startDate?: string;
+  endDate?: string;
+  status: 'Active' | 'Paused' | 'Scheduled' | 'Expired';
+}
+

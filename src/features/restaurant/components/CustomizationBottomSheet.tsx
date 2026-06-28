@@ -44,7 +44,7 @@ interface CustomizationBottomSheetProps {
 const getVariantsForItem = (item: any): ItemVariant[] => {
   const name = item.name.toLowerCase();
   const basePrice = item.price;
-  
+
   if (name.includes('pizza')) {
     return [
       { id: 'v1', name: 'Small', price: basePrice },
@@ -72,7 +72,7 @@ const getVariantsForItem = (item: any): ItemVariant[] => {
       { id: 'v2', name: 'Full', price: basePrice + 150 },
     ];
   }
-  
+
   // Default variant if no specific match
   return [
     { id: 'v1', name: 'Regular', price: basePrice }
@@ -82,7 +82,7 @@ const getVariantsForItem = (item: any): ItemVariant[] => {
 // Helper to generate dynamic addons based on item name
 const getAddonsForItem = (item: any): CustomizationSection[] => {
   const name = item.name.toLowerCase();
-  
+
   const beverages: CustomizationSection = {
     id: 's-bev',
     title: 'Beverages',
@@ -112,7 +112,7 @@ const getAddonsForItem = (item: any): CustomizationSection[] => {
       beverages
     ];
   }
-  
+
   if (name.includes('biryani')) {
     return [
       {
@@ -168,7 +168,7 @@ const getAddonsForItem = (item: any): CustomizationSection[] => {
 export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> = ({ item, onClose, onAddToCart }) => {
   const variants = useMemo(() => getVariantsForItem(item), [item]);
   const sections = useMemo(() => getAddonsForItem(item), [item]);
-  
+
   const [selectedVariant, setSelectedVariant] = useState<ItemVariant>(variants[0]);
   const [mainQuantity, setMainQuantity] = useState(1);
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
@@ -209,7 +209,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
 
   const calculateTotalPrice = () => {
     let total = selectedVariant.price * mainQuantity;
-    
+
     sections.forEach(section => {
       section.items.forEach(addon => {
         if (section.type === 'beverage') {
@@ -222,7 +222,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
         }
       });
     });
-    
+
     return total;
   };
 
@@ -247,19 +247,21 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
       selectedSides: selectedBeveragesList,
       totalPrice: calculateTotalPrice()
     });
+
+    onClose();
   };
 
   return (
     <>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60]"
         onClick={onClose}
       />
-      
-      <motion.div 
+
+      <motion.div
         initial={{ y: '100%' }}
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
@@ -268,13 +270,13 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
       >
         {/* Top Section (Item Header) */}
         <div className="p-4 border-b border-gray-100 shrink-0 relative">
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 active:scale-95 transition-transform"
+          <button
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 active:scale-95 transition-transform z-10"
           >
             <X className="w-5 h-5" />
           </button>
-          
+
           <div className="flex gap-4 pr-10">
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0">
               <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -304,14 +306,13 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
               </div>
               <div className="px-4 py-3 grid grid-cols-3 gap-3">
                 {variants.map((variant) => (
-                  <div 
-                    key={variant.id} 
+                  <div
+                    key={variant.id}
                     onClick={() => setSelectedVariant(variant)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all ${
-                      selectedVariant.id === variant.id 
-                        ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]' 
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all ${selectedVariant.id === variant.id
+                        ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]'
                         : 'border-gray-200 bg-white shadow-sm hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <span className={`text-[14px] font-bold mb-1 ${selectedVariant.id === variant.id ? 'text-[#00bd6f]' : 'text-gray-700'}`}>
                       {variant.name}
@@ -330,16 +331,16 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                 <h3 className="text-[18px] font-bold text-gray-900">{section.title}</h3>
                 <p className="text-[13px] text-gray-500 font-medium mt-0.5">{section.subtitle}</p>
               </div>
-              
+
               <div className="px-4 py-3 grid grid-cols-2 gap-3">
                 {section.items.map((addon) => {
                   const isAddonSelected = addonQuantities[addon.id] > 0;
                   const isBeverageSelected = selectedBeverages[addon.id];
                   const isSelected = isAddonSelected || isBeverageSelected;
-                  
+
                   return (
-                    <div 
-                      key={addon.id} 
+                    <div
+                      key={addon.id}
                       onClick={() => {
                         if (!addon.inStock) return;
                         if (section.type === 'addon') {
@@ -348,11 +349,10 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                           handleAddonIncrement(addon.id);
                         }
                       }}
-                      className={`relative flex flex-col p-3 rounded-2xl border transition-all cursor-pointer ${
-                        isSelected 
-                          ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]' 
+                      className={`relative flex flex-col p-3 rounded-2xl border transition-all cursor-pointer ${isSelected
+                          ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]'
                           : 'border-gray-200 bg-white shadow-sm'
-                      } ${!addon.inStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        } ${!addon.inStock ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {/* Top: Veg/Non-veg & Name */}
                       <div className="flex items-start gap-2 mb-1">
@@ -379,7 +379,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                       {/* Bottom: Price & Action */}
                       <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
                         <span className="text-[14px] font-black text-gray-900">₹{addon.price}</span>
-                        
+
                         {section.type === 'beverage' ? (
                           addon.inStock ? (
                             addonQuantities[addon.id] ? (
@@ -393,7 +393,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                                 </button>
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 onClick={(e) => { e.stopPropagation(); handleAddonIncrement(addon.id); }}
                                 className="bg-white text-[#00bd6f] border border-[#00bd6f]/30 px-3 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 active:scale-95 transition-transform shadow-sm hover:bg-[#f4fdf8]"
                               >
@@ -407,12 +407,11 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                           )
                         ) : (
                           // Addon selection (Checkbox)
-                          <button 
+                          <button
                             disabled={!addon.inStock}
                             onClick={(e) => { e.stopPropagation(); toggleBeverage(addon.id, section.selectionLimit); }}
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                              isBeverageSelected ? 'border-[#00bd6f] bg-[#00bd6f]' : 'border-gray-300 bg-white'
-                            }`}
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isBeverageSelected ? 'border-[#00bd6f] bg-[#00bd6f]' : 'border-gray-300 bg-white'
+                              }`}
                           >
                             {isBeverageSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
                           </button>
@@ -431,23 +430,23 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
           <div className="flex items-center gap-4">
             {/* Quantity Selector */}
             <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl h-14 px-3 min-w-[110px]">
-              <button 
+              <button
                 onClick={() => setMainQuantity(Math.max(1, mainQuantity - 1))}
                 className="w-8 h-full flex items-center justify-center text-gray-600"
               >
                 {mainQuantity === 1 ? <Trash2 className="w-4 h-4 text-red-500" /> : <Minus className="w-4 h-4 stroke-[3]" />}
               </button>
               <span className="text-[16px] font-bold text-gray-900">{mainQuantity}</span>
-              <button 
+              <button
                 onClick={() => setMainQuantity(mainQuantity + 1)}
                 className="w-8 h-full flex items-center justify-center text-[#00bd6f]"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
               </button>
             </div>
-            
+
             {/* Add to Cart Button */}
-            <button 
+            <button
               onClick={handleAddToCart}
               className="flex-1 bg-[#00bd6f] text-white h-14 rounded-xl font-bold text-[16px] flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-sm"
             >

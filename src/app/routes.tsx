@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation as useReactRouterLocation } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 
 import { MainLayout } from "../layouts/MainLayout";
@@ -177,6 +177,7 @@ const RestaurantInfoRouteWrapper: React.FC = () => {
 export const AppRoutes: React.FC = () => {
   const { restaurants } = useRestaurants();
   const navigate = useNavigate();
+  const reactRouterLocation = useReactRouterLocation();
 
   const { userProfile, setUserProfile, rawProfileImage, setRawProfileImage, reviews, setReviews, logout } = useUser();
   const { currentLocation, setCurrentLocation, addresses, setAddresses } = useAppLocation();
@@ -547,13 +548,15 @@ export const AppRoutes: React.FC = () => {
             <LocationPickerView
               addresses={addresses}
               setAddresses={setAddresses}
+              onClose={() => navigate(-1)}
               onSelectLocation={(loc) => {
+                const from = (reactRouterLocation.state as any)?.from || "/";
                 setIsLoadingView(true);
-                setLoadingViewType("home");
+                setLoadingViewType(from === "/checkout" ? "checkout" : "home");
                 setTimeout(() => {
                   setCurrentLocation(loc);
                   setIsLoadingView(false);
-                  navigate("/");
+                  navigate(from);
                 }, 2500);
               }}
             />

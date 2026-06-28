@@ -1,47 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Crosshair, Navigation, CheckCircle2, Home, Briefcase } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ArrowLeft, Search, MapPin, Crosshair, Navigation, CheckCircle2, Home, Briefcase, X, Loader2 } from 'lucide-react';
+import { GoogleMap, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
-// Fix for default marker icon in leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Custom pin icon
-const customIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOUM1IDE0LjI1IDEyIDIyIDEyIDIyQzEyIDIyIDE5IDE0LjI1IDE5IDlDMTkgNS4xMyAxNS44NyAyIDEyIDJaTTEyIDExLjVDMTAuNjIgMTEuNSA5LjUgMTAuMzggOS41IDlDOS41IDcuNjIgMTAuNjIgNi41IDEyIDYuNUMxMy4zOCA2LjUgMTQuNSA3LjYyIDE0LjUgOUMxNC41IDEwLjM4IDEzLjM4IDExLjUgMTIgMTEuNVoiIGZpbGw9IiMwMGJkNmYiLz48L3N2Zz4=',
-  iconSize: [40, 40],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -40],
-});
+const libraries: ("places")[] = ["places"];
 
 interface MapLocationPickerViewProps {
   initialLocation?: { title: string, subtitle: string, coords: [number, number] } | null;
   onClose: () => void;
-  onConfirm: (address: { type: string, address: string }) => void;
+  onConfirm: (address: { 
+    type: string; 
+    address: string;
+    building?: string;
+    street?: string;
+    coordinates?: { lat: number; lng: number };
+  }) => void;
 }
-
-// Component to handle map center updates
-const MapUpdater = ({ center }: { center: [number, number] }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, 15);
-  }, [center, map]);
-  return null;
-};
-
-const MapEvents = ({ onMoveStart, onMoveEnd }: { onMoveStart: () => void, onMoveEnd: () => void }) => {
-  useMapEvents({
-    movestart: onMoveStart,
-    moveend: onMoveEnd,
-  });
-  return null;
-};
 
 export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ initialLocation, onClose, onConfirm }) => {
   const [isMoving, setIsMoving] = useState(false);
@@ -49,126 +22,226 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
   const [useAccountDetails, setUseAccountDetails] = useState(true);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [addressType, setAddressType] = useState('Home');
+  const [customAddressType, setCustomAddressType] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialLocation?.title || '');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number]>(initialLocation?.coords || [18.5822, 73.9197]); // Default Pune Airport
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+
+  const [mapCenter, setMapCenter] = useState<{ lat: number, lng: number }>(() => {
+    if (initialLocation && initialLocation.coords) {
+      return { lat: initialLocation.coords[0], lng: initialLocation.coords[1] };
+    }
+    return { lat: 18.5822, lng: 73.9197 }; // Default Pune Airport
+  });
+
   const [selectedAddress, setSelectedAddress] = useState({
     title: initialLocation?.title || 'Pune International Airport',
     subtitle: initialLocation?.subtitle || 'New Airport Road, Pune International Airport Area, Lohegaon, Pune, Maharashtra 411032, India'
   });
 
-  const searchSuggestions = [
-    { id: 1, title: 'Koregaon Park', subtitle: 'Pune, Maharashtra', coords: [18.5362, 73.8939] as [number, number] },
-    { id: 2, title: 'Viman Nagar', subtitle: 'Pune, Maharashtra', coords: [18.5679, 73.9143] as [number, number] },
-    { id: 3, title: 'Baner', subtitle: 'Pune, Maharashtra', coords: [18.5590, 73.7868] as [number, number] },
-    { id: 4, title: 'Kalyani Nagar', subtitle: 'Pune, Maharashtra', coords: [18.5482, 73.9033] as [number, number] },
-    { id: 5, title: 'Hinjewadi', subtitle: 'Pune, Maharashtra', coords: [18.5913, 73.7389] as [number, number] },
-  ];
+  const isDragging = useRef(false);
+  const mapRef = useRef<google.maps.Map | null>(null);
 
-  const handleSuggestionClick = (suggestion: typeof searchSuggestions[0]) => {
-    setMapCenter(suggestion.coords);
-    setSelectedAddress({
-      title: suggestion.title,
-      subtitle: suggestion.subtitle
+  // Form Fields
+  const [building, setBuilding] = useState('');
+  const [street, setStreet] = useState('');
+  const [receiverName, setReceiverName] = useState('');
+  const [receiverPhone, setReceiverPhone] = useState('');
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries
+  });
+
+  const updateAddressFromLatLng = (lat: number, lng: number) => {
+    if (!window.google) return;
+    setIsMoving(true);
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      setIsMoving(false);
+      if (status === "OK" && results?.[0]) {
+        const res = results[0];
+        
+        // Find a title component (neighborhood/sublocality)
+        const titleComponent = res.address_components.find(
+          c => c.types.includes('sublocality_level_1') || 
+               c.types.includes('locality') || 
+               c.types.includes('neighborhood')
+        );
+
+        setSelectedAddress({
+          title: titleComponent ? titleComponent.long_name : 'Selected Location',
+          subtitle: res.formatted_address
+        });
+      }
     });
-    setSearchQuery(suggestion.title);
-    setShowSuggestions(false);
   };
 
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const newPos = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        setMapCenter(newPos);
+        setSelectedAddress({
+          title: place.name || 'Selected Location',
+          subtitle: place.formatted_address || ''
+        });
+        mapRef.current?.panTo(newPos);
+      }
+    }
+  };
+
+  const handleCameraIdle = () => {
+    if (mapRef.current && isDragging.current) {
+      const center = mapRef.current.getCenter();
+      if (center) {
+        const lat = center.lat();
+        const lng = center.lng();
+        setMapCenter({ lat, lng });
+        updateAddressFromLatLng(lat, lng);
+      }
+      isDragging.current = false;
+    }
+  };
+
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      setPermissionGranted(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setMapCenter(newPos);
+          mapRef.current?.panTo(newPos);
+          updateAddressFromLatLng(newPos.lat, newPos.lng);
+        },
+        (error) => {
+          console.error("Error getting location", error);
+          setPermissionGranted(false);
+          alert("Could not access your location. Please check browser permissions.");
+        }
+      );
+    }
+  };
+
+  const handleFinalSave = () => {
+    const finalType = addressType === 'Other' ? (customAddressType || 'Other') : addressType;
+    const combinedAddress = [
+      building,
+      street,
+      selectedAddress.subtitle
+    ].filter(Boolean).join(', ');
+
+    onConfirm({
+      type: finalType,
+      address: combinedAddress,
+      building: building || undefined,
+      street: street || undefined,
+      coordinates: {
+        lat: mapCenter.lat,
+        lng: mapCenter.lng
+      }
+    });
+  };
+
+  if (!isLoaded) {
+    return (
+      <div className="fixed inset-0 bg-white z-[110] flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin text-green-600 w-10 h-10" />
+        <span className="text-sm font-semibold text-slate-500 mt-2">Loading Map...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[110] bg-[#e8eaed] flex flex-col animate-[slideInRight_0.3s_ease-out]">
+    <div className="fixed inset-0 z-[110] bg-[#e8eaed] flex flex-col animate-[slideInRight_0.3s_ease-out] font-sans">
+      <style>{`
+        button:focus, input:focus, select:focus, textarea:focus, [tabindex]:focus, div:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        .gm-style div:focus, .gm-style button:focus {
+          outline: none !important;
+        }
+      `}</style>
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-[400] bg-white shadow-sm px-4 py-3 flex items-center gap-3">
         <button onClick={onClose} className="p-2 -ml-2 text-slate-700 active:scale-95 transition-transform">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex-1 relative">
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            <Search className="w-5 h-5" />
-          </div>
-          <input 
-            type="text" 
-            placeholder="Search for area or address"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-          />
-          
-          {/* Autocomplete Suggestions */}
-          {showSuggestions && searchQuery.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden z-[500]">
-              {searchSuggestions.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.subtitle.toLowerCase().includes(searchQuery.toLowerCase())).map((suggestion, idx, arr) => (
+          <Autocomplete 
+            onLoad={setAutocomplete} 
+            onPlaceChanged={onPlaceChanged}
+          >
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <Search className="w-5 h-5" />
+              </div>
+              <input 
+                type="text" 
+                placeholder="Search for area or address"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all text-slate-950"
+              />
+              {searchQuery && (
                 <button 
-                  key={suggestion.id}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className={`w-full flex items-center gap-3 p-3 hover:bg-slate-50 active:bg-slate-100 transition-all text-left ${idx !== arr.length - 1 ? 'border-b border-slate-100' : ''}`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-200 text-slate-500 rounded-full hover:bg-slate-300"
                 >
-                  <div className="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center shrink-0">
-                    <MapPin className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-slate-900 text-sm">{suggestion.title}</h4>
-                    <p className="text-xs text-slate-500 truncate">{suggestion.subtitle}</p>
-                  </div>
+                  <X className="w-3.5 h-3.5" />
                 </button>
-              ))}
-              {searchSuggestions.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || s.subtitle.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
-                <div className="p-4 text-center text-slate-500 text-sm">No results found</div>
               )}
             </div>
-          )}
+          </Autocomplete>
         </div>
       </div>
 
       {/* Map Area */}
       <div className="flex-1 relative overflow-hidden mt-[72px] z-0">
-        <MapContainer center={mapCenter} zoom={15} zoomControl={false} style={{ height: '100%', width: '100%' }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          />
-          <MapUpdater center={mapCenter} />
-          <MapEvents onMoveStart={() => setIsMoving(true)} onMoveEnd={() => setIsMoving(false)} />
-          <Marker position={mapCenter} icon={customIcon} />
-        </MapContainer>
+        <GoogleMap
+          mapContainerStyle={{ width: '100%', height: '100%' }}
+          center={mapCenter}
+          zoom={15}
+          onLoad={(map) => { mapRef.current = map; }}
+          onDragStart={() => { isDragging.current = true; }}
+          onIdle={handleCameraIdle}
+          options={{
+            disableDefaultUI: true,
+            zoomControl: false,
+            gestureHandling: "greedy"
+          }}
+        />
 
-        {/* Center Pin Overlay (for visual effect when moving map) */}
+        {/* Center Pin Overlay (draggable via map panning) */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full z-[400] flex flex-col items-center pointer-events-none">
           <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl mb-2 whitespace-nowrap transition-all duration-300">
-            {isMoving ? 'Place the pin at exact delivery location' : 'Order will be delivered here'}
+            {isMoving ? 'Fetching details...' : 'Order will be delivered here'}
             <div className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900"></div>
           </div>
+          <MapPin className="w-10 h-10 text-green-600 fill-green-600/30" />
         </div>
 
         {/* Current Location Button */}
-        <div className="absolute bottom-6 right-4 z-[400]">
+        <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-3">
           <button 
-            onClick={() => {
-              setMapCenter([18.5822, 73.9197]);
-              setSelectedAddress({
-                title: 'Pune International Airport',
-                subtitle: 'New Airport Road, Pune International Airport Area, Lohegaon, Pune, Maharashtra 411032, India'
-              });
-              setSearchQuery('');
-            }}
+            onClick={handleLocateMe}
             className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-700 hover:text-[#00BD6F] active:scale-95 transition-all"
           >
-            <Navigation className="w-4 h-4" />
+            <Crosshair className="w-4 h-4" />
           </button>
-        </div>
 
-        {/* Grant Permission Toggle */}
-        <div className="absolute top-20 right-4 z-[400]">
+          {/* Grant Permission Toggle Indicator */}
           <button 
             onClick={() => setPermissionGranted(!permissionGranted)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-full shadow-sm text-[9px] font-bold transition-all ${permissionGranted ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-white text-slate-700 border border-slate-200'}`}
+            className={`flex items-center justify-center gap-1 px-3 h-10 rounded-full shadow-lg text-[10px] font-bold transition-all ${permissionGranted ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-white text-slate-700 border border-slate-200'}`}
           >
-            <Crosshair className="w-2.5 h-2.5" />
-            {permissionGranted ? 'Location On' : 'Enable Location'}
+            <Crosshair className="w-3.5 h-3.5" />
+            {permissionGranted ? 'GPS Active' : 'GPS Off'}
           </button>
         </div>
       </div>
@@ -206,13 +279,13 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
             </button>
           </>
         ) : (
-          <div className="animate-[fadeIn_0.3s_ease-out] max-h-[85vh] overflow-y-auto no-scrollbar">
+          <div className="animate-[fadeIn_0.3s_ease-out] max-h-[70vh] overflow-y-auto no-scrollbar">
             {/* Header & Change button */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">Location Details</h2>
               <button 
                 onClick={() => setShowAddressForm(false)} 
-                className="text-sm font-bold text-green-600 hover:text-green-700 transition-colors"
+                className="text-sm font-bold text-[#00bd6f] hover:text-green-700 transition-colors"
               >
                 Change
               </button>
@@ -251,7 +324,10 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
                 <input 
                   type="text" 
                   placeholder="Building / Floor *"
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                  value={building}
+                  onChange={(e) => setBuilding(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
+                  required
                 />
               </div>
              
@@ -260,7 +336,9 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
                 <input 
                   type="text" 
                   placeholder="Street (Recommended)"
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
                 />
               </div>
 
@@ -279,7 +357,6 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
                   onClick={() => setShowAddressForm(false)}
                   className="w-[76px] h-[76px] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shrink-0 relative flex flex-col items-center justify-center group active:scale-95 transition-all"
                 >
-                  {/* Subtle Grid Map Pattern Background */}
                   <div className="absolute inset-0 bg-slate-50 flex items-center justify-center opacity-40">
                     <div className="w-full h-full relative bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px]" />
                   </div>
@@ -296,7 +373,10 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
                   <input 
                     type="text" 
                     placeholder="Save address as *"
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                    value={customAddressType}
+                    onChange={(e) => setCustomAddressType(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
+                    required
                   />
                 </div>
               )}
@@ -321,12 +401,16 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
                     <input 
                       type="text" 
                       placeholder="Receiver Name"
-                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      value={receiverName}
+                      onChange={(e) => setReceiverName(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
                     />
                     <input 
                       type="tel" 
                       placeholder="Receiver Phone Number"
-                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-900 placeholder:text-slate-400"
+                      value={receiverPhone}
+                      onChange={(e) => setReceiverPhone(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
                     />
                   </div>
                 )}
@@ -334,8 +418,9 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
             </div>
 
             <button 
-              onClick={() => onConfirm({ type: addressType, address: selectedAddress.subtitle })}
-              className="w-full bg-[#00bd6f] text-white font-bold text-base py-4 rounded-xl active:scale-[0.98] transition-all shadow-md hover:bg-[#00a35f]"
+              onClick={handleFinalSave}
+              disabled={building.trim() === ''}
+              className={`w-full text-white font-bold text-base py-4 rounded-xl active:scale-[0.98] transition-all shadow-md ${building.trim() === '' ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#00bd6f] hover:bg-[#00a35f]'}`}
             >
               Save Address
             </button>

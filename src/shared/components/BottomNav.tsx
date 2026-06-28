@@ -20,6 +20,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ isVisible }) => {
 
   const showNav =
     ["/", "/local", "/dine-in", "/deals"].includes(currentPath) &&
+    currentLocation &&
+    currentLocation.address &&
     !currentLocation.address.toLowerCase().includes("motihari");
 
   if (!showNav) return null;

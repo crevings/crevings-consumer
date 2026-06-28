@@ -1,20 +1,47 @@
 import React, { useState } from 'react';
 import { ChevronLeft, MapPin, Home, Briefcase, Map, GraduationCap, School } from 'lucide-react';
+import { SavedAddress } from '@/types';
 
 interface EditAddressViewProps {
+  address: SavedAddress;
+  setAddresses: React.Dispatch<React.SetStateAction<SavedAddress[]>>;
   onClose: () => void;
 }
 
-export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => {
-  const [saveAs, setSaveAs] = useState('Home');
+export const EditAddressView: React.FC<EditAddressViewProps> = ({ address, setAddresses, onClose }) => {
+  const commaIdx = address.address.indexOf(',');
+  const initialHouse = commaIdx !== -1 ? address.address.substring(0, commaIdx).trim() : address.address;
+  const initialRoad = commaIdx !== -1 ? address.address.substring(commaIdx + 1).trim() : '';
+
+  const [houseNo, setHouseNo] = useState(address.building || initialHouse);
+  const [roadArea, setRoadArea] = useState(address.street || initialRoad);
+  const [directions, setDirections] = useState('');
+  const [saveAs, setSaveAs] = useState(address.type);
 
   const saveOptions = [
     { id: 'Home', icon: Home },
     { id: 'Work', icon: Briefcase },
     { id: 'Other', icon: Map },
-    { id: 'College', icon: GraduationCap },
-    { id: 'School', icon: School },
   ];
+
+  const handleSave = () => {
+    const fullAddress = [houseNo, roadArea, directions].filter(Boolean).join(', ');
+    
+    setAddresses((prev) =>
+      prev.map((addr) =>
+        addr.id === address.id
+          ? {
+              ...addr,
+              type: saveAs,
+              address: fullAddress,
+              building: houseNo,
+              street: roadArea,
+            }
+          : addr
+      )
+    );
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-[120] bg-white flex flex-col animate-[slideInRight_0.3s_ease-out]">
@@ -31,9 +58,9 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => 
             <MapPin className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 mb-1">Home</h3>
+            <h3 className="font-bold text-slate-900 mb-1">Current Address</h3>
             <p className="text-[13px] text-slate-500 leading-relaxed">
-              Amanat Prakash, Blue gate, ground floor, Netajee Subhash Colony, Ekauna Part
+              {address.address}
             </p>
           </div>
         </div>
@@ -43,7 +70,8 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => 
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">House / Flat / Block No.</label>
             <input 
               type="text" 
-              defaultValue="Blue gate, ground floor"
+              value={houseNo}
+              onChange={(e) => setHouseNo(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-[15px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium text-slate-900"
             />
           </div>
@@ -51,7 +79,8 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => 
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Apartment / Road / Area</label>
             <input 
               type="text" 
-              defaultValue="Netajee Subhash Colony, Ekauna Part"
+              value={roadArea}
+              onChange={(e) => setRoadArea(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-[15px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium text-slate-900"
             />
           </div>
@@ -59,6 +88,8 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => 
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Directions to reach (Optional)</label>
             <input 
               type="text" 
+              value={directions}
+              onChange={(e) => setDirections(e.target.value)}
               placeholder="e.g. Ring the bell on the red gate"
               className="w-full bg-white border border-slate-200 rounded-xl py-3 px-4 text-[15px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium placeholder:text-slate-400 text-slate-900"
             />
@@ -92,8 +123,8 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ onClose }) => 
 
       <div className="p-5 border-t border-slate-100 bg-white">
         <button 
-          onClick={onClose}
-          className="w-full bg-green-600 text-white font-bold text-lg py-4 rounded-2xl active:scale-[0.98] transition-all shadow-md"
+          onClick={handleSave}
+          className="w-full bg-[#00BD6F] text-white font-bold text-lg py-4 rounded-2xl active:scale-[0.98] transition-all shadow-md"
         >
           Save Address
         </button>

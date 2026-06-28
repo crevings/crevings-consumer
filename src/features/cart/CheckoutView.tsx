@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -38,6 +38,8 @@ import { useApp } from "../../contexts/AppContext";
 import { CartItem, Order } from "@/types";
 import { CartPreviewSheet } from "./components/CartPreviewSheet";
 import { ConfirmationBottomSheet } from "../../shared/components/ConfirmationBottomSheet";
+import { useRestaurantOffers } from "../../api/restaurants";
+import { BASE_URL } from "../../api/fetcher";
 
 export const CheckoutView: React.FC = () => {
   const navigate = useNavigate();
@@ -70,6 +72,9 @@ export const CheckoutView: React.FC = () => {
     setCart((prev) => [...prev, newCartItem]);
   };
 
+  const { offers } = useRestaurantOffers(selectedRestaurant?.id, 20);
+  const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+
   const [orderType, setOrderType] = useState<"Delivery" | "Takeaway">("Delivery");
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -96,59 +101,144 @@ export const CheckoutView: React.FC = () => {
   const [customTipError, setCustomTipError] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
 
-  const availableOffers = [
-    {
-      id: "o1",
-      code: "WELCOME50",
-      title: "50% Off on First Order",
-      desc: "Get 50% off up to ₹150 on your first food order.",
-      discount: 150,
-      terms: "Valid only for first-time purchases. Maximum discount ₹150.",
-    },
-    {
-      id: "o2",
-      code: "FREE49",
-      title: "Flat ₹49 Off",
-      desc: "Flat ₹49 off on orders above ₹200.",
-      discount: 49,
-      terms: "Minimum order value must be ₹200.",
-    },
-  ];
+  const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderError, setOrderError] = useState("");
 
-  const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const applyCoupon = async (code: string) => {
+    setCouponError("");
+    setIsValidatingCoupon(true);
+    try {
+      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant?.id}/offers/validate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          code,
+          items: cart.map(c => ({
+            id: c.item.id,
+            price: c.item.price,
+            quantity: c.quantity,
+            category: c.item.category
+          })),
+          subtotal,
+          orderType: orderType.toLowerCase()
+        }),
+      });
+
+      const result = await response.json();
+      if (!result.success || !result.isValid) {
+        setCouponError(result.message || "Failed to apply coupon");
+      } else {
+        setAppliedCoupon({
+          code,
+          discount: result.discountAmount || 0,
+        });
+        setShowCouponSheet(false);
+      }
+    } catch (err: any) {
+      setCouponError("Failed to validate coupon on backend");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  useEffect(() => {
+    if (appliedCoupon && selectedRestaurant && offers) {
+      const activeOffer = offers.find(o => o.offerId === appliedCoupon.code);
+      if (activeOffer) {
+        const typeKey = orderType.toLowerCase() === 'dinein' ? 'dineIn' : orderType.toLowerCase();
+        const isSupported = (activeOffer.orderTypes as any)?.[typeKey];
+        if (isSupported === false) {
+          setAppliedCoupon(null);
+          alert(`Coupon ${appliedCoupon.code} is not applicable for ${orderType}.`);
+        }
+      }
+    }
+  }, [orderType, offers, appliedCoupon, selectedRestaurant]);
+
   const deliveryFee = orderType === "Delivery" ? 35 : 0;
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0;
   const platformFee = 5;
   const taxes = Math.round((subtotal - discountAmount) * 0.05); // 5% GST rounded
   const total = subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount;
 
-  const handleConfirmOrder = () => {
-    if (selectedPaymentMethod) {
-      setShowPaymentSheet(false);
-      setShowProcessing(true);
-      setTimeout(() => {
+  const handleConfirmOrder = async () => {
+    if (!selectedPaymentMethod || !selectedRestaurant) return;
+
+    setOrderError("");
+    setIsPlacingOrder(true);
+    setShowPaymentSheet(false);
+    setShowProcessing(true);
+    setProcessingStep("processing");
+
+    try {
+      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant.id}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          items: cart.map(c => ({
+            id: c.item.id,
+            name: c.item.name,
+            quantity: c.quantity,
+            price: c.item.price,
+            category: c.item.category
+          })),
+          orderType: orderType,
+          paymentMethod: selectedPaymentMethod,
+          deliveryAddress: orderType === "Delivery" ? (currentLocation?.address || "") : "Takeaway",
+          appliedOffer: appliedCoupon ? appliedCoupon.code : undefined,
+          tipAmount: tipAmount,
+          notes: deliveryNote
+        }),
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        setOrderError(result.message || "Failed to place order");
+        setShowProcessing(false);
+        alert(result.message || "Failed to place order. Please try again.");
+      } else {
+        setCreatedOrder(result.data);
         setProcessingStep("success");
-      }, 2000);
+      }
+    } catch (err: any) {
+      setOrderError("An error occurred while connecting to the server.");
+      setShowProcessing(false);
+      alert("Failed to place order due to network issue. Please try again.");
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
   const handleTrackOrder = () => {
-    const itemsStr = cart.map((c) => `${c.quantity}x ${c.item.name}`).join(", ");
+    if (!createdOrder) {
+      navigate("/");
+      return;
+    }
+    const itemsStr = createdOrder.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
     const newOrder: Order = {
-      id: `ORD${Math.floor(Math.random() * 100000)}`,
+      id: createdOrder.displayOrderId || createdOrder.orderId,
       restaurantName: selectedRestaurant?.name || "Restaurant",
-      location: currentLocation.address,
+      location: createdOrder.customerDetails.address,
       rating: selectedRestaurant?.rating || 4.5,
       items: itemsStr,
-      orderDate: new Date().toLocaleDateString("en-US", {
+      orderDate: new Date(createdOrder.createdAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       }),
-      type: orderType === "Delivery" ? "Delivery" : "Takeaway",
+      type: createdOrder.type,
       status: "Active",
-      timeEstimate: orderType === "Delivery" ? "30 mins" : "15 mins",
-      paymentMethod: selectedPaymentMethod || "UPI",
+      timeEstimate: createdOrder.type === "Delivery" ? "30 mins" : "15 mins",
+      paymentMethod: createdOrder.payment.method,
     };
     setActiveOrder(newOrder);
     setCart([]);
@@ -241,7 +331,18 @@ export const CheckoutView: React.FC = () => {
       {/* Header */}
       <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100/50">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform">
+          <button 
+            onClick={() => {
+              if (cart.length === 0) {
+                navigate("/");
+              } else if (selectedRestaurant) {
+                navigate(`/restaurant/${selectedRestaurant.id}`);
+              } else {
+                navigate("/");
+              }
+            }} 
+            className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform"
+          >
             <ChevronLeft className="w-6 h-6 text-slate-800" />
           </button>
           <h1 className="text-lg font-bold text-slate-900">Checkout</h1>
@@ -297,7 +398,7 @@ export const CheckoutView: React.FC = () => {
                 </h3>
                 {orderType === "Delivery" && (
                   <button
-                    onClick={() => navigate("/location")}
+                    onClick={() => navigate("/location", { state: { from: "/checkout" } })}
                     className="text-[10px] font-bold text-green-600 uppercase tracking-wider active:scale-95 transition-transform bg-green-600/10 px-2 py-1 rounded"
                   >
                     Change
@@ -306,7 +407,7 @@ export const CheckoutView: React.FC = () => {
               </div>
               <p className="text-xs text-slate-500 leading-relaxed pr-4 line-clamp-2">
                 {orderType === "Delivery"
-                  ? currentLocation?.address
+                  ? (currentLocation?.address || "No delivery address added. Click 'Change' to add.")
                   : `${selectedRestaurant?.name || "Restaurant"}, ${selectedRestaurant?.address || "Koramangala, Bangalore"}`}
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-[10px] font-bold text-slate-700 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 w-fit">
@@ -382,7 +483,7 @@ export const CheckoutView: React.FC = () => {
 
           <div className="mt-5 pt-4 border-t border-slate-100">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate("/")}
               className="w-full py-2.5 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               <Plus className="w-3 h-3" /> Add more items
@@ -682,12 +783,21 @@ export const CheckoutView: React.FC = () => {
       {/* Bottom Cart Bar */}
       {totalItems > 0 && (
         <div className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 bg-white border-t border-slate-100 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-          <button 
-            onClick={() => setShowPaymentSheet(true)}
-            className="w-full flex items-center justify-center gap-1.5 font-bold text-[16px] bg-[#00bd6f] text-white py-4 rounded-2xl active:scale-95 transition-transform"
-          >
-            Select Payment <ChevronRight className="w-5 h-5" />
-          </button>
+          {orderType === "Delivery" && (!currentLocation || !currentLocation.address) ? (
+            <button 
+              onClick={() => navigate("/location", { state: { from: "/checkout" } })}
+              className="w-full flex items-center justify-center gap-1.5 font-bold text-[16px] bg-amber-600 text-white py-4 rounded-2xl active:scale-95 transition-transform"
+            >
+              Add Address to Proceed <ChevronRight className="w-5 h-5" />
+            </button>
+          ) : (
+            <button 
+              onClick={() => setShowPaymentSheet(true)}
+              className="w-full flex items-center justify-center gap-1.5 font-bold text-[16px] bg-[#00bd6f] text-white py-4 rounded-2xl active:scale-95 transition-transform"
+            >
+              Select Payment <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
         </div>
       )}
 
@@ -702,9 +812,13 @@ export const CheckoutView: React.FC = () => {
         handleQuantityChange={handleQuantityChange}
         onCheckoutClick={() => {
           setShowCartPreview(false);
-          setShowPaymentSheet(true);
+          if (orderType === "Delivery" && (!currentLocation || !currentLocation.address)) {
+            navigate("/location", { state: { from: "/checkout" } });
+          } else {
+            setShowPaymentSheet(true);
+          }
         }}
-        checkoutButtonText="Select Payment"
+        checkoutButtonText={orderType === "Delivery" && (!currentLocation || !currentLocation.address) ? "Add Address to Proceed" : "Select Payment"}
         checkoutButtonPrice={total}
       />
 
@@ -795,96 +909,144 @@ export const CheckoutView: React.FC = () => {
             </div>
 
             <div className="space-y-4 flex-1">
-              {availableOffers.map((offer) => {
-                const isApplied = appliedCoupon?.code === offer.code;
-                return (
-                  <div
-                    key={offer.id}
-                    className={`border-2 border-dashed rounded-2xl p-4 relative overflow-hidden transition-all duration-300 ${
-                      isApplied
-                        ? "border-green-500 bg-green-50"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <span className={`inline-block px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded border mb-2 ${
-                          isApplied
-                            ? "bg-green-100 text-green-700 border-green-200"
-                            : "bg-slate-100 text-slate-700 border-slate-200"
-                        }`}>
-                          {offer.code}
-                        </span>
-                        <h4 className="text-[15px] font-bold text-slate-900">
-                          {offer.title}
-                        </h4>
-                      </div>
-                      {isApplied ? (
-                        <button
-                          onClick={() => setAppliedCoupon(null)}
-                          className="text-[13px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
-                        >
-                          Remove
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setAppliedCoupon({
-                              code: offer.code,
-                              discount: offer.discount,
-                            });
-                            setShowCouponSheet(false);
-                          }}
-                          className="text-[13px] font-bold text-green-600 bg-green-100 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
-                        >
-                          Apply
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-[13px] text-slate-600 mb-3 leading-relaxed">
-                      {offer.desc}
-                    </p>
+              {couponError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] font-medium">
+                  {couponError}
+                </div>
+              )}
+              
+              {!offers || offers.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-sm font-medium">
+                  No coupons available for this restaurant.
+                </div>
+              ) : (
+                offers.map((offer) => {
+                  const isApplied = appliedCoupon?.code === offer.offerId;
+                  let title = offer.name;
+                  let desc = offer.description || "";
+                  let terms = "";
+                  
+                  if (offer.offerType === 'percentage') {
+                    title = `${offer.discountPercent}% OFF`;
+                    desc = offer.maxCap ? `Get ${offer.discountPercent}% off up to ₹${offer.maxCap}` : `Get ${offer.discountPercent}% off on your order`;
+                    terms = `Minimum order value must be ₹${offer.minOrder || 0}. Maximum discount is ₹${offer.maxCap || 'unlimited'}.`;
+                  } else if (offer.offerType === 'flat') {
+                    title = `Flat ₹${offer.discountAmount} OFF`;
+                    desc = `Flat ₹${offer.discountAmount} off on orders above ₹${offer.minOrder || 0}`;
+                    terms = `Minimum order value must be ₹${offer.minOrder || 0}.`;
+                  } else if (offer.offerType === 'bogo') {
+                    title = "BUY 1 GET 1";
+                    desc = "Buy 1 get 1 free on selected items";
+                    terms = "Applicable on selected BOGO items.";
+                  } else if (offer.offerType === 'free_item') {
+                    title = `FREE ${offer.freeItemName}`;
+                    desc = `Get a free ${offer.freeItemName} on orders above ₹${offer.minOrder || 0}`;
+                    terms = `Minimum order value must be ₹${offer.minOrder || 0}.`;
+                  }
 
-                    <div className={`border-t pt-3 mt-3 ${isApplied ? "border-green-200" : "border-slate-100"}`}>
-                      <button
-                        onClick={() =>
-                          setSelectedCouponDetails(
-                            selectedCouponDetails === offer.id ? null : offer.id
-                          )
-                        }
-                        className="text-[12px] font-semibold text-green-600 flex items-center gap-1 active:scale-95 transition-transform"
-                      >
-                        View Details{" "}
-                        <ChevronRight
-                          size={14}
-                          className={`transition-transform ${selectedCouponDetails === offer.id ? "rotate-90" : ""}`}
-                        />
-                      </button>
+                  const typeKey = orderType.toLowerCase() === 'dinein' ? 'dineIn' : orderType.toLowerCase();
+                  const isTypeSupported = (offer.orderTypes as any)?.[typeKey] !== false;
 
-                      <AnimatePresence initial={false}>
-                        {selectedCouponDetails === offer.id && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.25, ease: "easeInOut" }}
-                            className="overflow-hidden"
-                          >
-                            <div className={`mt-3 p-3 bg-white rounded-xl text-[12px] text-slate-600 leading-relaxed border ${
-                              isApplied ? "border-green-200" : "border-slate-100"
+                  return (
+                    <div
+                      key={offer.offerId}
+                      className={`border-2 border-dashed rounded-2xl p-4 relative overflow-hidden transition-all duration-300 ${
+                        isApplied
+                          ? "border-green-500 bg-green-50"
+                          : !isTypeSupported
+                          ? "border-slate-200 bg-slate-50 opacity-70"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="flex items-center flex-wrap gap-2 mb-2">
+                            <span className={`inline-block px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded border ${
+                              isApplied
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : "bg-slate-100 text-slate-700 border-slate-200"
                             }`}>
-                              <span className="font-semibold block mb-1 text-slate-900">
-                                Terms & Conditions:
+                              {offer.offerId}
+                            </span>
+                            {!isTypeSupported && (
+                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded">
+                                Not applicable for {orderType}
                               </span>
-                              {offer.terms}
-                            </div>
-                          </motion.div>
+                            )}
+                          </div>
+                          <h4 className={`text-[15px] font-bold ${!isTypeSupported ? "text-slate-500" : "text-slate-900"}`}>
+                            {title}
+                          </h4>
+                        </div>
+                        {isApplied ? (
+                          <button
+                            onClick={() => setAppliedCoupon(null)}
+                            className="text-[13px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => applyCoupon(offer.offerId)}
+                            disabled={isValidatingCoupon || !isTypeSupported}
+                            className={`text-[13px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform flex items-center gap-1 ${
+                              !isTypeSupported
+                                ? "text-slate-400 bg-slate-200 cursor-not-allowed"
+                                : "text-green-600 bg-green-100"
+                            }`}
+                          >
+                            {isValidatingCoupon ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : null}
+                            Apply
+                          </button>
                         )}
-                      </AnimatePresence>
+                      </div>
+                      <p className="text-[13px] text-slate-600 mb-3 leading-relaxed">
+                        {desc}
+                      </p>
+
+                      <div className={`border-t pt-3 mt-3 ${isApplied ? "border-green-200" : "border-slate-100"}`}>
+                        <button
+                          onClick={() =>
+                            setSelectedCouponDetails(
+                              selectedCouponDetails === offer.offerId ? null : offer.offerId
+                            )
+                          }
+                          className="text-[12px] font-semibold text-green-600 flex items-center gap-1 active:scale-95 transition-transform"
+                        >
+                          View Details{" "}
+                          <ChevronRight
+                            size={14}
+                            className={`transition-transform ${selectedCouponDetails === offer.offerId ? "rotate-90" : ""}`}
+                          />
+                        </button>
+
+                        <AnimatePresence initial={false}>
+                          {selectedCouponDetails === offer.offerId && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25, ease: "easeInOut" }}
+                              className="overflow-hidden"
+                            >
+                              <div className={`mt-3 p-3 bg-white rounded-xl text-[12px] text-slate-600 leading-relaxed border ${
+                                isApplied ? "border-green-200" : "border-slate-100"
+                              }`}>
+                                <span className="font-semibold block mb-1 text-slate-900">
+                                  Terms & Conditions:
+                                </span>
+                                {terms}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

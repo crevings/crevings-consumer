@@ -1,6 +1,7 @@
 import React from 'react';
 import { Star, Plus } from 'lucide-react';
-import { MOCK_MENU } from "@/data/menu";;
+import { MOCK_MENU } from "@/data/menu";
+import { MenuItem } from '@/types';
 
 interface RestaurantCardProps {
   id?: string | number;
