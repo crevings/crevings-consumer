@@ -94,7 +94,9 @@ export const CheckoutView: React.FC = () => {
   const [selectedCouponDetails, setSelectedCouponDetails] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"UPI" | "COD" | null>(null);
   const [showProcessing, setShowProcessing] = useState(false);
-  const [processingStep, setProcessingStep] = useState<"processing" | "success">("processing");
+  const [processingStep, setProcessingStep] = useState<"processing" | "buffer" | "success" | "cancelling" | "cancelled">("processing");
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [tipAmount, setTipAmount] = useState<number>(0);
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [customTipInput, setCustomTipInput] = useState("");
@@ -161,6 +163,52 @@ export const CheckoutView: React.FC = () => {
     }
   }, [orderType, offers, appliedCoupon, selectedRestaurant]);
 
+  useEffect(() => {
+    let timer: any;
+    if (showProcessing && processingStep === "buffer" && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setProcessingStep("success");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [showProcessing, processingStep, timeLeft]);
+
+  const handleCancelOrder = async () => {
+    if (!createdOrder || !selectedRestaurant) return;
+    setIsCancelling(true);
+    setProcessingStep("cancelling");
+    try {
+      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant.id}/orders/${createdOrder.orderId}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+      });
+      const result = await response.json();
+      if (result.success) {
+        setProcessingStep("cancelled");
+      } else {
+        alert(result.message || "Failed to cancel order.");
+        setProcessingStep("buffer");
+      }
+    } catch (err: any) {
+      alert("Failed to cancel order due to network issue.");
+      setProcessingStep("buffer");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const deliveryFee = orderType === "Delivery" ? 35 : 0;
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0;
   const platformFee = 5;
@@ -184,13 +232,26 @@ export const CheckoutView: React.FC = () => {
         },
         credentials: "include",
         body: JSON.stringify({
-          items: cart.map(c => ({
-            id: c.item.id,
-            name: c.item.name,
-            quantity: c.quantity,
-            price: c.item.price,
-            category: c.item.category
-          })),
+          items: cart.map(c => {
+            const allAddons = [
+              ...(c.selectedAddons || []),
+              ...(c.selectedSides || [])
+            ].map(a => ({
+              id: a.id,
+              name: a.name,
+              price: a.price,
+              quantity: a.quantity || 1
+            }));
+
+            return {
+              id: c.item.id,
+              name: c.item.name,
+              quantity: c.quantity,
+              price: c.item.price,
+              category: c.item.category,
+              addons: allAddons
+            };
+          }),
           orderType: orderType,
           paymentMethod: selectedPaymentMethod,
           deliveryAddress: orderType === "Delivery" ? (currentLocation?.address || "") : "Takeaway",
@@ -206,8 +267,72 @@ export const CheckoutView: React.FC = () => {
         setShowProcessing(false);
         alert(result.message || "Failed to place order. Please try again.");
       } else {
-        setCreatedOrder(result.data);
-        setProcessingStep("success");
+        // Fetch the fully populated active order from the server to get restaurant/delivery coordinates
+        let orderPayload = null;
+        try {
+          const activeRes = await fetch(`${BASE_URL}/consumer/profile/orders/active`, {
+            credentials: "include"
+          });
+          if (activeRes.ok) {
+            const activeData = await activeRes.json();
+            if (activeData.success && activeData.order) {
+              orderPayload = activeData.order;
+            }
+          }
+        } catch (fetchErr) {
+          console.error("Error pre-fetching active order details:", fetchErr);
+        }
+
+        if (!orderPayload) {
+          // Fallback to client constructed order if fetch fails
+          const itemsStr = result.data.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
+          let restaurantCoordinates = null;
+          if (selectedRestaurant?.address?.coordinates?.coordinates) {
+            restaurantCoordinates = {
+              lat: selectedRestaurant.address.coordinates.coordinates[1],
+              lng: selectedRestaurant.address.coordinates.coordinates[0]
+            };
+          }
+          let deliveryCoordinates = null;
+          if (currentLocation?.coordinates) {
+            deliveryCoordinates = {
+              lat: currentLocation.coordinates.lat,
+              lng: currentLocation.coordinates.lng
+            };
+          }
+          orderPayload = {
+            id: result.data.displayOrderId || result.data.orderId,
+            realOrderId: result.data.orderId,
+            restaurantId: selectedRestaurant?.id || result.data.branchId,
+            restaurantName: selectedRestaurant?.name || "Restaurant",
+            location: result.data.customerDetails.address,
+            rating: selectedRestaurant?.rating || 4.5,
+            items: itemsStr,
+            orderDate: new Date(result.data.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            type: result.data.type,
+            status: "Active",
+            timeEstimate: result.data.type === "Delivery" ? "30 mins" : "15 mins",
+            paymentMethod: result.data.payment.method,
+            total: result.data.total,
+            createdAt: result.data.createdAt,
+            pickupOtp: result.data.pickupOtp,
+            restaurantCoordinates,
+            deliveryCoordinates
+          };
+        }
+
+        setActiveOrder(orderPayload);
+        setCart([]);
+        setShowProcessing(false);
+        if (orderPayload.type === "Delivery") {
+          navigate("/");
+        } else {
+          navigate("/order-tracking");
+        }
       }
     } catch (err: any) {
       setOrderError("An error occurred while connecting to the server.");
@@ -224,6 +349,21 @@ export const CheckoutView: React.FC = () => {
       return;
     }
     const itemsStr = createdOrder.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
+    let restaurantCoordinates = null;
+    if (selectedRestaurant?.address?.coordinates?.coordinates) {
+      restaurantCoordinates = {
+        lat: selectedRestaurant.address.coordinates.coordinates[1],
+        lng: selectedRestaurant.address.coordinates.coordinates[0]
+      };
+    }
+    let deliveryCoordinates = null;
+    if (currentLocation?.coordinates) {
+      deliveryCoordinates = {
+        lat: currentLocation.coordinates.lat,
+        lng: currentLocation.coordinates.lng
+      };
+    }
+
     const newOrder: Order = {
       id: createdOrder.displayOrderId || createdOrder.orderId,
       restaurantName: selectedRestaurant?.name || "Restaurant",
@@ -239,11 +379,19 @@ export const CheckoutView: React.FC = () => {
       status: "Active",
       timeEstimate: createdOrder.type === "Delivery" ? "30 mins" : "15 mins",
       paymentMethod: createdOrder.payment.method,
+      createdAt: createdOrder.createdAt,
+      pickupOtp: createdOrder.pickupOtp,
+      restaurantCoordinates,
+      deliveryCoordinates
     };
     setActiveOrder(newOrder);
     setCart([]);
     setShowProcessing(false);
-    navigate("/order-tracking");
+    if (newOrder.type === "Delivery") {
+      navigate("/");
+    } else {
+      navigate("/order-tracking");
+    }
   };
 
   const handleQuantityChange = (cartItemId: string, delta: number) => {
@@ -278,50 +426,17 @@ export const CheckoutView: React.FC = () => {
   if (showProcessing) {
     return (
       <div className="fixed inset-0 z-[200] bg-white flex flex-col items-center justify-center p-6 animate-in fade-in duration-300">
-        {processingStep === "processing" ? (
-          <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-              <Loader2 size={40} className="text-blue-600 animate-spin" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              Processing Payment
-            </h2>
-            <p className="text-slate-500">
-              Please wait while we confirm your order...
-            </p>
+        <div className="flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+            <Loader2 size={40} className="text-blue-600 animate-spin" />
           </div>
-        ) : (
-          <div className="flex flex-col items-center text-center w-full max-w-md animate-in zoom-in-95 duration-500">
-            <div className="w-24 h-24 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle2 size={48} className="text-emerald-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">
-              Order Confirmed!
-            </h2>
-            <p className="text-slate-500 mb-8">
-              Your order has been placed successfully.
-            </p>
-
-            <div className="w-full space-y-3">
-              <button
-                onClick={handleTrackOrder}
-                className="w-full h-[52px] bg-green-600 text-white rounded-xl font-bold text-[15px] active:scale-[0.98] transition-transform shadow-sm"
-              >
-                Track your order
-              </button>
-              <button
-                onClick={() => {
-                  setCart([]);
-                  setShowProcessing(false);
-                  navigate("/");
-                }}
-                className="w-full h-[52px] bg-slate-100 text-slate-700 rounded-xl font-bold text-[15px] active:scale-[0.98] transition-transform"
-              >
-                Back to Home
-              </button>
-            </div>
-          </div>
-        )}
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            Confirming Order
+          </h2>
+          <p className="text-slate-500">
+            Please wait while we confirm your order...
+          </p>
+        </div>
       </div>
     );
   }

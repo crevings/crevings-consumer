@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, Search, MapPin, Crosshair, Navigation, CheckCircle2, Home, Briefcase, X, Loader2 } from 'lucide-react';
 import { GoogleMap, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
 
-const libraries: ("places")[] = ["places"];
+const libraries: ("places" | "marker" | "geometry")[] = ["places", "marker", "geometry"];
 
 interface MapLocationPickerViewProps {
   initialLocation?: { title: string, subtitle: string, coords: [number, number] } | null;

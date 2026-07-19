@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   User, MapPin, Heart, Settings, 
   ChevronRight, Camera,
@@ -11,58 +11,66 @@ import {
   Trash2,
   X,
   Mail,
-  Info
+  Info,
+  Clock,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile } from '@/types';
+import { UserProfile, Order, Review } from '@/types';
+import { updateUserProfile, getPastOrders } from '../../api/user';
+import { OrderCard } from './components/OrderCard';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
   onUpdateProfileImage: (image: string) => void;
   onUpdateProfile?: (profile: UserProfile) => void;
   onEditProfileClick: () => void;
-  onWalletClick: () => void;
-  onOrdersClick: () => void;
   onLogout: () => void;
   onSettingsClick: () => void;
   onHelpClick: () => void;
   onNotificationsClick: () => void;
   onRefundsClick: () => void;
-  onReferClick: () => void;
   onPoliciesClick: () => void;
+  onPrivacyClick: () => void;
   onLicensesClick: () => void;
   onGstClick: () => void;
   onAccessibilityClick: () => void;
   onAddressBookClick: () => void;
   onManageMembershipClick: () => void;
-  onAboutClick: () => void;
   onFeedbackClick: () => void;
   onBack: () => void;
+  reviews: Record<string, Review>;
+  onRateClick: (order: Order) => void;
+  onViewReviewClick: (order: Order) => void;
+  onReorderClick: (order: Order) => void;
+  onViewDetailsClick: (order: Order) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   userProfile,
   onUpdateProfileImage,
   onUpdateProfile,
-  onEditProfileClick, // keeping this just in case, though we handle it internally now
-  onWalletClick,
-  onOrdersClick,
+  onEditProfileClick,
   onLogout,
   onSettingsClick,
   onHelpClick,
   onNotificationsClick,
   onRefundsClick,
-  onReferClick,
   onPoliciesClick,
+  onPrivacyClick,
   onLicensesClick,
   onGstClick,
   onAccessibilityClick,
   onAddressBookClick,
   onManageMembershipClick,
-  onAboutClick,
   onFeedbackClick,
-  onBack
+  onBack,
+  reviews,
+  onRateClick,
+  onViewReviewClick,
+  onReorderClick,
+  onViewDetailsClick
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomSheetFileInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +78,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [editForm, setEditForm] = useState<UserProfile>(userProfile);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const navigate = useNavigate();
+
+  const [pastOrders, setPastOrders] = useState<Order[]>([]);
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const observerTargetRef = useRef<HTMLDivElement>(null);
+
+  const fetchOrders = async (currentCursor?: string) => {
+    if (isLoadingOrders) return;
+    setIsLoadingOrders(true);
+    try {
+      const res = await getPastOrders(5, currentCursor);
+      setPastOrders(prev => currentCursor ? [...prev, ...res.orders] : res.orders);
+      setCursor(res.nextCursor);
+      setHasMore(res.hasMore);
+    } catch (err) {
+      console.error("Failed to load past orders:", err);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    const target = observerTargetRef.current;
+    if (!target || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoadingOrders) {
+          fetchOrders(cursor);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.unobserve(target);
+    };
+  }, [cursor, hasMore, isLoadingOrders]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,11 +150,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     navigate(`/${view}`);
   };
 
-  const saveProfile = () => {
-    if (onUpdateProfile) {
-      onUpdateProfile(editForm);
+  const saveProfile = async () => {
+    try {
+      await updateUserProfile(editForm);
+      if (onUpdateProfile) {
+        onUpdateProfile(editForm);
+      }
+      setIsEditOpen(false);
+    } catch (error: any) {
+      alert(error.message || "Failed to update profile");
     }
-    setIsEditOpen(false);
   };
 
   const handleOpenEdit = () => {
@@ -120,6 +177,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             </button>
             <h1 className="text-lg font-bold text-slate-900">Account</h1>
           </div>
+          <button onClick={onLogout} className="text-red-500 flex items-center gap-1.5 p-2 pr-0 font-semibold text-sm active:opacity-70 transition-opacity">
+            <LogOut className="w-4 h-4" strokeWidth={2.5} />
+            Logout
+          </button>
        </div>
        
        <div className="px-4 pt-2 pb-6 space-y-6">
@@ -159,152 +220,146 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
            </div>
 
-           {/* Metrics Grid */}
-           <div className="grid grid-cols-3 gap-3">
-               <button onClick={onOrdersClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
-                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-                       <ShoppingBag className="w-5 h-5" strokeWidth={2} />
-                   </div>
-                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Your<br/>Orders</span>
-               </button>
-               
-               <button onClick={onWalletClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
-                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-                       <Wallet className="w-5 h-5" strokeWidth={2} />
-                   </div>
-                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Wallet<br/>Balance</span>
-               </button>
-               
-               <button onClick={onAddressBookClick} className="bg-white rounded-[20px] p-4 flex flex-col items-center justify-center gap-3 border border-slate-100/60 active:scale-[0.97] transition-all group">
-                   <div className="w-12 h-12 rounded-full bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-                       <MapPin className="w-5 h-5" strokeWidth={2} />
-                   </div>
-                   <span className="text-[13px] font-bold text-slate-700 text-center leading-tight">Saved<br/>Address</span>
-               </button>
-           </div>
-
-           {/* Refer & earn (temporarily disabled) */}
-           {/* <button onClick={onReferClick} className="w-full bg-[#E8F8F5] rounded-[24px] p-5 flex items-center justify-between border border-[#A3E4D7]/50 active:scale-[0.98] transition-all">
-               <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 flex items-center justify-center bg-white rounded-full shadow-sm text-[#00bd6f] shrink-0">
-                       <Gift className="w-5 h-5" strokeWidth={2.5} />
-                   </div>
-                   <div className="flex flex-col items-start gap-0.5">
-                       <span className="text-[16px] font-bold text-[#0E6655] tracking-tight">Refer & Earn</span>
-                       <span className="text-[13px] font-medium text-[#117A65]">Invite friends & get rewards</span>
-                   </div>
-               </div>
-               <div className="w-8 h-8 rounded-full flex items-center justify-center text-[#117A65]">
-                   <ChevronRight className="w-5 h-5" strokeWidth={2.5} />
-               </div>
-           </button> */}
-
-           {/* Personalize */}
-           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
-               <div className="px-5 pt-5 pb-2">
-                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Personalize</h3>
-               </div>
-               <div className="divide-y divide-slate-50">
-                   <button onClick={() => handleNavigate('favourites')} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <Heart className="w-5 h-5" strokeWidth={2} />
-                           </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Saved Restaurants</span>
+           {/* Metrics List */}
+           <div className="flex flex-col gap-3">
+               <button onClick={onAddressBookClick} className="bg-white rounded-[24px] p-4 flex items-center justify-between border border-slate-100/60 shadow-sm active:scale-[0.98] transition-all">
+                   <div className="flex items-center gap-4">
+                       <div className="w-[46px] h-[46px] rounded-[16px] bg-[#00BD6F]/10 text-[#00BD6F] flex items-center justify-center shrink-0">
+                           <MapPin className="w-5 h-5" strokeWidth={2.5} />
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
-                   </button>
-                   <button onClick={() => handleNavigate('hidden-restaurants')} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <EyeOff className="w-5 h-5" strokeWidth={2} />
-                           </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Hide Restaurants</span>
+                       <div className="flex flex-col items-start gap-0.5">
+                           <span className="text-[15px] font-bold text-slate-900">Saved Addresses</span>
+                           <span className="text-[12px] font-medium text-slate-500">Manage locations</span>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
-                   </button>
-               </div>
+                   </div>
+                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                       <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+                   </div>
+               </button>
            </div>
 
            {/* Info & Support */}
-           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
-               <div className="px-5 pt-5 pb-2">
-                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Info & Support</h3>
-               </div>
-               <div className="divide-y divide-slate-50">
-                   <button onClick={onAboutClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <Info className="w-5 h-5" strokeWidth={2} />
+           <div className="pt-2">
+               <h3 className="text-[17px] font-bold text-slate-900 tracking-tight mb-3 px-1">Info & Support</h3>
+               <div className="bg-white rounded-[20px] border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                   <button onClick={onPoliciesClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <FileText className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">About Us</span>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Terms and Conditions</span>
+                               <span className="text-[12px] text-slate-500">Rules and guidelines for using our app</span>
+                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-                   <button onClick={onPoliciesClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <FileText className="w-5 h-5" strokeWidth={2} />
+                   <button onClick={onPrivacyClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <Lock className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Terms and Conditions</span>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Privacy Policy</span>
+                               <span className="text-[12px] text-slate-500">Learn how we protect your privacy</span>
+                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-                   <button onClick={onHelpClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <Headphones className="w-5 h-5" strokeWidth={2} />
+                   <button onClick={onRefundsClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <RotateCcw className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Support</span>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Refund Policy</span>
+                               <span className="text-[12px] text-slate-500">Our cancellation and refund policies</span>
+                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-                   <button onClick={onRefundsClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <RotateCcw className="w-5 h-5" strokeWidth={2} />
+                   <button onClick={onHelpClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <Headphones className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Refund Policy</span>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Support</span>
+                               <span className="text-[12px] text-slate-500">Get help with your orders and account</span>
+                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
                </div>
            </div>
 
            {/* Account Settings */}
-           <div className="bg-white rounded-[24px] border border-slate-100/60 overflow-hidden">
-               <div className="px-5 pt-5 pb-2">
-                   <h3 className="text-[14px] font-bold text-slate-900 tracking-tight">Account</h3>
-               </div>
-               <div className="divide-y divide-slate-50">
-                   <button onClick={onSettingsClick} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-[#00bd6f] bg-[#00bd6f]/10 p-2.5 rounded-[12px]">
-                               <Settings className="w-5 h-5" strokeWidth={2} />
+           <div className="pt-2">
+               <h3 className="text-[17px] font-bold text-slate-900 tracking-tight mb-3 px-1">Account & Details</h3>
+               <div className="bg-white rounded-[20px] border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                   <button onClick={onSettingsClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <Settings className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Settings</span>
-                       </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
-                   </button>
-                   <button onClick={() => setShowDeleteAccount(true)} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-red-600 bg-red-50 p-2.5 rounded-[12px]">
-                               <Trash2 className="w-5 h-5" strokeWidth={2} />
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Settings</span>
+                               <span className="text-[12px] text-slate-500">Manage your preferences and notifications</span>
                            </div>
-                           <span className="text-[15px] font-semibold text-slate-700">Request Account Deletion</span>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-                   <button onClick={onLogout} className="w-full flex items-center justify-between p-5 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                       <div className="flex items-center gap-4">
-                           <div className="text-red-400">
-                               <LogOut className="w-5 h-5" strokeWidth={2} />
+                   <button onClick={() => setShowDeleteAccount(true)} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <Trash2 className="w-[22px] h-[22px]" strokeWidth={1.5} />
                            </div>
-                           <span className="text-[15px] font-semibold text-red-600">Log Out</span>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Request Account Deletion</span>
+                               <span className="text-[12px] text-slate-500">Permanently delete your account and data</span>
+                           </div>
                        </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-               </div>
-           </div>
+                </div>
+            </div>
+
+            {/* Past Orders Section */}
+            {pastOrders.length > 0 ? (
+              <div className="pt-2">
+                  <h3 className="text-[17px] font-bold text-slate-900 tracking-tight mb-3 px-1">Past Orders</h3>
+                  <div className="space-y-4">
+                      {pastOrders.map(order => (
+                          <OrderCard 
+                              key={order.id} 
+                              order={order} 
+                              review={reviews[order.id]}
+                              onRateClick={onRateClick}
+                              onViewReviewClick={onViewReviewClick}
+                              onReorderClick={onReorderClick}
+                              onViewDetailsClick={onViewDetailsClick}
+                          />
+                      ))}
+                  </div>
+              </div>
+            ) : (
+              !isLoadingOrders && (
+                <div className="pt-6 flex flex-col items-center justify-center text-center px-4 animate-fadeIn">
+                    <img src="/zero_orders.svg" alt="No orders yet" className="w-48 h-48 mb-2" />
+                    <h3 className="text-base font-bold text-slate-800">No Orders Placed Yet</h3>
+                    <p className="text-xs text-slate-500 max-w-[260px] mt-1">
+                        Your past orders will appear here once you place them.
+                    </p>
+                </div>
+              )
+            )}
+
+           {/* Infinite Scroll Loader Target */}
+           {hasMore && (
+             <div ref={observerTargetRef} className="flex justify-center py-4">
+               <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+             </div>
+           )}
 
            {/* Version Footer */}
            <div className="text-center pt-4 pb-8 opacity-60">
@@ -320,7 +375,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
-               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 animate-in fade-in duration-200"
+               className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 w-full"
                onClick={() => setIsEditOpen(false)}
              />
              <motion.div
@@ -454,7 +509,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                animate={{ opacity: 1 }}
                exit={{ opacity: 0 }}
                onClick={() => setShowDeleteAccount(false)}
-               className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm animate-in fade-in duration-200"
+               className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm"
              />
              <motion.div 
                initial={{ y: '100%' }}

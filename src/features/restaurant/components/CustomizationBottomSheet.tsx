@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Minus, Trash2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Minus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export interface CustomizationItem {
@@ -18,6 +18,7 @@ export interface CustomizationSection {
   subtitle: string;
   type: 'addon' | 'beverage';
   selectionLimit?: number;
+  isRequired: boolean;
   items: CustomizationItem[];
 }
 
@@ -35,6 +36,9 @@ interface CustomizationBottomSheetProps {
     image: string;
     isVeg: boolean;
     bestseller?: boolean;
+    allowedAddons?: any[];
+    allowedToppings?: any[];
+    allowedBeverages?: any[];
   };
   onClose: () => void;
   onAddToCart: (cartItem: any) => void;
@@ -42,35 +46,14 @@ interface CustomizationBottomSheetProps {
 
 // Helper to generate dynamic variants based on item name
 const getVariantsForItem = (item: any): ItemVariant[] => {
-  const name = item.name.toLowerCase();
   const basePrice = item.price;
-
-  if (name.includes('pizza')) {
-    return [
-      { id: 'v1', name: 'Small', price: basePrice },
-      { id: 'v2', name: 'Medium', price: basePrice + 150 },
-      { id: 'v3', name: 'Large', price: basePrice + 300 },
-    ];
-  }
-  if (name.includes('chicken') && name.includes('biryani')) {
-    return [
-      { id: 'v1', name: 'Quarter', price: basePrice },
-      { id: 'v2', name: 'Half', price: basePrice + 120 },
-      { id: 'v3', name: 'Full', price: basePrice + 250 },
-    ];
-  }
-  if (name.includes('biryani')) {
-    return [
-      { id: 'v1', name: '250g', price: basePrice },
-      { id: 'v2', name: '500g', price: basePrice + 100 },
-      { id: 'v3', name: '1kg', price: basePrice + 250 },
-    ];
-  }
-  if (name.includes('masala') || name.includes('curry') || name.includes('paneer')) {
-    return [
-      { id: 'v1', name: 'Half', price: basePrice },
-      { id: 'v2', name: 'Full', price: basePrice + 150 },
-    ];
+  
+  if (item.pricing_options && item.pricing_options.length > 0) {
+    return item.pricing_options.map((opt: any, index: number) => ({
+      id: opt._id || `v${index}`,
+      name: opt.label || 'Regular',
+      price: opt.price
+    }));
   }
 
   // Default variant if no specific match
@@ -81,88 +64,59 @@ const getVariantsForItem = (item: any): ItemVariant[] => {
 
 // Helper to generate dynamic addons based on item name
 const getAddonsForItem = (item: any): CustomizationSection[] => {
-  const name = item.name.toLowerCase();
+  const sectionMap = new Map<string, CustomizationSection>();
 
-  const beverages: CustomizationSection = {
-    id: 's-bev',
-    title: 'Beverages',
-    subtitle: 'Select up to 7 • Optional',
-    type: 'beverage',
-    selectionLimit: 7,
-    items: [
-      { id: 'b1', name: 'Coca Cola Can', price: 38, isVeg: true, inStock: true },
-      { id: 'b2', name: 'Sprite Can', price: 38, isVeg: true, inStock: true }
-    ]
+  const processAddon = (addon: any, defaultTitle: string, type: 'addon' | 'beverage') => {
+    if (!addon) return;
+    const title = addon.groupName || defaultTitle;
+    const id = addon.groupId || title.toLowerCase().replace(/\s+/g, '-');
+    const limit = addon.groupLimit !== undefined && addon.groupLimit !== null ? addon.groupLimit : 0;
+    const optional = addon.groupOptional !== false;
+
+    let subtitle = '';
+    if (limit > 0) {
+      subtitle = optional 
+        ? `Select up to ${limit} • Optional` 
+        : `Select up to ${limit} • Required`;
+    } else {
+      subtitle = optional 
+        ? `Select any number • Optional` 
+        : `Select at least 1 • Required`;
+    }
+    
+    if (!sectionMap.has(id)) {
+      sectionMap.set(id, {
+        id,
+        title,
+        subtitle,
+        type,
+        selectionLimit: limit > 0 ? limit : undefined,
+        isRequired: !optional,
+        items: []
+      });
+    }
+    
+    sectionMap.get(id)!.items.push({
+      id: addon.id || addon._id || addon.name,
+      name: addon.name,
+      price: addon.price || 0,
+      isVeg: addon.isVeg ?? true,
+      inStock: addon.inStock ?? true,
+      image: addon.image
+    });
   };
 
-  if (name.includes('pizza')) {
-    return [
-      {
-        id: 's1',
-        title: 'Extra Toppings',
-        subtitle: 'Add multiple • Optional',
-        type: 'addon',
-        items: [
-          { id: 'a1', name: 'Extra Cheese', price: 50, isVeg: true, inStock: true, image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc0?w=200&h=200&fit=crop' },
-          { id: 'a2', name: 'Jalapenos', price: 30, isVeg: true, inStock: true },
-          { id: 'a3', name: 'Black Olives', price: 40, isVeg: true, inStock: true },
-          { id: 'a4', name: 'Paneer Chunks', price: 60, isVeg: true, inStock: true }
-        ]
-      },
-      beverages
-    ];
+  if (Array.isArray(item.allowedAddons)) {
+    item.allowedAddons.forEach((a: any) => processAddon(a, 'Addons', 'addon'));
+  }
+  if (Array.isArray(item.allowedToppings)) {
+    item.allowedToppings.forEach((a: any) => processAddon(a, 'Toppings', 'addon'));
+  }
+  if (Array.isArray(item.allowedBeverages)) {
+    item.allowedBeverages.forEach((a: any) => processAddon(a, 'Beverages', 'beverage'));
   }
 
-  if (name.includes('biryani')) {
-    return [
-      {
-        id: 's1',
-        title: 'Perfect Pairings',
-        subtitle: 'Add multiple • Optional',
-        type: 'addon',
-        items: [
-          { id: 'a1', name: 'Extra Raita', price: 30, isVeg: true, inStock: true },
-          { id: 'a2', name: 'Mirchi Ka Salan', price: 40, isVeg: true, inStock: true },
-          { id: 'a3', name: 'Boiled Egg', price: 20, isVeg: false, inStock: true },
-          { id: 'a4', name: 'Chicken Kabab (2 pcs)', price: 120, isVeg: false, inStock: true, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&h=200&fit=crop' }
-        ]
-      },
-      beverages
-    ];
-  }
-
-  if (name.includes('masala') || name.includes('curry') || name.includes('paneer')) {
-    return [
-      {
-        id: 's1',
-        title: 'Breads & Rice',
-        subtitle: 'Add multiple • Optional',
-        type: 'addon',
-        items: [
-          { id: 'a1', name: 'Butter Naan', price: 45, isVeg: true, inStock: true, image: 'https://images.unsplash.com/photo-1604152135912-04a022e23696?w=200&h=200&fit=crop' },
-          { id: 'a2', name: 'Tandoori Roti', price: 25, isVeg: true, inStock: true },
-          { id: 'a3', name: 'Jeera Rice', price: 120, isVeg: true, inStock: true },
-          { id: 'a4', name: 'Garlic Naan', price: 55, isVeg: true, inStock: true }
-        ]
-      },
-      beverages
-    ];
-  }
-
-  // Default addons
-  return [
-    {
-      id: 's1',
-      title: 'Popular Pairings',
-      subtitle: 'Add multiple • Optional',
-      type: 'addon',
-      items: [
-        { id: 'a1', name: 'French Fries', price: 99, isVeg: true, inStock: true, image: 'https://images.unsplash.com/photo-1589301760014-d929f39ce9b1?w=200&h=200&fit=crop' },
-        { id: 'a2', name: 'Extra Dip', price: 25, isVeg: true, inStock: true }
-      ]
-    },
-    beverages
-  ];
+  return Array.from(sectionMap.values());
 };
 
 export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> = ({ item, onClose, onAddToCart }) => {
@@ -173,8 +127,13 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
   const [mainQuantity, setMainQuantity] = useState(1);
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
   const [selectedBeverages, setSelectedBeverages] = useState<Record<string, boolean>>({});
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const handleAddonIncrement = (id: string) => {
+  const handleAddonIncrement = (id: string, section: CustomizationSection) => {
+    if (section.selectionLimit) {
+      const totalQty = section.items.reduce((sum, it) => sum + (addonQuantities[it.id] || 0), 0);
+      if (totalQty >= section.selectionLimit) return;
+    }
     setAddonQuantities(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   };
 
@@ -190,7 +149,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
     });
   };
 
-  const toggleBeverage = (id: string, limit?: number) => {
+  const toggleBeverage = (id: string, sectionItems: CustomizationItem[], limit?: number) => {
     setSelectedBeverages(prev => {
       const isSelected = prev[id];
       if (isSelected) {
@@ -199,8 +158,18 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
         return next;
       } else {
         if (limit) {
-          const currentCount = Object.keys(prev).length;
-          if (currentCount >= limit) return prev;
+          const sectionSelectedCount = sectionItems.filter(it => prev[it.id]).length;
+          if (sectionSelectedCount >= limit) {
+            if (limit === 1) {
+              const next = { ...prev };
+              sectionItems.forEach(it => {
+                delete next[it.id];
+              });
+              next[id] = true;
+              return next;
+            }
+            return prev;
+          }
         }
         return { ...prev, [id]: true };
       }
@@ -227,17 +196,33 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
   };
 
   const handleAddToCart = () => {
+    setValidationError(null);
+
+    // Validate required sections
+    for (const section of sections) {
+      if (section.isRequired) {
+        const selectedCount = section.items.filter(
+          it => section.type === 'addon' ? selectedBeverages[it.id] : addonQuantities[it.id] > 0
+        ).length;
+        
+        if (selectedCount === 0) {
+          setValidationError(`Please select at least one option from "${section.title}"`);
+          return;
+        }
+      }
+    }
+
     const selectedAddonsList = sections
       .filter(s => s.type === 'addon')
       .flatMap(s => s.items)
-      .filter(item => selectedBeverages[item.id])
-      .map(item => ({ id: item.id, name: item.name, price: item.price, quantity: 1 }));
+      .filter(it => selectedBeverages[it.id])
+      .map(it => ({ id: it.id, name: it.name, price: it.price, quantity: 1 }));
 
     const selectedBeveragesList = sections
       .filter(s => s.type === 'beverage')
       .flatMap(s => s.items)
-      .filter(item => addonQuantities[item.id] > 0)
-      .map(item => ({ id: item.id, name: item.name, price: item.price, quantity: addonQuantities[item.id] }));
+      .filter(it => addonQuantities[it.id] > 0)
+      .map(it => ({ id: it.id, name: it.name, price: it.price, quantity: addonQuantities[it.id] }));
 
     onAddToCart({
       item,
@@ -325,10 +310,15 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
           )}
 
           {/* Add-on Sections */}
-          {sections.map((section, index) => (
+          {sections.map((section) => (
             <div key={section.id} className="border-b border-gray-100 last:border-0">
               <div className="px-4 py-4 bg-gray-50/50">
-                <h3 className="text-[18px] font-bold text-gray-900">{section.title}</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[18px] font-bold text-gray-900">{section.title}</h3>
+                  {section.isRequired && (
+                    <span className="text-[11px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">Required</span>
+                  )}
+                </div>
                 <p className="text-[13px] text-gray-500 font-medium mt-0.5">{section.subtitle}</p>
               </div>
 
@@ -338,21 +328,33 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                   const isBeverageSelected = selectedBeverages[addon.id];
                   const isSelected = isAddonSelected || isBeverageSelected;
 
+                  // Section limit checks for disabling non-selected options
+                  let isUnselectable = false;
+                  if (section.type === 'addon') {
+                    const sectionSelectedCount = section.items.filter(it => selectedBeverages[it.id]).length;
+                    const isLimitReached = section.selectionLimit && section.selectionLimit > 1 && sectionSelectedCount >= section.selectionLimit;
+                    isUnselectable = isLimitReached && !isSelected;
+                  } else if (section.type === 'beverage') {
+                    const totalQty = section.items.reduce((sum, it) => sum + (addonQuantities[it.id] || 0), 0);
+                    const isLimitReached = section.selectionLimit && totalQty >= section.selectionLimit;
+                    isUnselectable = isLimitReached && !isAddonSelected;
+                  }
+
                   return (
                     <div
                       key={addon.id}
                       onClick={() => {
-                        if (!addon.inStock) return;
+                        if (!addon.inStock || isUnselectable) return;
                         if (section.type === 'addon') {
-                          toggleBeverage(addon.id, section.selectionLimit);
+                          toggleBeverage(addon.id, section.items, section.selectionLimit);
                         } else if (section.type === 'beverage' && !addonQuantities[addon.id]) {
-                          handleAddonIncrement(addon.id);
+                          handleAddonIncrement(addon.id, section);
                         }
                       }}
                       className={`relative flex flex-col p-3 rounded-2xl border transition-all cursor-pointer ${isSelected
                           ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]'
                           : 'border-gray-200 bg-white shadow-sm'
-                        } ${!addon.inStock ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        } ${!addon.inStock || isUnselectable ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {/* Top: Veg/Non-veg & Name */}
                       <div className="flex items-start gap-2 mb-1">
@@ -388,14 +390,17 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                                   <Minus className="w-3.5 h-3.5 stroke-[3]" />
                                 </button>
                                 <span className="text-[12px] font-bold text-white">{addonQuantities[addon.id]}</span>
-                                <button onClick={(e) => { e.stopPropagation(); handleAddonIncrement(addon.id); }} className="w-6 h-full flex items-center justify-center text-white active:scale-95">
+                                <button onClick={(e) => { e.stopPropagation(); handleAddonIncrement(addon.id, section); }} className="w-6 h-full flex items-center justify-center text-white active:scale-95">
                                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                                 </button>
                               </div>
                             ) : (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleAddonIncrement(addon.id); }}
-                                className="bg-white text-[#00bd6f] border border-[#00bd6f]/30 px-3 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 active:scale-95 transition-transform shadow-sm hover:bg-[#f4fdf8]"
+                                disabled={isUnselectable}
+                                onClick={(e) => { e.stopPropagation(); handleAddonIncrement(addon.id, section); }}
+                                className={`bg-white text-[#00bd6f] border border-[#00bd6f]/30 px-3 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 active:scale-95 transition-transform shadow-sm ${
+                                  isUnselectable ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#f4fdf8]'
+                                }`}
                               >
                                 ADD
                               </button>
@@ -408,12 +413,12 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                         ) : (
                           // Addon selection (Checkbox)
                           <button
-                            disabled={!addon.inStock}
-                            onClick={(e) => { e.stopPropagation(); toggleBeverage(addon.id, section.selectionLimit); }}
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${isBeverageSelected ? 'border-[#00bd6f] bg-[#00bd6f]' : 'border-gray-300 bg-white'
-                              }`}
+                            disabled={!addon.inStock || isUnselectable}
+                            onClick={(e) => { e.stopPropagation(); toggleBeverage(addon.id, section.items, section.selectionLimit); }}
+                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${selectedBeverages[addon.id] ? 'border-[#00bd6f] bg-[#00bd6f]' : 'border-gray-300 bg-white'
+                              } ${isUnselectable ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            {isBeverageSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            {selectedBeverages[addon.id] && <CheckCircle2 className="w-4 h-4 text-white" />}
                           </button>
                         )}
                       </div>
@@ -424,6 +429,16 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
             </div>
           ))}
         </div>
+
+        {/* Validation Error Toast */}
+        {validationError && (
+          <div className="absolute bottom-[88px] left-0 right-0 px-4 z-[80]">
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-2 shadow-lg">
+              <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+              <span className="text-[12px] font-semibold text-red-700">{validationError}</span>
+            </div>
+          </div>
+        )}
 
         {/* Bottom Action Bar */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">

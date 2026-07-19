@@ -171,7 +171,7 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Active Order Snackbar */}
-      {isHome && activeOrder && (
+      {currentPath !== "/order-tracking" && activeOrder && (
         <ActiveOrderSnackbar
           order={activeOrder}
           onClick={() => navigate("/order-tracking")}

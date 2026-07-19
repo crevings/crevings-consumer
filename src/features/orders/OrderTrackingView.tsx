@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Bike, Store, Phone, MessageSquare, HelpCircle, Map as MapIcon, Copy, AlertCircle, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Bike, Store, Phone, MessageSquare, HelpCircle, Map as MapIcon, Copy, AlertCircle, ChevronRight, Sparkles, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
 import { OrderChatBot } from "@/features/orders/OrderChatBot";
 import { SupportMessagingView } from "@/shared/ui/SupportMessagingView";
 import { LiveTrackingMap } from "@/features/orders/components/LiveTrackingMap";
+import { BASE_URL } from "../../api/fetcher";
 
 interface OrderTrackingViewProps {
   order: Order;
@@ -34,15 +35,183 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const handlePickupComplete = () => {
+  const [cancelTimeLeft, setCancelTimeLeft] = useState(() => {
+    if (order.type !== 'Delivery') return 0;
+    if (!order.createdAt) return 60;
+    const createdTime = new Date(order.createdAt).getTime();
+    const now = new Date().getTime();
+    const secondsElapsed = Math.floor((now - createdTime) / 1000);
+    const timeLeft = 60 - secondsElapsed;
+    return timeLeft > 0 ? timeLeft : 0;
+  });
+  const [isCancelled, setIsCancelled] = useState(order.status === 'Cancelled');
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  const [showAcceptedBanner, setShowAcceptedBanner] = useState(false);
+
+  const [orderStatus, setOrderStatus] = useState<string>(order.status || 'NEW');
+  const [secondsElapsed, setSecondsElapsed] = useState(() => {
+    if (!order.createdAt) return 0;
+    const createdTime = new Date(order.createdAt).getTime();
+    const now = new Date().getTime();
+    return Math.max(0, Math.floor((now - createdTime) / 1000));
+  });
+  const [prepTime, setPrepTime] = useState<string>(order.prepTime || '');
+
+  const handlePickupComplete = async () => {
     if (takeawayOtp.length === 6) {
-      onOrderComplete();
+      try {
+        const response = await fetch(`${BASE_URL}/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/complete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ pin: takeawayOtp }),
+        });
+        const result = await response.json();
+        if (result.success) {
+          onOrderComplete();
+        } else {
+          alert(result.message || "Failed to confirm pickup.");
+        }
+      } catch (err: any) {
+        alert("Failed to confirm pickup due to network issue.");
+      }
     }
   };
 
   useEffect(() => {
-    // Auto-advancing progress animation disabled so the status remains static at the initial stage.
+    const restaurantId = order.restaurantId;
+    const orderId = order.realOrderId || order.id;
+
+    if (!orderId || !restaurantId) return;
+
+    const eventSource = new EventSource(
+      `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
+      { withCredentials: true }
+    );
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.status) {
+          setOrderStatus(prev => {
+            if (data.status === 'PREPARING' && (prev === 'NEW' || prev === 'PENDING_ACCEPT')) {
+              setShowAcceptedBanner(true);
+            }
+            return data.status;
+          });
+          if (data.status !== 'NEW') {
+            setCancelTimeLeft(0);
+          }
+          if (data.status === 'CANCELLED') {
+            setIsCancelled(true);
+            if (data.reason) {
+              setRejectionReason(data.reason);
+            }
+          }
+          if (data.status === 'COMPLETED') {
+            onOrderComplete();
+          }
+        }
+        if (data.prepTime) {
+          setPrepTime(data.prepTime);
+        }
+      } catch (err) {
+        console.error("Error parsing SSE status message:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Connection Error:", err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [order.id, order.realOrderId, order.restaurantId]);
+
+  useEffect(() => {
+    let computedProgress = 0;
+    switch (orderStatus) {
+      case 'NEW':
+        computedProgress = 10;
+        break;
+      case 'PENDING_ACCEPT':
+        computedProgress = 15;
+        break;
+      case 'PREPARING':
+        computedProgress = 40;
+        break;
+      case 'READY':
+      case 'OUT FOR DELIVERY':
+        computedProgress = 80;
+        break;
+      case 'COMPLETED':
+        computedProgress = 100;
+        break;
+      default:
+        computedProgress = 0;
+    }
+    setProgress(computedProgress);
+  }, [orderStatus]);
+
+  useEffect(() => {
+    if (isCancelled && onCancelOrder) {
+      onCancelOrder();
+    }
+  }, [isCancelled, onCancelOrder]);
+
+  useEffect(() => {
+    let timer: any;
+    if (cancelTimeLeft > 0 && !isCancelled) {
+      timer = setInterval(() => {
+        setCancelTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cancelTimeLeft, isCancelled]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsElapsed((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
+
+  const handleCancelOrderApi = async () => {
+    if (isCancellingOrder) return;
+    setIsCancellingOrder(true);
+    try {
+      const response = await fetch(`${BASE_URL}/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/cancel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setIsCancelled(true);
+      } else {
+        alert(result.message || "Failed to cancel order.");
+      }
+    } catch (err: any) {
+      alert("Failed to cancel order due to network issue.");
+    } finally {
+      setIsCancellingOrder(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -74,7 +243,11 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
           >
             {/* Map Background */}
             <div className="absolute inset-0 z-0">
-              <LiveTrackingMap progress={progress} />
+              <LiveTrackingMap 
+                progress={progress} 
+                restaurantCoordinates={order.restaurantCoordinates} 
+                deliveryCoordinates={order.deliveryCoordinates} 
+              />
             </div>
 
             {/* Header */}
@@ -111,7 +284,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                     <div className="absolute left-0 top-0 bottom-0 bg-[#00bd6f] transition-all duration-1000 rounded-full" style={{ width: `${progress}%` }} />
                   </div>
                   <p className="text-sm font-bold text-slate-800 text-center">
-                    {progress < 20 ? 'Order Confirmed' : progress < 50 ? 'Preparing your food' : progress < 80 ? 'On the way' : progress < 100 ? 'Arriving now' : 'Delivered'}
+                    {progress < 20 ? 'Order Confirmed' : progress < 50 ? 'Preparing your food' : progress < 100 ? 'Your order is on the way' : 'Delivered'}
                   </p>
                 </div>
 
@@ -159,13 +332,34 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
       <div className="flex-1 overflow-y-auto pb-safe">
         <div className="p-4 space-y-4">
           
+          {/* Order Accepted Success Banner */}
+          {showAcceptedBanner && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-sm font-bold text-emerald-950">Order Accepted!</h3>
+                  <p className="text-xs text-emerald-700">The restaurant is preparing your food.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowAcceptedBanner(false)}
+                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100/50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {/* Timer Section */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-blue-600" />
               </div>
-              <div>
+              <div className="text-left">
                 <p className="text-xs text-slate-500 font-medium">Estimated Time</p>
                 <p className="text-lg font-bold text-slate-900">
                   {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} min
@@ -175,27 +369,118 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             <div className="text-right">
               <p className="text-xs text-slate-500 font-medium">Status</p>
               <p className="text-sm font-bold text-[#00bd6f]">
-                {progress < 20 ? 'Confirmed' : progress < 50 ? 'Preparing' : progress < 80 ? 'Picked up' : progress < 100 ? 'Arriving' : 'Delivered'}
+                {isCancelled ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled') : (
+                  orderStatus === 'NEW' ? (secondsElapsed >= 60 ? 'Waiting for restaurant to accept the order' : 'Placing Order') :
+                  orderStatus === 'PENDING_ACCEPT' ? 'Awaiting Restaurant' :
+                  orderStatus === 'PREPARING' ? `Preparing (${prepTime || '30 mins'})` :
+                  (orderStatus === 'READY' || orderStatus === 'OUT FOR DELIVERY') ? 'Your order is on the way' :
+                  orderStatus === 'COMPLETED' ? 'Delivered' : orderStatus
+                )}
               </p>
             </div>
           </div>
 
-          {/* Map Card */}
-          <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden relative border border-slate-100 shadow-sm">
-            <img 
-              src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&h=450&fit=crop" 
-              alt="Live tracking map" 
-              className="w-full h-full object-cover"
-            />
-            {/* Overlay button */}
-            {order.type === 'Delivery' && (
-              <button 
-                onClick={() => setShowMap(true)}
-                className="absolute bottom-4 right-4 bg-white/90 backdrop-blur text-slate-800 text-sm font-bold px-4 py-2 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-2"
+          {/* Cancellation Timer Card */}
+          {cancelTimeLeft > 0 && !isCancelled && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col items-center text-center animate-in fade-in duration-300">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-5 h-5 text-green-600 animate-pulse" />
+                <h3 className="text-base font-bold text-slate-900 font-sans">Placing order with restaurant...</h3>
+              </div>
+              <p className="text-xs text-slate-500 mb-4 px-2">
+                You can cancel your order within the next {cancelTimeLeft} seconds if you want to make changes.
+              </p>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-4 relative">
+                <div 
+                  className="bg-green-500 h-full transition-all duration-1000 ease-linear rounded-full" 
+                  style={{ width: `${(cancelTimeLeft / 60) * 100}%` }}
+                />
+              </div>
+
+              <button
+                onClick={handleCancelOrderApi}
+                disabled={isCancellingOrder}
+                className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-sm active:scale-[0.98] transition-all border border-red-200 flex items-center justify-center gap-2 disabled:opacity-75"
               >
-                <MapIcon className="w-4 h-4 text-blue-600" /> 
-                Live Track
+                {isCancellingOrder ? (
+                  <Loader2 className="w-4.5 h-4.5 animate-spin text-red-600" />
+                ) : (
+                  <X className="w-4 h-4" />
+                )}
+                Cancel Order
               </button>
+            </div>
+          )}
+
+          {/* Waiting for Restaurant Banner (Shown after 60s of PENDING/NEW status) */}
+          {secondsElapsed >= 60 && orderStatus === 'NEW' && !isCancelled && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center animate-in fade-in duration-300">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3 text-amber-700 animate-pulse">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-amber-900 mb-1">Waiting for Restaurant response</h3>
+              <p className="text-xs text-amber-700 leading-relaxed max-w-[280px]">
+                The restaurant is taking longer than usual to accept your order. We are waiting for their confirmation.
+              </p>
+            </div>
+          )}
+
+          {/* Cancelled/Rejected Confirmation Banner */}
+          {isCancelled && (
+            <div className="bg-red-50 rounded-2xl p-5 shadow-sm border border-red-100 flex flex-col items-center text-center animate-in fade-in duration-300">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                <X className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-base font-bold text-red-950 mb-1">
+                {rejectionReason === 'Rejected by restaurant' ? 'Order Rejected' : 'Order Cancelled'}
+              </h3>
+              <p className="text-xs text-red-700 mb-4">
+                {rejectionReason === 'Rejected by restaurant' 
+                  ? 'The restaurant was unable to accept your order.' 
+                  : 'This order has been cancelled and will not be processed.'}
+              </p>
+              <button
+                onClick={onBack}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm active:scale-[0.98] transition-all shadow-sm"
+              >
+                Back to Home
+              </button>
+            </div>
+          )}
+
+          {/* Map Card */}
+          <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden relative border border-slate-100 shadow-sm z-0">
+            {order.type === 'Delivery' ? (
+              <div className="w-full h-full relative">
+                <LiveTrackingMap 
+                  progress={isCancelled ? 0 : (cancelTimeLeft > 0 ? 0 : 50)} 
+                  restaurantCoordinates={order.restaurantCoordinates} 
+                  deliveryCoordinates={order.deliveryCoordinates} 
+                />
+                <a 
+                  href={order.restaurantCoordinates && order.deliveryCoordinates 
+                    ? `https://www.google.com/maps/dir/?api=1&origin=${order.restaurantCoordinates.lat},${order.restaurantCoordinates.lng}&destination=${order.deliveryCoordinates.lat},${order.deliveryCoordinates.lng}&travelmode=driving`
+                    : `https://www.google.com/maps/dir/?api=1&origin=12.9716,77.5946&destination=12.9830,77.6080&travelmode=driving`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="absolute bottom-3 right-3 bg-white/95 backdrop-blur text-slate-800 text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-1.5 z-[1000]"
+                > 
+                  <MapIcon className="w-3.5 h-3.5 text-blue-600" /> 
+                  Open in Google Maps
+                </a>
+              </div>
+            ) : (
+              <iframe
+                title="Restaurant Location"
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                style={{ border: 0 }}
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(order.restaurantName + ", " + order.location)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                allowFullScreen
+              />
             )}
           </div>
 

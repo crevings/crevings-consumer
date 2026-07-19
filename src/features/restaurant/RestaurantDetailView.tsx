@@ -59,7 +59,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   const [selectedAddonItem, setSelectedAddonItem] = useState<MenuItem | null>(null);
   const [showMenuCategories, setShowMenuCategories] = useState(false);
   const [isOutletsOpen, setIsOutletsOpen] = useState(false);
-  const [selectedOutlet, setSelectedOutlet] = useState('Koramangala');
+  const [selectedOutlet, setSelectedOutlet] = useState(restaurant.address || 'Koramangala');
   const [selectedMenuItemDetail, setSelectedMenuItemDetail] = useState<MenuItem | null>(null);
   const [isMenuItemDetailOpen, setIsMenuItemDetailOpen] = useState(false);
   const [isBannerMenuOpen, setIsBannerMenuOpen] = useState(false);
@@ -141,7 +141,24 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   const handleAdd = (id: string) => {
     const item = menuItems.find(i => i.id === id);
     if (item) {
-      setSelectedAddonItem(item);
+      const hasPricingOptions = item.pricing_options && item.pricing_options.length > 1;
+      const hasAddons = item.allowedAddons && item.allowedAddons.length > 0;
+      const hasToppings = item.allowedToppings && item.allowedToppings.length > 0;
+      const hasBeverages = item.allowedBeverages && item.allowedBeverages.length > 0;
+
+      if (!hasPricingOptions && !hasAddons && !hasToppings && !hasBeverages) {
+        setCart(prev => [
+          ...prev,
+          {
+            cartItemId: Math.random().toString(36).substr(2, 9),
+            item: item,
+            quantity: 1,
+            totalPrice: item.price
+          }
+        ]);
+      } else {
+        setSelectedAddonItem(item);
+      }
     }
   };
 

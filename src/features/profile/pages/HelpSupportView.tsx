@@ -1,178 +1,184 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  ChevronDown, 
-  MessageCircle, 
-  Search, 
-  ShoppingBag, 
-  CreditCard, 
   User, 
-  Headphones, 
-  Mail, 
-  Phone,
-  MessageSquare,
-  LifeBuoy,
-  ChevronRight,
   ShieldCheck,
-  Zap,
-  Play,
+  ChevronRight,
+  Bike,
+  Wallet,
+  Package,
   Send,
-  X,
-  Paperclip,
-  Smile,
-  MoreVertical,
-  CheckCheck
+  MoreVertical
 } from 'lucide-react';
 
 interface HelpSupportViewProps {
   onBack: () => void;
 }
 
+const TOPICS_DATA = [
+  { id: 'delivery', icon: Bike, label: 'Ordering and Delivery' },
+  { id: 'payments', icon: Wallet, label: 'Payments, Refunds and Coupons' },
+  { id: 'changes', icon: Package, label: 'Order Changes and Customization' },
+  { id: 'profile', icon: User, label: 'Account and Profile' },
+  { id: 'safety', icon: ShieldCheck, label: 'Support and Safety' },
+];
+
+const TOPIC_FAQS: Record<string, {q: string, a: string}[]> = {
+  'delivery': [
+    { q: "How does 10 minute delivery work?", a: "We have partnered with nearby stores to ensure quick delivery." },
+    { q: "What happens if my order is late?", a: "If your order is late, you can reach out to our support team for assistance." },
+    { q: "Can I track my delivery in real time?", a: "Yes, you can track your delivery partner on the map once the order is picked up." },
+    { q: "Why can't I place orders? [Kitchen unserviceable]", a: "The restaurant might be temporarily closed or not accepting orders at the moment." },
+    { q: "Why can't I place another order?", a: "You can place multiple orders, but each will be delivered separately." },
+    { q: "Do you deliver at night?", a: "Delivery hours depend on the restaurant's operating hours in your area." },
+    { q: "Why is my area not serviceable?", a: "We are currently expanding our delivery radius and hope to reach you soon." }
+  ],
+  'payments': [
+    { q: "My payment failed but money was deducted.", a: "This is a temporary bank hold. The amount is refunded within 5-7 business days." },
+    { q: "How do I get a refund?", a: "Refunds for cancelled orders are processed automatically within 3-5 business days." },
+    { q: "Can I pay with cash on delivery?", a: "Yes, cash on delivery is available for most restaurants up to a certain limit." },
+    { q: "Why is my promo code not working?", a: "Promo codes may have minimum order limits, expire, or only apply to specific items or restaurants." }
+  ],
+  'changes': [
+    { q: "Can I cancel my order?", a: "Yes, you can cancel within 1 minute of placing the order without charges." },
+    { q: "How can I add to an existing order?", a: "Once an order is placed, you cannot add items. You will need to place a new separate order." },
+    { q: "Can I change the delivery address after ordering?", a: "Address changes are not possible once the restaurant accepts the order. Please cancel and reorder." }
+  ],
+  'profile': [
+    { q: "How do I change my delivery address?", a: "You can update it from the 'Address Book' in your profile or at checkout." },
+    { q: "How do I update my phone number?", a: "Go to Profile -> Edit Profile. You will need SMS verification to confirm the change." },
+    { q: "How do I change my name or email?", a: "Go to Profile -> Edit Profile to update your personal details." }
+  ],
+  'safety': [
+    { q: "Is my payment information secure?", a: "We use AES-256 encryption. We do not store your full card details on our servers." },
+    { q: "How can I delete my account?", a: "Request deletion from Profile -> Settings -> Privacy." }
+  ]
+};
+
 export const HelpSupportView: React.FC<HelpSupportViewProps> = ({ onBack }) => {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
-
-  const categories = [
-    { icon: ShoppingBag, label: 'Orders', color: 'text-orange-500', bg: 'bg-orange-50' },
-    { icon: CreditCard, label: 'Payments', color: 'text-blue-500', bg: 'bg-blue-50' },
-    { icon: User, label: 'Account', color: 'text-sky-500', bg: 'bg-sky-50' },
-    { icon: ShieldCheck, label: 'Privacy', color: 'text-purple-500', bg: 'bg-purple-50' },
-  ];
-
-  const videos = [
-    { id: 1, title: 'How to track your order live', duration: '1:45', thumbnail: 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?w=400&h=225&fit=crop&q=80', views: '2.4k' },
-    { id: 2, title: 'Applying coupons & DineCash', duration: '2:10', thumbnail: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400&h=225&fit=crop&q=80', views: '1.8k' },
-    { id: 3, title: 'Managing refunds easily', duration: '1:15', thumbnail: 'https://images.unsplash.com/photo-1556742502-ec7c0e9f34b1?w=400&h=225&fit=crop&q=80', views: '3.1k' },
-  ];
-
-  const faqs = [
-    { q: "How do I track my order?", a: "Go to the 'Orders' tab and select your active order to view the live tracking map. You'll see real-time updates of your delivery partner's location." },
-    { q: "Can I cancel my order?", a: "Yes, you can cancel within 1 minute of placing the order without charges. After that, a cancellation fee may apply depending on the restaurant's preparation status." },
-    { q: "My payment failed but money was deducted.", a: "Don't worry! This is usually a temporary hold by your bank. The amount is automatically refunded within 5-7 business days." },
-    { q: "How do I change my delivery address?", a: "You can change your address on the checkout page or from the 'Address Book' in your profile before placing an order." },
-  ];
 
   if (showChat) {
     return <SupportChatScreen onBack={() => setShowChat(false)} />;
   }
 
+  if (selectedTopic) {
+    return (
+      <TopicFaqsScreen 
+        topicId={selectedTopic} 
+        onBack={() => setSelectedTopic(null)} 
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative overflow-x-hidden pb-12 animate-fadeInUp">
-      <div className="relative bg-gradient-to-br from-[#041c2d] to-[#010e14] pt-8 pb-24 px-6 overflow-hidden shadow-2xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-        <div className="relative z-10 flex justify-between items-center mb-8">
-          <button onClick={onBack} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/10 active:scale-90 transition-all">
-            <ArrowLeft className="w-6 h-6" />
+    <div className="min-h-screen bg-white flex flex-col font-sans relative">
+      {/* Header */}
+      <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20">
+        <div className="flex items-center gap-4 mt-4">
+          <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
+            <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
           </button>
-          <div className="bg-blue-500/20 px-3 py-1 rounded-full border border-blue-500/20">
-            <span className="text-blue-400 text-[10px] font-black uppercase tracking-widest">24/7 Priority Support</span>
+          <h1 className="text-[18px] font-bold text-slate-900">Help</h1>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
+        <div className="px-5 pt-2 pb-8">
+           <h3 className="text-[17px] font-bold text-slate-900 mb-4 tracking-tight">All Help Topics</h3>
+           
+           <div className="divide-y divide-slate-100">
+               {TOPICS_DATA.map(topic => (
+                   <button 
+                      key={topic.id}
+                      onClick={() => setSelectedTopic(topic.id)}
+                      className="w-full py-4 flex items-center justify-between active:bg-slate-50 transition-all text-left"
+                   >
+                      <div className="flex items-center gap-4">
+                         <div className="text-[#00BD6F]">
+                            <topic.icon className="w-[22px] h-[22px]" strokeWidth={2} />
+                         </div>
+                         <h4 className="text-[15px] font-semibold text-slate-800 leading-snug">{topic.label}</h4>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" strokeWidth={2.5} />
+                   </button>
+               ))}
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+};
+
+const TopicFaqsScreen: React.FC<{topicId: string, onBack: () => void}> = ({ topicId, onBack }) => {
+  const [selectedFaq, setSelectedFaq] = useState<{q: string, a: string} | null>(null);
+  const topic = TOPICS_DATA.find(t => t.id === topicId)!;
+  const faqs = TOPIC_FAQS[topicId] || [];
+
+  if (selectedFaq) {
+      return (
+          <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-[slideInRight_0.3s_ease-out]">
+              <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20">
+                  <div className="flex items-center gap-4 mt-4">
+                      <button onClick={() => setSelectedFaq(null)} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
+                          <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
+                      </button>
+                      <div className="flex-1">
+                          <h1 className="text-[18px] font-bold text-slate-900 line-clamp-1">{topic.label}</h1>
+                      </div>
+                  </div>
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 pt-2 pb-10">
+                  <h2 className="text-[20px] font-black text-slate-900 mb-4 leading-snug">{selectedFaq.q}</h2>
+                  <p className="text-[15px] text-slate-600 leading-relaxed font-medium">{selectedFaq.a}</p>
+              </div>
           </div>
-        </div>
-        <div className="relative z-10 text-center mb-8">
-           <h1 className="text-3xl font-black text-white mb-2 tracking-tight">Support Center</h1>
-           <p className="text-blue-100/60 text-sm font-medium">How can we help you today?</p>
-        </div>
-        <div className="relative z-20 -mb-6 max-w-md mx-auto">
-            <div className="relative group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
-                    <Search className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <input 
-                    type="text" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search issues, orders, payments..."
-                    className="w-full bg-white border-none rounded-[2rem] py-5 pl-14 pr-6 text-sm font-bold shadow-2xl shadow-slate-900/10 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
-                />
-            </div>
-        </div>
-      </div>
+      );
+  }
 
-      <div className="px-5 pt-12 space-y-10">
-        <div className="grid grid-cols-4 gap-4">
-            {categories.map((cat, i) => (
-                <button key={i} className="flex flex-col items-center gap-2 group">
-                    <div className={`w-14 h-14 rounded-2xl ${cat.bg} flex items-center justify-center ${cat.color} shadow-sm group-hover:scale-110 transition-all`}>
-                        <cat.icon className="w-6 h-6" />
-                    </div>
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{cat.label}</span>
+  return (
+    <div className="fixed inset-0 z-50 bg-white flex flex-col animate-[slideInRight_0.3s_ease-out]">
+        {/* Header */}
+        <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20">
+            <div className="flex items-center gap-4 mt-4">
+                <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
+                    <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
                 </button>
-            ))}
-        </div>
-
-        <div className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Play className="w-4 h-4 text-blue-500 fill-blue-500" /> Video Tutorials
-                </h3>
-                <button className="text-[10px] font-black text-blue-600 uppercase tracking-widest">View All</button>
-            </div>
-            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-5 px-5">
-                {videos.map((video) => (
-                    <div key={video.id} className="min-w-[260px] bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm group cursor-pointer hover:shadow-md transition-all">
-                        <div className="relative h-36">
-                            <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition-all" />
-                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 text-white">
-                                    <Play className="w-5 h-5 fill-current ml-1" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="p-4">
-                            <h4 className="text-sm font-bold text-slate-800 line-clamp-1 mb-1">{video.title}</h4>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{video.views} views</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-
-        <div className="space-y-4">
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-2 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-blue-500" /> Frequent Questions
-            </h3>
-            <div className="space-y-3">
-                {faqs.map((faq, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden transition-all">
-                        <button onClick={() => setOpenIndex(openIndex === i ? null : i)} className="w-full flex items-center justify-between p-5 text-left group">
-                            <span className={`text-sm font-bold ${openIndex === i ? 'text-blue-600' : 'text-slate-700'}`}>{faq.q}</span>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${openIndex === i ? 'bg-blue-500 text-white rotate-180' : 'bg-slate-50 text-slate-400'}`}>
-                                <ChevronDown className="w-4 h-4" />
-                            </div>
-                        </button>
-                        {openIndex === i && (
-                            <div className="px-5 pb-5 text-xs text-slate-500 leading-relaxed font-medium">
-                                <div className="h-px bg-slate-50 w-full mb-4"></div>
-                                {faq.a}
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-
-        <div className="bg-[#051722] rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/10">
-            <div className="relative z-10">
-                <h4 className="text-xl font-black mb-1">Still need help?</h4>
-                <p className="text-blue-100/60 text-xs font-medium mb-8 max-w-[200px]">Connect with our support team for instant resolution.</p>
-                <div className="grid grid-cols-1 gap-3">
-                    <button onClick={() => setShowChat(true)} className="w-full bg-blue-500 hover:bg-blue-400 text-white py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-blue-500/20">
-                        <MessageCircle className="w-5 h-5" /> Live Chat Now
-                    </button>
+                <div className="flex-1">
+                    <h1 className="text-[18px] font-bold text-slate-900">{topic.label}</h1>
                 </div>
             </div>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
         </div>
-      </div>
+        
+        <div className="flex-1 overflow-y-auto px-5 pt-2 pb-10">
+            <div className="divide-y divide-slate-100">
+                {faqs.map((faq, i) => (
+                    <button 
+                        key={i} 
+                        onClick={() => setSelectedFaq(faq)}
+                        className="w-full py-4 flex items-center justify-between active:bg-slate-50 transition-all text-left"
+                    >
+                        <span className="text-[15px] font-semibold text-slate-800 pr-4 leading-snug">
+                            {faq.q}
+                        </span>
+                        <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" strokeWidth={2.5} />
+                    </button>
+                ))}
+                {faqs.length === 0 && (
+                    <div className="py-8 text-center text-[15px] text-slate-500 font-medium">
+                        No FAQs available for this topic yet.
+                    </div>
+                )}
+            </div>
+        </div>
     </div>
   );
 };
 
 const SupportChatScreen = ({ onBack }: { onBack: () => void }) => {
   const [messages, setMessages] = useState([
-    { id: 1, text: "Hi! I'm Sarah from Crevings Support. How can I assist you today?", sender: 'agent', time: '10:30 AM' },
+    { id: 1, text: "Hi! I'm Sarah from Support. How can I assist you today?", sender: 'agent', time: '10:30 AM' },
   ]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -197,57 +203,67 @@ const SupportChatScreen = ({ onBack }: { onBack: () => void }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col animate-[slideUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
-        <div className="bg-[#051722] pt-12 pb-6 px-6 text-white shadow-xl relative overflow-hidden">
-            <div className="relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 bg-white/10 rounded-full active:scale-90 transition-all">
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <div className="w-12 h-12 bg-white rounded-2xl overflow-hidden border-2 border-blue-500/30">
-                                <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80" alt="Sarah" className="w-full h-full object-cover" />
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-500 border-2 border-[#051722] rounded-full"></div>
+    <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-[slideUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
+        {/* Header */}
+        <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20 shadow-sm border-b border-slate-100">
+            <div className="flex items-center gap-3 mt-4">
+                <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
+                    <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
+                </button>
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="relative">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80" alt="Sarah" className="w-full h-full object-cover" />
                         </div>
-                        <div>
-                            <h3 className="font-black text-base tracking-tight leading-none mb-1">Agent Sarah</h3>
-                            <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest">Online</p>
-                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-[14px] h-[14px] bg-[#00BD6F] border-2 border-white rounded-full"></div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-[15px] text-slate-900 leading-none mb-1">Sarah Support</h3>
+                        <p className="text-[#00BD6F] text-[12px] font-bold">Online</p>
                     </div>
                 </div>
+                <button className="p-2 text-slate-400 hover:text-slate-600 active:scale-95 transition-transform">
+                    <MoreVertical className="w-5 h-5" />
+                </button>
             </div>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
+
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-6">
+            <div className="text-center text-[12px] font-bold text-slate-400 uppercase tracking-wider my-4">
+                Today, 10:30 AM
+            </div>
             {messages.map((msg) => (
                 <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] p-4 rounded-3xl text-sm font-medium shadow-sm leading-relaxed ${
+                    <div className={`max-w-[85%] p-4 rounded-[20px] text-[14px] font-medium leading-relaxed shadow-sm border ${
                         msg.sender === 'user' 
-                        ? 'bg-blue-600 text-white rounded-br-none' 
-                        : 'bg-slate-50 text-slate-700 rounded-bl-none border border-slate-100'
+                        ? 'bg-[#00BD6F] border-[#00BD6F] text-white rounded-br-none' 
+                        : 'bg-[#F4F4F8] border-slate-100 text-slate-800 rounded-bl-none'
                     }`}>
                         {msg.text}
                     </div>
+                    <span className="text-[11px] text-slate-400 mt-1 font-medium px-1">{msg.time}</span>
                 </div>
             ))}
         </div>
-        <div className="p-6 bg-white border-t border-slate-50">
-            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-[2rem] border border-slate-200 focus-within:border-blue-500/50">
+
+        <div className="p-4 bg-white border-t border-slate-100 pt-3 pb-safe-bottom">
+            <div className="flex items-center gap-3 bg-[#F4F4F8] p-1.5 pl-4 rounded-[24px] border border-transparent focus-within:border-slate-200 focus-within:bg-white transition-all">
                 <input 
                     type="text" 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Describe your issue..."
-                    className="flex-1 bg-transparent px-4 text-sm font-bold text-slate-800 focus:outline-none"
+                    placeholder="Type a message..."
+                    className="flex-1 bg-transparent text-[15px] font-medium text-slate-800 focus:outline-none placeholder:text-slate-400"
                 />
                 <button 
                     onClick={handleSend}
                     disabled={!input.trim()}
-                    className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-lg disabled:opacity-30"
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                        input.trim() ? 'bg-[#00BD6F] text-white shadow-md' : 'bg-slate-200 text-slate-400'
+                    }`}
                 >
-                    <Send className="w-5 h-5 ml-0.5" />
+                    <Send className="w-[18px] h-[18px] ml-0.5" />
                 </button>
             </div>
         </div>

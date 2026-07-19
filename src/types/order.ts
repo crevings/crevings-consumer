@@ -24,4 +24,11 @@ export interface Order {
   total?: number;
   offer?: string;
   paymentMethod?: string;
+  realOrderId?: string;
+  restaurantId?: string;
+  createdAt?: string;
+  prepTime?: string;
+  pickupOtp?: string;
+  restaurantCoordinates?: { lat: number; lng: number } | null;
+  deliveryCoordinates?: { lat: number; lng: number } | null;
 }

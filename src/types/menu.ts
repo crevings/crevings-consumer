@@ -15,6 +15,11 @@ export interface MenuItem {
   hasOffer?: boolean;
   servingSize?: string;
   piecesInfo?: string;
+  pricing_options?: any[];
+  allowedAddons?: any[];
+  allowedToppings?: any[];
+  allowedBeverages?: any[];
+  comboItems?: any[];
 }
 
 export interface CartItem {

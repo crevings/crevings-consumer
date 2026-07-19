@@ -10,9 +10,7 @@ import { RestaurantDetailView } from "../features/restaurant/RestaurantDetailVie
 import { RestaurantInfoView } from "../features/restaurant/RestaurantInfoView";
 import { CheckoutView } from "../features/cart/CheckoutView";
 import { OrderTrackingView } from "../features/orders/OrderTrackingView";
-import { OrdersView } from "../features/orders/OrdersView";
 import { ProfileView } from "../features/profile/ProfileView";
-import { WalletView } from "../features/profile/pages/WalletView";
 import { EditProfileView } from "../features/profile/EditProfileView";
 import { CropProfileImageView } from "../features/profile/CropProfileImageView";
 import { SettingsView } from "../features/profile/pages/SettingsView";
@@ -23,17 +21,15 @@ import { CollectionDetailView } from "../features/collection/CollectionDetailVie
 import { HelpSupportView } from "../features/profile/pages/HelpSupportView";
 import { NotificationsView } from "../features/profile/pages/NotificationsView";
 import { RefundsView } from "../features/profile/pages/RefundsView";
-import { AddressBookView } from "../features/profile/pages/AddressBookView";
-import { ReferEarnView } from "../features/profile/pages/ReferEarnView";
 import { DataSharingView } from "../features/profile/pages/DataSharingView";
 import { PoliciesView } from "../features/profile/pages/PoliciesView";
+import { PrivacyPolicyView } from "../features/profile/pages/PrivacyPolicyView";
 import { LicensesView } from "../features/profile/pages/LicensesView";
 import { GstDetailsView } from "../features/profile/pages/GstDetailsView";
 import { AccessibilityView } from "../features/profile/pages/AccessibilityView";
 import { GoldMembershipView } from "../features/profile/pages/GoldMembershipView";
 import { HiddenRestaurantsView } from "../features/favourites/HiddenRestaurantsView";
 import { FavoritesView } from "../features/favourites/FavoritesView";
-import { AboutView } from "../features/profile/pages/AboutView";
 import { PlatformFeedbackView } from "../features/profile/pages/PlatformFeedbackView";
 import { RateOrderView } from "../features/orders/RateOrderView";
 import { ViewReviewDetailsView } from "../features/orders/ViewReviewDetailsView";
@@ -318,10 +314,30 @@ export const AppRoutes: React.FC = () => {
           }
         />
 
+
+
         <Route
-          path="/orders"
+          path="/profile"
           element={
-            <OrdersView
+            <ProfileView
+              userProfile={userProfile}
+              onUpdateProfileImage={(img) => setUserProfile((prev) => ({ ...prev, image: img }))}
+              onUpdateProfile={setUserProfile}
+              onEditProfileClick={() => navigate("/edit-profile")}
+              onLogout={logout}
+              onSettingsClick={() => navigate("/settings")}
+              onHelpClick={() => navigate("/help")}
+              onNotificationsClick={() => navigate("/notifications")}
+              onRefundsClick={() => navigate("/refunds")}
+              onPoliciesClick={() => navigate("/policies")}
+              onPrivacyClick={() => navigate("/privacy-policy")}
+              onLicensesClick={() => navigate("/licenses")}
+              onGstClick={() => navigate("/gst")}
+              onAccessibilityClick={() => navigate("/accessibility")}
+              onAddressBookClick={() => navigate("/location", { state: { from: "/profile" } })}
+              onManageMembershipClick={() => navigate("/gold")}
+              onFeedbackClick={() => navigate("/platform-feedback")}
+              onBack={() => navigate("/")}
               reviews={reviews}
               onRateClick={(order) => {
                 setSelectedOrder(order);
@@ -332,41 +348,15 @@ export const AppRoutes: React.FC = () => {
                 navigate("/view-review");
               }}
               onReorderClick={handleReorder}
-              onBack={() => navigate("/")}
+              onViewDetailsClick={(order) => {
+                setActiveOrder(order);
+                navigate("/order-tracking");
+              }}
             />
           }
         />
 
-        <Route
-          path="/profile"
-          element={
-            <ProfileView
-              userProfile={userProfile}
-              onUpdateProfileImage={(img) => setUserProfile((prev) => ({ ...prev, image: img }))}
-              onUpdateProfile={setUserProfile}
-              onEditProfileClick={() => navigate("/edit-profile")}
-              onWalletClick={() => navigate("/wallet")}
-              onOrdersClick={() => navigate("/orders")}
-              onLogout={logout}
-              onSettingsClick={() => navigate("/settings")}
-              onHelpClick={() => navigate("/help")}
-              onNotificationsClick={() => navigate("/notifications")}
-              onRefundsClick={() => navigate("/refunds")}
-              onReferClick={() => navigate("/refer")}
-              onPoliciesClick={() => navigate("/policies")}
-              onLicensesClick={() => navigate("/licenses")}
-              onGstClick={() => navigate("/gst")}
-              onAccessibilityClick={() => navigate("/accessibility")}
-              onAddressBookClick={() => navigate("/address-book")}
-              onManageMembershipClick={() => navigate("/gold")}
-              onAboutClick={() => navigate("/about")}
-              onFeedbackClick={() => navigate("/platform-feedback")}
-              onBack={() => navigate("/")}
-            />
-          }
-        />
 
-        <Route path="/wallet" element={<WalletView onBack={() => navigate(-1)} />} />
 
         <Route
           path="/edit-profile"
@@ -472,10 +462,11 @@ export const AppRoutes: React.FC = () => {
         <Route path="/help" element={<HelpSupportView onBack={() => navigate(-1)} />} />
         <Route path="/notifications" element={<NotificationsView onBack={() => navigate(-1)} />} />
         <Route path="/refunds" element={<RefundsView onBack={() => navigate(-1)} />} />
-        <Route path="/address-book" element={<AddressBookView onBack={() => navigate(-1)} />} />
-        <Route path="/refer" element={<ReferEarnView onBack={() => navigate(-1)} />} />
+
+
         <Route path="/data-sharing" element={<DataSharingView onBack={() => navigate(-1)} />} />
         <Route path="/policies" element={<PoliciesView onBack={() => navigate(-1)} />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyView onBack={() => navigate(-1)} />} />
         <Route path="/licenses" element={<LicensesView onBack={() => navigate(-1)} />} />
         <Route path="/gst" element={<GstDetailsView onBack={() => navigate(-1)} />} />
         <Route path="/accessibility" element={<AccessibilityView onBack={() => navigate(-1)} />} />
@@ -503,7 +494,6 @@ export const AppRoutes: React.FC = () => {
           }
         />
 
-        <Route path="/about" element={<AboutView onBack={() => navigate(-1)} />} />
         <Route path="/platform-feedback" element={<PlatformFeedbackView onBack={() => navigate(-1)} />} />
 
         <Route
@@ -518,11 +508,11 @@ export const AppRoutes: React.FC = () => {
                     ...prev,
                     [selectedOrder.id]: review,
                   }));
-                  navigate("/orders");
+                  navigate("/");
                 }}
               />
             ) : (
-              <Navigate to="/orders" />
+              <Navigate to="/" />
             )
           }
         />
@@ -537,7 +527,7 @@ export const AppRoutes: React.FC = () => {
                 onBack={() => navigate(-1)}
               />
             ) : (
-              <Navigate to="/orders" />
+              <Navigate to="/" />
             )
           }
         />
@@ -548,7 +538,10 @@ export const AppRoutes: React.FC = () => {
             <LocationPickerView
               addresses={addresses}
               setAddresses={setAddresses}
-              onClose={() => navigate(-1)}
+              onClose={() => {
+                const from = (reactRouterLocation.state as any)?.from || "/";
+                navigate(from);
+              }}
               onSelectLocation={(loc) => {
                 const from = (reactRouterLocation.state as any)?.from || "/";
                 setIsLoadingView(true);

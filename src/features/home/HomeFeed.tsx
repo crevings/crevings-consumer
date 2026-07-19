@@ -9,6 +9,7 @@ import { Skeleton } from "boneyard-js/react";
 import { RestaurantCard } from "../restaurant/RestaurantCard";
 import { FilterBottomSheet } from "../../shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "../../shared/components/SortBottomSheet";
+import { PromotionsCarousel } from "./PromotionsCarousel";
 
 interface HomeFeedProps {
   onCategoryClick: (name: string) => void;
@@ -143,6 +144,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     return list;
   }, [restaurants, hiddenIds, activeFilters, sortMode, selectedBrand]);
 
+  const hasAppliedFilters = useMemo(() => {
+    return (
+      activeFilters.minRating > 1 ||
+      activeFilters.maxTime < 60 ||
+      activeFilters.maxDistance < 15 ||
+      activeFilters.dietary !== "all" ||
+      activeFilters.offersOnly === true ||
+      activeFilters.priceRange !== null ||
+      selectedBrand !== null
+    );
+  }, [activeFilters, selectedBrand]);
 
   const firstFive = visibleRestaurants.slice(0, 5);
   const remaining = visibleRestaurants.slice(5);
@@ -150,82 +162,9 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   return (
     <Skeleton name="home-feed" loading={isLoading || isApiLoading}>
       <div className="pb-8 animate-fadeInUp">
-        <div className="mb-8 px-4">
-          <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4">
-            <div className="w-[340px] h-[112px] bg-slate-900 rounded-[24px] p-4 text-white relative overflow-hidden shrink-0">
-              <div className="relative z-10 h-full flex justify-between items-center">
-                <div>
-                  <div className="inline-block bg-yellow-400 text-slate-900 text-[9px] font-bold px-2 py-0.5 rounded mb-1">
-                    LIMITED TIME
-                  </div>
-                  <h3 className="text-lg font-bold leading-tight mb-0.5">
-                    50% OFF
-                  </h3>
-                  <p className="text-slate-300 text-[10px] font-medium">
-                    On your first 3 orders
-                  </p>
-                </div>
-                <button className="bg-white text-slate-900 px-4 py-2 rounded-[12px] text-xs font-bold active:scale-95 transition-transform">
-                  Order Now
-                </button>
-              </div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500 rounded-full blur-[50px] opacity-40"></div>
-            </div>
-            <div className="w-[340px] h-[112px] bg-blue-600 rounded-[24px] p-4 text-white relative overflow-hidden shrink-0">
-              <div className="relative z-10 h-full flex justify-between items-center">
-                <div>
-                  <div className="inline-block bg-white/20 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded mb-1">
-                    HEALTHY EATS
-                  </div>
-                  <h3 className="text-lg font-bold leading-tight mb-0.5">
-                    Fresh Salads
-                  </h3>
-                  <p className="text-blue-100 text-[10px] font-medium">
-                    Start at ₹149 only
-                  </p>
-                </div>
-                <button className="bg-white text-blue-700 px-4 py-2 rounded-[12px] text-xs font-bold active:scale-95 transition-transform">
-                  Explore Menu
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PromotionsCarousel />
 
-        {/* Curated Collections Section */}
-        <div className="mb-10 px-4">
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-              Curated Collections
-            </h3>
-          </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
-            {CURATED_COLLECTIONS.map((collection) => (
-              <div
-                key={collection.id}
-                onClick={() => onCollectionClick(collection)}
-                className="min-w-[240px] h-[120px] relative rounded-[20px] overflow-hidden shrink-0 active:scale-95 transition-transform cursor-pointer group shadow-sm"
-              >
-                <img
-                  src={collection.image}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  alt={collection.title}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
-                <div className="absolute bottom-4 left-4 right-4">
-                  <h4 className="text-white font-bold text-[18px] leading-tight mb-1">
-                    {collection.title}
-                  </h4>
-                  <div className="flex items-center gap-1 text-white/80 text-[13px] font-medium">
-                    {collection.subtitle}
-                    <span className="text-[14px]">→</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <div className="mb-10 px-4">
           <h3 className="text-base font-bold text-slate-900 mb-4 tracking-tight">
@@ -501,7 +440,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               {visibleRestaurants.length} restaurants available
             </p>
           </div>
-          {visibleRestaurants.length > 0 ? (
+          {(restaurants.length === 0 || (!hasAppliedFilters && visibleRestaurants.length === 0)) ? (
+            <div className="py-16 flex flex-col items-center text-center px-4 animate-fadeIn">
+              <img src="/no_restaurants_open.svg" alt="No restaurants open" className="w-72 h-auto max-h-48 object-contain mb-2" />
+              <p className="font-bold text-base text-slate-800">
+                No Restaurants Open
+              </p>
+              <p className="text-xs text-slate-500 max-w-[280px] mt-1 leading-relaxed">
+                All restaurants are currently offline or unavailable in your city.
+              </p>
+            </div>
+          ) : visibleRestaurants.length > 0 ? (
             <>
               {firstFive.map((rest) => (
                 <RestaurantCard
@@ -540,11 +489,13 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               </div>
             </>
           ) : (
-            <div className="py-20 flex flex-col items-center text-center opacity-40">
-              <UtensilsCrossed className="w-12 h-12 mb-4" />
-              <p className="font-bold text-sm">
-                No restaurants match your filters
-              </p>
+            <div className="py-20 flex flex-col items-center text-center">
+              <div className="opacity-45 flex flex-col items-center">
+                <UtensilsCrossed className="w-12 h-12 mb-4 text-slate-600" />
+                <p className="font-bold text-sm text-slate-700">
+                  No restaurants match your filters
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setActiveFilters({
@@ -559,13 +510,12 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                   setSortMode("default");
                   setSelectedBrand(null);
                 }}
-                className="mt-4 text-blue-600 text-xs font-black uppercase tracking-widest"
+                className="mt-5 px-5 py-2 bg-emerald-50 text-[#00bd6f] text-xs font-bold rounded-xl active:scale-95 transition-transform"
               >
                 Clear All Filters
               </button>
             </div>
-          )}
-        </div>
+          )}</div>
       </div>
     </Skeleton>
   );

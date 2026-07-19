@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { UserProfile, Review } from "@/types";
 import { fetcher } from "../api/fetcher";
 import { useVerifyToken, logout as apiLogout } from "../api/auth";
+import { useUserProfile } from "../api/user";
 
 interface UserContextType {
   userProfile: UserProfile;
@@ -16,6 +17,7 @@ interface UserContextType {
   isLoadingAuth: boolean;
   onLoginSuccess: (user: any) => void;
   logout: () => Promise<void>;
+  mutateProfile: () => Promise<any>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -35,8 +37,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  // Authenticate token using SWR config
   const { data, error, mutate } = useVerifyToken();
+  const { profile, mutate: mutateProfile } = useUserProfile();
 
   useEffect(() => {
     if (typeof window !== "undefined" && (window as any).__BONEYARD_BUILD) {
@@ -46,14 +48,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (data && data.success && data.user) {
-      setUserProfile({
-        name: data.user.name,
-        email: data.user.email,
-        phone: data.user.phone,
-        gender: "Male",
-        dob: "1999-09-15",
-        image: null,
-      });
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
     } else if (error) {
@@ -64,17 +58,24 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [data, error]);
 
+  useEffect(() => {
+    if (isAuthenticated && profile) {
+      setUserProfile(profile);
+    }
+  }, [isAuthenticated, profile]);
+
   const onLoginSuccess = (user: any) => {
     setUserProfile({
       name: user.name,
       email: user.email,
       phone: user.phone,
-      gender: "Male",
-      dob: "1999-09-15",
-      image: null,
+      gender: user.gender || "",
+      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : "",
+      image: user.profileImage || null,
     });
     setIsAuthenticated(true);
     mutate(); // Mutate SWR cache to update
+    mutateProfile(); // Mutate profile SWR cache
   };
 
   const logout = async () => {
@@ -109,6 +110,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoadingAuth,
         onLoginSuccess,
         logout,
+        mutateProfile,
       }}
     >
       {children}

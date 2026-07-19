@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Restaurant, Order } from "@/types";
 import { useApp } from "./AppContext";
+import { BASE_URL } from "../api/fetcher";
 
 interface RestaurantContextType {
   selectedRestaurant: Restaurant | null;
@@ -54,15 +55,89 @@ export const RestaurantProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     openRestaurantDetail(rest, itemId);
   };
 
-  // Active order auto-clear effect (from App.tsx line 991)
+  // Listen to active order status updates to redirect to tracking page dynamically when accepted or update state
   useEffect(() => {
-    if (activeOrder && activeOrder.type === "Delivery") {
-      const timer = setTimeout(() => {
-        setActiveOrder(null);
-      }, 60000); // 1 minute
-      return () => clearTimeout(timer);
+    if (!activeOrder || activeOrder.type !== "Delivery") return;
+
+    const orderId = activeOrder.realOrderId || activeOrder.id;
+    const restaurantId = activeOrder.restaurantId;
+    if (!orderId || !restaurantId) return;
+
+    // If order is already completed, cancelled, or rejected, don't listen
+    const status = (activeOrder.status || 'NEW').toUpperCase();
+    if (['COMPLETED', 'CANCELLED', 'REJECTED', 'DELIVERED'].includes(status)) {
+      return;
     }
-  }, [activeOrder]);
+
+    const eventSource = new EventSource(
+      `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
+      { withCredentials: true }
+    );
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.status) {
+          const upperStatus = data.status.toUpperCase();
+          setActiveOrder(prev => {
+            if (!prev) return null;
+            if (prev.status !== data.status) {
+              if (['NEW', 'PENDING_ACCEPT'].includes(prev.status) && ['ACCEPTED', 'PREPARING', 'READY'].includes(data.status)) {
+                setTimeout(() => {
+                  navigate("/order-tracking");
+                }, 0);
+              }
+              return { ...prev, status: data.status };
+            }
+            return prev;
+          });
+
+          if (['COMPLETED', 'CANCELLED', 'REJECTED', 'DELIVERED'].includes(upperStatus)) {
+            eventSource.close();
+          }
+        }
+      } catch (err) {
+        console.error("Error parsing live status in context:", err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [activeOrder?.id, navigate]);
+
+  // Auto-clear active order once it reaches completed, cancelled, or rejected state
+  useEffect(() => {
+    if (activeOrder) {
+      const status = (activeOrder.status || 'NEW').toUpperCase();
+      if (['COMPLETED', 'CANCELLED', 'REJECTED', 'DELIVERED'].includes(status)) {
+        const timer = setTimeout(() => {
+          setActiveOrder(null);
+        }, 3000); // Wait 3 seconds so user can see it's complete/delivered, then disappear
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [activeOrder?.status]);
+
+  // Load active order on mount from the server
+  useEffect(() => {
+    const fetchActiveOrder = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/consumer/profile/orders/active`, {
+          credentials: "include"
+        });
+        if (response.ok) {
+          const res = await response.json();
+          if (res.success && res.order) {
+            setActiveOrder(res.order);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading active order on mount:", err);
+      }
+    };
+    fetchActiveOrder();
+  }, []);
 
   return (
     <RestaurantContext.Provider
