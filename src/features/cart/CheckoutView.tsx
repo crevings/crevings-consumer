@@ -287,17 +287,21 @@ export const CheckoutView: React.FC = () => {
           // Fallback to client constructed order if fetch fails
           const itemsStr = result.data.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
           let restaurantCoordinates = null;
-          if (selectedRestaurant?.address?.coordinates?.coordinates) {
-            restaurantCoordinates = {
-              lat: selectedRestaurant.address.coordinates.coordinates[1],
-              lng: selectedRestaurant.address.coordinates.coordinates[0]
-            };
+          const rawCoords = (selectedRestaurant as any)?.address?.coordinates;
+          if (rawCoords) {
+            const arr = Array.isArray(rawCoords) ? rawCoords : rawCoords.coordinates;
+            if (Array.isArray(arr) && arr.length >= 2) {
+              restaurantCoordinates = {
+                lat: arr[1],
+                lng: arr[0]
+              };
+            }
           }
           let deliveryCoordinates = null;
-          if (currentLocation?.coordinates) {
+          if ((currentLocation as any)?.coordinates) {
             deliveryCoordinates = {
-              lat: currentLocation.coordinates.lat,
-              lng: currentLocation.coordinates.lng
+              lat: (currentLocation as any).coordinates.lat,
+              lng: (currentLocation as any).coordinates.lng
             };
           }
           orderPayload = {
@@ -350,17 +354,21 @@ export const CheckoutView: React.FC = () => {
     }
     const itemsStr = createdOrder.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
     let restaurantCoordinates = null;
-    if (selectedRestaurant?.address?.coordinates?.coordinates) {
-      restaurantCoordinates = {
-        lat: selectedRestaurant.address.coordinates.coordinates[1],
-        lng: selectedRestaurant.address.coordinates.coordinates[0]
-      };
+    const rawCoords = (selectedRestaurant as any)?.address?.coordinates;
+    if (rawCoords) {
+      const arr = Array.isArray(rawCoords) ? rawCoords : rawCoords.coordinates;
+      if (Array.isArray(arr) && arr.length >= 2) {
+        restaurantCoordinates = {
+          lat: arr[1],
+          lng: arr[0]
+        };
+      }
     }
     let deliveryCoordinates = null;
-    if (currentLocation?.coordinates) {
+    if ((currentLocation as any)?.coordinates) {
       deliveryCoordinates = {
-        lat: currentLocation.coordinates.lat,
-        lng: currentLocation.coordinates.lng
+        lat: (currentLocation as any).coordinates.lat,
+        lng: (currentLocation as any).coordinates.lng
       };
     }
 

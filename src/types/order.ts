@@ -11,6 +11,8 @@ export interface Review {
 }
 
 export interface Order {
+  customerPin: string;
+  deliveryPartner: null;
   id: string;
   restaurantName: string;
   location: string;

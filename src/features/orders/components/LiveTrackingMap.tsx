@@ -1,197 +1,245 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
-import ReactDOM from 'react-dom';
-import { GoogleMap, useJsApiLoader, PolylineF } from '@react-google-maps/api';
-import { Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { Loader2, MapPin } from 'lucide-react';
 
 interface LiveTrackingMapProps {
-  progress: number; // 0 to 100
+  progress: number;
   restaurantCoordinates?: { lat: number; lng: number } | null;
   deliveryCoordinates?: { lat: number; lng: number } | null;
 }
 
-const containerStyle = {
-  width: '100%',
-  height: '100%',
-  borderRadius: '16px'
-};
+const containerStyle = { width: '100%', height: '100%', borderRadius: '16px' };
 
-// Fallback Bengaluru coordinates (Restaurant to Home)
-const defaultRoutePoints = [
-  { lat: 12.9716, lng: 77.5946 }, // Restaurant
-  { lat: 12.9730, lng: 77.5960 },
-  { lat: 12.9750, lng: 77.5980 },
-  { lat: 12.9780, lng: 77.6010 },
-  { lat: 12.9810, lng: 77.6050 },
-  { lat: 12.9830, lng: 77.6080 }, // Home
-];
-
-// Premium silver/light map design style config without 'styles' property (styles are cloud-managed when mapId is present)
+// mapId is required for AdvancedMarkerElement
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: false,
-  gestureHandling: "cooperative",
-  mapId: 'DEMO_MAP_ID', // Required for AdvancedMarkerElement
+  zoomControl: true,
+  gestureHandling: 'cooperative',
+  clickableIcons: false,
+  mapId: 'DEMO_MAP_ID',
 };
 
-// Define libraries as a completely stable static array outside the component to prevent reload warnings
-const MAP_LIBRARIES: ("marker" | "places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places", "marker", "geometry"];
+// Stable outside component — never changes reference
+const MAP_LIBRARIES: any = ['marker', 'routes'];
 
-// Custom React component wrapping Google Maps AdvancedMarkerElement
-interface AdvancedMarkerProps {
-  map: google.maps.Map | null;
-  position: { lat: number; lng: number };
-  title?: string;
-  children: React.ReactNode;
+// HTML strings for markers
+const RESTAURANT_ICON = `
+  <div style="width:44px;height:44px;background:white;border-radius:50%;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);display:flex;align-items:center;
+    justify-content:center;border:2px solid #e2e8f0;transform:translate(-50%,-50%)">
+    <img src="https://cdn-icons-png.flaticon.com/512/3448/3448624.png"
+      style="width:26px;height:26px;object-fit:contain"/>
+  </div>`;
+
+const HOME_ICON = `
+  <div style="width:44px;height:44px;background:white;border-radius:50%;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);display:flex;align-items:center;
+    justify-content:center;border:2px solid #e2e8f0;transform:translate(-50%,-50%)">
+    <img src="https://cdn-icons-png.flaticon.com/512/10443/10443196.png"
+      style="width:26px;height:26px;object-fit:contain"/>
+  </div>`;
+
+const DRIVER_ICON = `
+  <div style="width:48px;height:48px;background:#ecfdf5;border-radius:50%;
+    box-shadow:0 4px 14px rgba(0,189,111,0.35);display:flex;align-items:center;
+    justify-content:center;border:2.5px solid #00bd6f;transform:translate(-50%,-50%)">
+    <img src="https://cdn-icons-png.flaticon.com/512/2972/2972185.png"
+      style="width:28px;height:28px;object-fit:contain"/>
+  </div>`;
+
+function makeAdvancedMarker(
+  map: google.maps.Map,
+  position: google.maps.LatLngLiteral,
+  html: string,
+  title: string
+): google.maps.marker.AdvancedMarkerElement {
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  return new window.google.maps.marker.AdvancedMarkerElement({
+    map,
+    position,
+    title,
+    content: el,
+  });
 }
 
-const AdvancedMarker: React.FC<AdvancedMarkerProps> = ({ map, position, title, children }) => {
-  const markerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
-  const [container] = useState(() => document.createElement('div'));
+function removeMarker(marker: google.maps.marker.AdvancedMarkerElement | null) {
+  if (marker) marker.map = null;
+}
 
-  useEffect(() => {
-    if (!map) return;
-
-    const marker = new window.google.maps.marker.AdvancedMarkerElement({
-      map,
-      position,
-      title,
-      content: container
-    });
-    markerRef.current = marker;
-
-    return () => {
-      marker.map = null;
-    };
-  }, [map]);
-
-  useEffect(() => {
-    if (markerRef.current) {
-      markerRef.current.position = position;
-    }
-  }, [position]);
-
-  return ReactDOM.createPortal(children, container);
-};
-
-export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({ progress, restaurantCoordinates, deliveryCoordinates }) => {
-  const { isLoaded } = useJsApiLoader({
+export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
+  progress,
+  restaurantCoordinates,
+  deliveryCoordinates,
+}) => {
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: MAP_LIBRARIES
+    googleMapsApiKey: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries: MAP_LIBRARIES,
   });
 
-  const [routePoints, setRoutePoints] = useState<{ lat: number; lng: number }[]>(defaultRoutePoints);
-  const [driverPosition, setDriverPosition] = useState(defaultRoutePoints[0]);
+  // Memoize as primitives so downstream effects only fire when values actually change
+  const restLat = restaurantCoordinates?.lat ?? null;
+  const restLng = restaurantCoordinates?.lng ?? null;
+  const delivLat = deliveryCoordinates?.lat ?? null;
+  const delivLng = deliveryCoordinates?.lng ?? null;
+
+  const restPt = useMemo<google.maps.LatLngLiteral | null>(
+    () => (restLat !== null && restLng !== null ? { lat: Number(restLat), lng: Number(restLng) } : null),
+    [restLat, restLng]
+  );
+  const delivPt = useMemo<google.maps.LatLngLiteral | null>(
+    () => (delivLat !== null && delivLng !== null ? { lat: Number(delivLat), lng: Number(delivLng) } : null),
+    [delivLat, delivLng]
+  );
+
   const mapRef = useRef<google.maps.Map | null>(null);
-  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const restMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const homeMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const driverMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const routePointsRef = useRef<google.maps.LatLngLiteral[]>([]);
+  const initializedRef = useRef(false); // guard against double-init
 
-  // Set initial map center to avoid re-centering trigger during state changes
-  const initialCenter = useMemo(() => {
-    if (restaurantCoordinates?.lat && restaurantCoordinates?.lng) {
-      return restaurantCoordinates;
-    }
-    return defaultRoutePoints[0];
-  }, [restaurantCoordinates?.lat, restaurantCoordinates?.lng]);
+  // ── Draw route between real coordinates ──────────────────────────────────
+  const drawRoute = useCallback(async (map: google.maps.Map, from: google.maps.LatLngLiteral, to: google.maps.LatLngLiteral) => {
+    // Cleanup previous polyline
+    polylineRef.current?.setMap(null);
+    polylineRef.current = null;
 
-  // Dynamic route calculation
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    let active = true;
-
-    if (restaurantCoordinates?.lat && restaurantCoordinates?.lng && deliveryCoordinates?.lat && deliveryCoordinates?.lng) {
-      (async () => {
-        try {
-          const { Route } = await window.google.maps.importLibrary("routes") as any;
-          const request = {
-            origin: {
-              location: new window.google.maps.LatLng(restaurantCoordinates.lat, restaurantCoordinates.lng)
-            },
-            destination: {
-              location: new window.google.maps.LatLng(deliveryCoordinates.lat, deliveryCoordinates.lng)
-            },
-            travelMode: "DRIVING",
-            fields: ["path"],
-          };
-
-          const response = await Route.computeRoutes(request);
-          if (!active) return;
-
-          if (response && response.routes && response.routes[0]?.path) {
-            const path = response.routes[0].path.map((point: any) => {
-              const lat = typeof point.lat === 'function' ? point.lat() : (point.lat !== undefined ? point.lat : point.latitude);
-              const lng = typeof point.lng === 'function' ? point.lng() : (point.lng !== undefined ? point.lng : point.longitude);
-              return { lat, lng };
-            });
-            setRoutePoints(path);
-          } else {
-            console.error("No path found in computeRoutes response", response);
-            setRoutePoints(defaultRoutePoints);
-          }
-        } catch (error) {
-          if (!active) return;
-          console.error("computeRoutes failed:", error);
-          setRoutePoints(defaultRoutePoints);
-        }
-      })();
-    } else {
-      setRoutePoints(defaultRoutePoints);
-    }
-
-    return () => {
-      active = false;
+    const drawPolyline = (points: google.maps.LatLngLiteral[]) => {
+      routePointsRef.current = points;
+      polylineRef.current = new window.google.maps.Polyline({
+        path: points,
+        map,
+        strokeColor: '#00bd6f',
+        strokeOpacity: 0.95,
+        strokeWeight: 5,
+        zIndex: 1,
+      });
     };
-  }, [isLoaded, restaurantCoordinates?.lat, restaurantCoordinates?.lng, deliveryCoordinates?.lat, deliveryCoordinates?.lng]);
 
-  // Update driver position along routePoints
-  useEffect(() => {
-    if (routePoints.length === 0) return;
+    try {
+      // Use modern Routes API
+      const { Route } = await window.google.maps.importLibrary('routes') as any;
+      const result = await Route.computeRoutes({
+        origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
+        destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_AWARE',
+        computeAlternativeRoutes: false,
+        languageCode: 'en-US',
+      }, {
+        otherArgs: {
+          headers: { 'X-Goog-FieldMask': 'routes.polyline.encodedPolyline' }
+        }
+      });
 
-    if (progress <= 50) {
-      setDriverPosition(routePoints[0]);
-    } else {
-      const driveProgress = (progress - 50) / 50; // 0 to 1
-      const totalSegments = routePoints.length - 1;
-      const currentSegmentFloat = driveProgress * totalSegments;
-      const currentSegmentIndex = Math.min(Math.floor(currentSegmentFloat), totalSegments - 1);
-      const segmentProgress = currentSegmentFloat - currentSegmentIndex;
-
-      const startPoint = routePoints[currentSegmentIndex];
-      const endPoint = routePoints[currentSegmentIndex + 1];
-
-      const lat = startPoint.lat + (endPoint.lat - startPoint.lat) * segmentProgress;
-      const lng = startPoint.lng + (endPoint.lng - startPoint.lng) * segmentProgress;
-
-      setDriverPosition({ lat, lng });
+      if (result?.routes?.[0]?.polyline?.encodedPolyline) {
+        const { encoding } = await window.google.maps.importLibrary('geometry') as any;
+        const path = encoding.decodePath(result.routes[0].polyline.encodedPolyline)
+          .map((p: google.maps.LatLng) => ({ lat: p.lat(), lng: p.lng() }));
+        drawPolyline(path);
+        return;
+      }
+    } catch (_) {
+      // Routes API failed or not enabled — fall through to straight-line
     }
-  }, [progress, routePoints]);
 
-  // Pan the map to follow the driver smoothly using direct imperative call
-  useEffect(() => {
-    if (mapRef.current && driverPosition) {
-      mapRef.current.panTo(driverPosition);
+    // Straight-line interpolation between real points (no static fallback)
+    const steps = 20;
+    const pts: google.maps.LatLngLiteral[] = [];
+    for (let i = 0; i <= steps; i++) {
+      pts.push({
+        lat: from.lat + (to.lat - from.lat) * (i / steps),
+        lng: from.lng + (to.lng - from.lng) * (i / steps),
+      });
     }
-  }, [driverPosition]);
+    drawPolyline(pts);
+  }, []);
 
-  // Fit bounds dynamically as soon as map and coordinates are both loaded
-  useEffect(() => {
-    if (mapInstance && restaurantCoordinates?.lat && deliveryCoordinates?.lat) {
-      const bounds = new window.google.maps.LatLngBounds();
-      bounds.extend(restaurantCoordinates);
-      bounds.extend(deliveryCoordinates);
-      mapInstance.fitBounds(bounds);
-    }
-  }, [mapInstance, restaurantCoordinates?.lat, restaurantCoordinates?.lng, deliveryCoordinates?.lat, deliveryCoordinates?.lng]);
-
-  const onLoad = (map: google.maps.Map) => {
+  // ── Initialize map: place markers + route once ────────────────────────────
+  const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-    setMapInstance(map);
-  };
 
-  const onUnmount = () => {
+    if (initializedRef.current) return; // prevent double-init
+    initializedRef.current = true;
+
+    if (!restPt) return;
+
+    // Place restaurant marker
+    restMarkerRef.current = makeAdvancedMarker(map, restPt, RESTAURANT_ICON, 'Restaurant');
+
+    if (delivPt) {
+      // Place home marker
+      homeMarkerRef.current = makeAdvancedMarker(map, delivPt, HOME_ICON, 'Delivery Address');
+
+      // Fit both points into view
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(restPt);
+      bounds.extend(delivPt);
+      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+
+      // Draw route
+      drawRoute(map, restPt, delivPt);
+    } else {
+      map.setCenter(restPt);
+      map.setZoom(15);
+    }
+  }, [restPt, delivPt, drawRoute]);
+
+  const onMapUnmount = useCallback(() => {
+    // Clean up all markers and polyline imperatively
+    removeMarker(restMarkerRef.current);
+    removeMarker(homeMarkerRef.current);
+    removeMarker(driverMarkerRef.current);
+    polylineRef.current?.setMap(null);
+    restMarkerRef.current = null;
+    homeMarkerRef.current = null;
+    driverMarkerRef.current = null;
+    polylineRef.current = null;
+    routePointsRef.current = [];
     mapRef.current = null;
-    setMapInstance(null);
-  };
+    initializedRef.current = false;
+  }, []);
+
+  // ── Update driver position when progress changes ──────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    const pts = routePointsRef.current;
+    if (!map || pts.length < 2 || progress < 50) {
+      removeMarker(driverMarkerRef.current);
+      driverMarkerRef.current = null;
+      return;
+    }
+
+    const ratio = (progress - 50) / 50;
+    const totalSeg = pts.length - 1;
+    const segFloat = ratio * totalSeg;
+    const segIdx = Math.min(Math.floor(segFloat), totalSeg - 1);
+    const segProg = segFloat - segIdx;
+    const s = pts[segIdx], e = pts[segIdx + 1];
+    const driverPos = {
+      lat: s.lat + (e.lat - s.lat) * segProg,
+      lng: s.lng + (e.lng - s.lng) * segProg,
+    };
+
+    if (driverMarkerRef.current) {
+      driverMarkerRef.current.position = driverPos;
+    } else {
+      driverMarkerRef.current = makeAdvancedMarker(map, driverPos, DRIVER_ICON, 'Delivery Partner');
+    }
+  }, [progress]);
+
+  // ── Loading / Error states ────────────────────────────────────────────────
+  if (loadError) {
+    return (
+      <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center rounded-2xl gap-2">
+        <MapPin className="w-8 h-8 text-red-400" />
+        <p className="text-sm text-slate-500">Map failed to load</p>
+      </div>
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -201,70 +249,23 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({ progress, rest
     );
   }
 
+  if (!restPt) {
+    return (
+      <div className="w-full h-full bg-slate-50 flex flex-col items-center justify-center rounded-2xl gap-2 border border-slate-100">
+        <MapPin className="w-8 h-8 text-slate-300" />
+        <p className="text-sm text-slate-400 text-center px-4">Location data unavailable</p>
+      </div>
+    );
+  }
+
   return (
     <GoogleMap
       mapContainerStyle={containerStyle}
-      center={initialCenter}
-      zoom={15}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
+      center={restPt}
+      zoom={14}
+      onLoad={onMapLoad}
+      onUnmount={onMapUnmount}
       options={MAP_OPTIONS}
-    >
-      {/* Route Line */}
-      {routePoints.length > 0 && (
-        <PolylineF
-          path={routePoints}
-          options={{
-            strokeColor: '#00bd6f',
-            strokeOpacity: 0.8,
-            strokeWeight: 4,
-            icons: [{
-              icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 },
-              offset: '0',
-              repeat: '20px'
-            }]
-          }}
-        />
-      )}
-
-      {/* Restaurant Marker (Premium Advanced storefront marker) */}
-      {routePoints.length > 0 && (
-        <AdvancedMarker
-          map={mapInstance}
-          position={routePoints[0]}
-          title="Restaurant"
-        >
-          <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-slate-100 p-1.5 transform -translate-x-1/2 -translate-y-1/2">
-            <img src="https://cdn-icons-png.flaticon.com/512/3448/3448624.png" alt="Restaurant" className="w-full h-full object-contain" />
-          </div>
-        </AdvancedMarker>
-      )}
-
-      {/* Home Marker (Premium Advanced 3D house location pin) */}
-      {routePoints.length > 0 && (
-        <AdvancedMarker
-          map={mapInstance}
-          position={routePoints[routePoints.length - 1]}
-          title="Delivery Address"
-        >
-          <div className="w-11 h-11 flex items-center justify-center bg-white rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] border border-slate-100 p-1.5 transform -translate-x-1/2 -translate-y-1/2">
-            <img src="https://cdn-icons-png.flaticon.com/512/10443/10443196.png" alt="Home" className="w-full h-full object-contain" />
-          </div>
-        </AdvancedMarker>
-      )}
-
-      {/* Driver Marker (Premium Advanced emerald delivery boy scooter icon) */}
-      {progress >= 50 && (
-        <AdvancedMarker
-          map={mapInstance}
-          position={driverPosition}
-          title="Delivery Partner"
-        >
-          <div className="w-12 h-12 flex items-center justify-center bg-emerald-50 rounded-full shadow-[0_4px_12px_rgba(0,189,111,0.25)] border-2 border-[#00bd6f] p-1.5 transform -translate-x-1/2 -translate-y-1/2">
-            <img src="https://cdn-icons-png.flaticon.com/512/2972/2972185.png" alt="Driver" className="w-full h-full object-contain" />
-          </div>
-        </AdvancedMarker>
-      )}
-    </GoogleMap>
+    />
   );
 };

@@ -26,7 +26,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const [progress, setProgress] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60); // 60 seconds for demo
   const [showMap, setShowMap] = useState(false);
-  const [otp] = useState(Math.floor(100000 + Math.random() * 900000).toString());
+  const [deliveryPin, setDeliveryPin] = useState(order.customerPin || order.pickupOtp || '');
   const [takeawayOtp, setTakeawayOtp] = useState('');
   const [paymentStatus, setPaymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -50,6 +50,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const [showAcceptedBanner, setShowAcceptedBanner] = useState(false);
 
   const [orderStatus, setOrderStatus] = useState<string>(order.status || 'NEW');
+  const [assignedPartner, setAssignedPartner] = useState<any>(order.deliveryPartner || null);
   const [secondsElapsed, setSecondsElapsed] = useState(() => {
     if (!order.createdAt) return 0;
     const createdTime = new Date(order.createdAt).getTime();
@@ -95,9 +96,15 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.customerPin) {
+          setDeliveryPin(data.customerPin);
+        }
+        if (data.deliveryPartner) {
+          setAssignedPartner(data.deliveryPartner);
+        }
         if (data.status) {
           setOrderStatus(prev => {
-            if (data.status === 'PREPARING' && (prev === 'NEW' || prev === 'PENDING_ACCEPT')) {
+            if ((data.status === 'PREPARING' || data.status === 'ACCEPTED') && (prev === 'NEW' || prev === 'PENDING_ACCEPT')) {
               setShowAcceptedBanner(true);
             }
             return data.status;
@@ -136,19 +143,26 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     let computedProgress = 0;
     switch (orderStatus) {
       case 'NEW':
+      case 'PENDING_ACCEPT':
         computedProgress = 10;
         break;
-      case 'PENDING_ACCEPT':
-        computedProgress = 15;
-        break;
       case 'PREPARING':
-        computedProgress = 40;
+        computedProgress = 30;
+        break;
+      case 'ACCEPTED':
+      case 'DRIVER_ASSIGNED':
+        computedProgress = 55;
         break;
       case 'READY':
       case 'OUT FOR DELIVERY':
-        computedProgress = 80;
+      case 'ORDER_PICKED_UP':
+        computedProgress = 75;
+        break;
+      case 'ARRIVING_SOON':
+        computedProgress = 90;
         break;
       case 'COMPLETED':
+      case 'DELIVERED':
         computedProgress = 100;
         break;
       default:
@@ -291,16 +305,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 {/* Delivery Partner Card */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-100 shrink-0 border-2 border-white shadow-sm">
-                    <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80" alt="Delivery Partner" className="w-full h-full object-cover" />
+                    <img src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-base font-bold text-slate-900">Ramesh Kumar</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-0.5">Delivery Partner • 4.8 ★</p>
+                    <h3 className="text-base font-bold text-slate-900">{assignedPartner?.name || 'Assigned Delivery Partner'}</h3>
+                    <p className="text-xs font-medium text-slate-500 mt-0.5">Delivery Partner • {assignedPartner?.rating || '4.8'} ★</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                    <a href={`tel:${assignedPartner?.phone || '+91 98765 43210'}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                       <Phone className="w-4 h-4" />
-                    </button>
+                    </a>
                     <button className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                       <MessageSquare className="w-4 h-4" />
                     </button>
@@ -459,17 +473,17 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   restaurantCoordinates={order.restaurantCoordinates} 
                   deliveryCoordinates={order.deliveryCoordinates} 
                 />
-                <a 
-                  href={order.restaurantCoordinates && order.deliveryCoordinates 
-                    ? `https://www.google.com/maps/dir/?api=1&origin=${order.restaurantCoordinates.lat},${order.restaurantCoordinates.lng}&destination=${order.deliveryCoordinates.lat},${order.deliveryCoordinates.lng}&travelmode=driving`
-                    : `https://www.google.com/maps/dir/?api=1&origin=12.9716,77.5946&destination=12.9830,77.6080&travelmode=driving`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute bottom-3 right-3 bg-white/95 backdrop-blur text-slate-800 text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-1.5 z-[1000]"
-                > 
-                  <MapIcon className="w-3.5 h-3.5 text-blue-600" /> 
-                  Open in Google Maps
-                </a>
+                {order.restaurantCoordinates && order.deliveryCoordinates && (
+                  <a 
+                    href={`https://www.google.com/maps/dir/?api=1&origin=${order.restaurantCoordinates.lat},${order.restaurantCoordinates.lng}&destination=${order.deliveryCoordinates.lat},${order.deliveryCoordinates.lng}&travelmode=driving`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="absolute bottom-3 right-3 bg-white/95 backdrop-blur text-slate-800 text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-1.5 z-[1000]"
+                  > 
+                    <MapIcon className="w-3.5 h-3.5 text-blue-600" /> 
+                    Open in Google Maps
+                  </a>
+                )}
               </div>
             ) : (
               <iframe
@@ -512,10 +526,10 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
               </h2>
               <div className="flex items-center justify-center gap-4 mb-3">
                 <div className="text-5xl font-black text-slate-900 tracking-widest">
-                  {otp}
+                  {deliveryPin}
                 </div>
                 <button 
-                  onClick={() => navigator.clipboard.writeText(otp)}
+                  onClick={() => navigator.clipboard.writeText(deliveryPin)}
                   className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center active:scale-95 transition-all hover:bg-slate-200"
                 >
                   <Copy className="w-5 h-5 text-slate-600" />
@@ -567,13 +581,25 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                     <p className="text-xs text-slate-500">The restaurant is preparing your food</p>
                   </div>
                 </div>
+
+                {order.type === 'Delivery' && (
+                  <div className="flex gap-4">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 50 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
+                      {progress >= 50 && <CheckCircle2 className="w-5 h-5 text-white" />}
+                    </div>
+                    <div className="pt-1">
+                      <h3 className={`text-sm font-bold ${progress >= 50 ? 'text-slate-900' : 'text-slate-500'}`}>Driver Assigned</h3>
+                      <p className="text-xs text-slate-500">Driver is heading to restaurant</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 50 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                    {progress >= 50 && <CheckCircle2 className="w-5 h-5 text-white" />}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 70 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
+                    {progress >= 70 && <CheckCircle2 className="w-5 h-5 text-white" />}
                   </div>
                   <div className="pt-1">
-                    <h3 className={`text-sm font-bold ${progress >= 50 ? 'text-slate-900' : 'text-slate-500'}`}>
+                    <h3 className={`text-sm font-bold ${progress >= 70 ? 'text-slate-900' : 'text-slate-500'}`}>
                       {order.type === 'Delivery' ? 'Order picked by driver' : 'Ready for Pickup'}
                     </h3>
                     <p className="text-xs text-slate-500">
@@ -584,11 +610,11 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
 
                 {order.type === 'Delivery' && (
                   <div className="flex gap-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 80 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                      {progress >= 80 && <CheckCircle2 className="w-5 h-5 text-white" />}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 85 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
+                      {progress >= 85 && <CheckCircle2 className="w-5 h-5 text-white" />}
                     </div>
                     <div className="pt-1">
-                      <h3 className={`text-sm font-bold ${progress >= 80 ? 'text-slate-900' : 'text-slate-500'}`}>Driver is arriving soon</h3>
+                      <h3 className={`text-sm font-bold ${progress >= 85 ? 'text-slate-900' : 'text-slate-500'}`}>Driver is arriving soon</h3>
                       <p className="text-xs text-slate-500">Driver is near your location</p>
                     </div>
                   </div>
@@ -633,16 +659,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             {order.type === 'Delivery' ? (
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
-                  <img src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80" alt="Delivery Partner" className="w-full h-full object-cover" />
+                  <img src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-slate-900">Ramesh Kumar</h3>
-                  <p className="text-xs text-slate-500">Delivery Partner • 4.8 ★</p>
+                  <h3 className="text-sm font-bold text-slate-900">{assignedPartner?.name || 'Assigned Delivery Partner'}</h3>
+                  <p className="text-xs text-slate-500">Delivery Partner • {assignedPartner?.rating || '4.8'} ★</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                  <a href={`tel:${assignedPartner?.phone || '+91 98765 43210'}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                     <Phone className="w-4 h-4" />
-                  </button>
+                  </a>
                   <button className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                     <MessageSquare className="w-4 h-4" />
                   </button>
