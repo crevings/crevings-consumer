@@ -166,25 +166,26 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
 
 
+        {/* Explore Categories - 2-Row Horizontal Touch Slider */}
         <div className="mb-10 px-4">
-          <h3 className="text-base font-bold text-slate-900 mb-4 tracking-tight">
+          <h3 className="text-lg font-black text-slate-900 mb-4 tracking-tight">
             Explore Categories
           </h3>
-          <div className="grid grid-cols-5 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4">
+          <div className="grid grid-rows-2 grid-flow-col gap-x-6 gap-y-4 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x">
             {MIND_CATEGORIES.map((cat, i) => (
               <div
                 key={i}
                 onClick={() => onCategoryClick(cat.name)}
-                className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer active:scale-95 transition-transform"
+                className="w-[86px] flex flex-col items-center gap-2 shrink-0 group cursor-pointer active:scale-95 transition-transform snap-start"
               >
-                <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
+                <div className="w-[74px] h-[74px] rounded-full bg-slate-50 p-1.5 flex items-center justify-center overflow-hidden border border-slate-100/90 shadow-sm group-hover:shadow-md transition-all">
                   <img
                     src={cat.image}
                     alt={cat.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain transform group-hover:scale-110 transition-transform duration-300"
                   />
                 </div>
-                <span className="text-xs font-bold text-slate-600 transition-colors group-hover:text-slate-900">
+                <span className="text-[13px] font-bold text-slate-800 text-center leading-tight transition-colors group-hover:text-slate-950 line-clamp-1">
                   {cat.name}
                 </span>
               </div>

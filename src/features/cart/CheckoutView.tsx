@@ -44,7 +44,7 @@ import { BASE_URL } from "../../api/fetcher";
 export const CheckoutView: React.FC = () => {
   const navigate = useNavigate();
   const { cart, setCart, menuItems } = useCart();
-  const { currentLocation } = useAppLocation();
+  const { currentLocation, isServiceable } = useAppLocation();
   const { setActiveOrder, selectedRestaurant } = useRestaurant();
   const { setIsLoadingView, setLoadingViewType } = useApp();
 
@@ -937,11 +937,19 @@ export const CheckoutView: React.FC = () => {
           setShowCartPreview(false);
           if (orderType === "Delivery" && (!currentLocation || !currentLocation.address)) {
             navigate("/location", { state: { from: "/checkout" } });
+          } else if (orderType === "Delivery" && !isServiceable) {
+            alert("Crevings delivery is not available in your selected location yet!");
           } else {
             setShowPaymentSheet(true);
           }
         }}
-        checkoutButtonText={orderType === "Delivery" && (!currentLocation || !currentLocation.address) ? "Add Address to Proceed" : "Select Payment"}
+        checkoutButtonText={
+          orderType === "Delivery" && (!currentLocation || !currentLocation.address)
+            ? "Add Address to Proceed"
+            : orderType === "Delivery" && !isServiceable
+            ? "Location Not Serviceable"
+            : "Select Payment"
+        }
         checkoutButtonPrice={total}
       />
 

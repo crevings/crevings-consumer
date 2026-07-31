@@ -12,19 +12,50 @@ const getIcon = (type: string) => {
 };
 
 interface LocationContextType {
-  currentLocation: { type: string; address: string } | null;
-  setCurrentLocation: React.Dispatch<React.SetStateAction<{ type: string; address: string } | null>>;
+  currentLocation: { type: string; address: string; coordinates?: { lat: number; lng: number } } | null;
+  setCurrentLocation: React.Dispatch<React.SetStateAction<{ type: string; address: string; coordinates?: { lat: number; lng: number } } | null>>;
   addresses: SavedAddress[];
   setAddresses: (value: React.SetStateAction<SavedAddress[]>) => void;
+  isServiceable: boolean;
+  checkingServiceability: boolean;
+  activeZone: any;
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data } = useVerifyToken();
-  const [currentLocation, setCurrentLocation] = useState<{ type: string; address: string } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{ type: string; address: string; coordinates?: { lat: number; lng: number } } | null>(null);
   const [addresses, setAddressesState] = useState<SavedAddress[]>([]);
+  const [isServiceable, setIsServiceable] = useState<boolean>(true);
+  const [checkingServiceability, setCheckingServiceability] = useState<boolean>(false);
+  const [activeZone, setActiveZone] = useState<any>(null);
   const lastSavedJson = useRef("");
+
+  // Check serviceability whenever currentLocation updates
+  useEffect(() => {
+    if (!currentLocation) return;
+    const coords = currentLocation.coordinates;
+    if (coords && coords.lat && coords.lng) {
+      setCheckingServiceability(true);
+      fetch(`${BASE_URL}/zones/check?lat=${coords.lat}&lng=${coords.lng}`)
+        .then((res) => res.json())
+        .then((resData) => {
+          setCheckingServiceability(false);
+          if (resData.success) {
+            setIsServiceable(resData.serviceable);
+            setActiveZone(resData.zone || null);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to check zone serviceability:", err);
+          setCheckingServiceability(false);
+        });
+    } else {
+      // Default to true if coordinates are not attached
+      setIsServiceable(true);
+    }
+  }, [currentLocation]);
 
   // Sync addresses from backend on load/verify
   useEffect(() => {
@@ -72,7 +103,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       lastSavedJson.current = jsonStr;
 
-      const res = await fetch(`${BASE_URL}/consumer/auth/profile/addresses`, {
+      const res = await fetch(`${BASE_URL}/consumer/profile/addresses`, {
         method: "PUT",
         credentials: "include",
         headers: {
@@ -108,6 +139,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setCurrentLocation,
         addresses,
         setAddresses,
+        isServiceable,
+        checkingServiceability,
+        activeZone,
       }}
     >
       {children}

@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, SlidersHorizontal, Star } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, Star, MapPin } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { FilterOptions } from '@/types';
 import { GridMenuItemCard } from './GridMenuItemCard';
+import { useCategoryDetail } from '@/api/restaurants';
 
 interface CategoryDetailViewProps {
   category: string;
@@ -13,91 +14,29 @@ interface CategoryDetailViewProps {
   onItemAdd: (restaurant: any, itemId: string) => void;
 }
 
-const CATEGORY_DATA: Record<string, any> = {
-  'Pizza': {
-    icon: '🍕',
-    banner: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&q=80',
-    description: 'Crispy crusts and melty cheese await.',
-    restaurants: [
-      {
-        id: 1,
-        name: 'Pizza Hut',
-        rating: 4.2,
-        time: '35 min',
-        distance: '1.2 km',
-        image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
-        tags: ['Classic', 'Family Size'],
-        offer: '60% OFF',
-        menu: [
-          { id: 101, name: 'Margherita Pizza', price: 249, rating: 4.5, image: 'https://images.unsplash.com/photo-1574071318508-1cdbad80ad38?w=200&q=80', veg: true },
-          { id: 102, name: 'Pepperoni Overload', price: 499, rating: 4.8, image: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?w=200&q=80', veg: false },
-          { id: 103, name: 'Double Cheese', price: 349, rating: 4.3, image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&q=80', veg: true },
-        ]
-      },
-      {
-        id: 2,
-        name: 'Dominos Pizza',
-        rating: 4.1,
-        time: '25 min',
-        distance: '0.8 km',
-        image: 'https://images.unsplash.com/photo-1541745537411-b8046dc6d66c?w=400&q=80',
-        tags: ['Fastest', 'Cheese Burst'],
-        offer: 'FREE DELIVERY',
-        menu: [
-          { id: 201, name: 'Cheese Burst Pizza', price: 450, rating: 4.7, image: 'https://images.unsplash.com/photo-1573821663912-56990544c383?w=200&q=80', veg: true },
-          { id: 202, name: 'Farmhouse Pizza', price: 380, rating: 4.6, image: 'https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?w=200&q=80', veg: true },
-        ]
-      }
-    ]
-  },
-  'Burger': {
-    icon: '🍔',
-    banner: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=800&q=80',
-    description: 'Juicy patties and artisan buns.',
-    restaurants: [
-      {
-        id: 3,
-        name: 'Truffles',
-        rating: 4.5,
-        time: '30 min',
-        distance: '1.5 km',
-        image: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&q=80',
-        tags: ['Premium', 'Bestseller'],
-        offer: 'BOGO',
-        menu: [
-          { id: 301, name: 'Classic Beef Burger', price: 280, rating: 4.7, image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=200&q=80', veg: false },
-          { id: 302, name: 'Zinger Burger', price: 190, rating: 4.6, image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=200&q=80', veg: false },
-          { id: 303, name: 'Aloo Patty Burger', price: 140, rating: 4.2, image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=200&q=80', veg: true },
-        ]
-      }
-    ]
-  },
-  'Biryani': {
-    icon: '🍗',
-    banner: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=800&q=80',
-    description: 'Aromatic spices and perfectly cooked rice.',
-    restaurants: [
-      {
-        id: 4,
-        name: 'Meghana Foods',
-        rating: 4.4,
-        time: '40 min',
-        distance: '2.5 km',
-        image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=400&q=80',
-        tags: ['Authentic', 'Spicy'],
-        offer: 'FREE GIFT',
-        menu: [
-          { id: 401, name: 'Chicken Biryani', price: 320, rating: 4.8, image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=200&q=80', veg: false },
-          { id: 402, name: 'Veg Dum Biryani', price: 280, rating: 4.5, image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=200&q=80', veg: true },
-        ]
-      }
-    ]
-  }
+const getCategoryBanner = (catName: string) => {
+  const nameLower = catName.toLowerCase();
+  if (nameLower.includes("burger")) return "/categories/Burger.png";
+  if (nameLower.includes("pizza")) return "/categories/Pizza.png";
+  if (nameLower.includes("chole") || nameLower.includes("bhatur")) return "/categories/Chola Bhatura.png";
+  if (nameLower.includes("dimsum") || nameLower.includes("momo")) return "/categories/Dimsums.png";
+  if (nameLower.includes("idli") || nameLower.includes("dosa")) return "/categories/Idli.png";
+  if (nameLower.includes("juice")) return "/categories/Juices.png";
+  if (nameLower.includes("noodle") || nameLower.includes("chow")) return "/categories/Noodles.png";
+  if (nameLower.includes("paratha")) return "/categories/Paratha.png";
+  if (nameLower.includes("pasta")) return "/categories/Pasta.png";
+  if (nameLower.includes("pastry") || nameLower.includes("cake")) return "/categories/Pastry.png";
+  if (nameLower.includes("rice") || nameLower.includes("biryani")) return "/categories/Rice.png";
+  if (nameLower.includes("sand")) return "/categories/Sandwhich.png";
+  if (nameLower.includes("shake")) return "/categories/Shakes.png";
+  if (nameLower.includes("sweet")) return "/categories/Sweets.png";
+  if (nameLower.includes("tea") || nameLower.includes("chai")) return "/categories/Tea.png";
+  return "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80";
 };
 
 export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category, onBack, onRestaurantClick, onItemAdd }) => {
-  const data = CATEGORY_DATA[category] || CATEGORY_DATA['Pizza'];
-  
+  const { restaurants: liveRestaurants, isLoading } = useCategoryDetail(category);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterOptions>({
@@ -112,8 +51,10 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
   const [sortMode, setSortMode] = useState<string>('default');
 
   const allItems = useMemo(() => {
-    let items = data.restaurants.flatMap((rest: any) => 
-      rest.menu.map((item: any) => ({
+    if (!liveRestaurants || liveRestaurants.length === 0) return [];
+
+    let items = liveRestaurants.flatMap((rest: any) => 
+      (rest.menu || []).map((item: any) => ({
         ...item,
         restaurant: rest
       }))
@@ -121,7 +62,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
 
     // Filter items based on activeFilters
     items = items.filter((item: any) => {
-      const matchRating = item.rating >= activeFilters.minRating;
+      const matchRating = (item.rating || 4.2) >= activeFilters.minRating;
       const matchDietary = activeFilters.dietary === 'all' || 
                            (activeFilters.dietary === 'veg' && item.veg) || 
                            (activeFilters.dietary === 'non-veg' && !item.veg) ||
@@ -136,31 +77,35 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
     else if (currentSort === 'priceHigh') items = [...items].sort((a: any, b: any) => b.price - a.price);
 
     return items;
-  }, [data, activeFilters, sortMode]);
+  }, [liveRestaurants, activeFilters, sortMode]);
+
+  const bannerImg = getCategoryBanner(category);
 
   return (
-    <div className="min-h-screen bg-white pb-20 animate-fadeInRight relative">
+    <div className="w-full min-h-screen bg-white pb-20 relative left-0 right-0 p-0 m-0">
       {/* Header / Banner */}
       <div className="relative w-full h-[260px] rounded-b-[40px] overflow-hidden mb-6 shadow-sm">
-        <img src={data.banner} alt={category} className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-black/30"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-80"></div>
+        <img src={bannerImg} alt={category} className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-90"></div>
         
         {/* Top Actions */}
-        <div className="absolute top-0 left-0 right-0 pt-safe px-4 py-4 flex items-center justify-between z-10">
+        <div className="absolute top-0 left-0 right-0 pt-safe px-4 py-4 flex items-center justify-between z-20">
           <button 
+            type="button"
             onClick={onBack}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/30 backdrop-blur-md active:scale-95 transition-transform text-white/90"
+            className="w-11 h-11 flex items-center justify-center rounded-full bg-slate-900/60 backdrop-blur-md active:scale-95 transition-transform text-white shadow-md cursor-pointer"
+            aria-label="Go back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-6 h-6 stroke-[2.5]" />
           </button>
         </div>
 
         {/* Text Content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pt-8 z-10">
-          <h2 className="text-amber-50 font-serif italic text-4xl sm:text-5xl tracking-tight mb-3 drop-shadow-md text-center px-4 leading-tight">Wholesome Meals</h2>
-          <div className="bg-black/30 backdrop-blur-sm px-4 py-1.5 rounded-full">
-            <span className="text-white font-bold text-[10px] uppercase tracking-[0.2em]">Curated for you</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pt-6 z-10">
+          <h2 className="text-amber-50 font-serif italic text-4xl sm:text-5xl tracking-tight mb-3 drop-shadow-lg text-center px-4 leading-tight">{category}</h2>
+          <div className="bg-black/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10">
+            <span className="text-white font-bold text-[10px] uppercase tracking-[0.2em]">Curated in your City</span>
           </div>
         </div>
       </div>

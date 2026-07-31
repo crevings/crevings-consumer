@@ -132,4 +132,75 @@ export const useItemsUnder99 = (limit: number = 10) => {
   };
 };
 
+import useSWR from "swr";
+
+export interface SearchApiParams {
+  query: string;
+  lat?: number;
+  lng?: number;
+  city?: string;
+  vegOnly?: boolean;
+  minRating?: number;
+}
+
+export const useSearch = (params: SearchApiParams) => {
+  const { query, lat, lng, city, vegOnly, minRating } = params;
+  const shouldFetch = Boolean(query && query.trim().length > 0);
+
+  const queryParams = new URLSearchParams();
+  if (query) queryParams.set("q", query);
+  if (lat) queryParams.set("lat", String(lat));
+  if (lng) queryParams.set("lng", String(lng));
+  if (city) queryParams.set("city", city);
+  if (vegOnly) queryParams.set("vegOnly", "true");
+  if (minRating) queryParams.set("minRating", String(minRating));
+
+  const endpoint = shouldFetch ? `/consumer/restaurants/search?${queryParams.toString()}` : null;
+  const { data, error, isLoading, mutate } = useSWR(endpoint, fetcher, { revalidateOnFocus: false });
+
+  return {
+    data,
+    isLoading,
+    isError: error,
+    mutate,
+  };
+};
+
+export const useSearchSuggestions = (query: string, city?: string) => {
+  const shouldFetch = Boolean(query && query.trim().length >= 2);
+  const endpoint = shouldFetch
+    ? `/consumer/restaurants/search/suggestions?q=${encodeURIComponent(query)}${city ? `&city=${encodeURIComponent(city)}` : ""}`
+    : null;
+
+  const { data, error, isLoading } = useSWR(endpoint, fetcher, { revalidateOnFocus: false });
+
+  return {
+    suggestions: data?.suggestions || { restaurants: [], dishes: [], cuisines: [] },
+    isLoading,
+    isError: error,
+  };
+};
+
+export const useCategoryDetail = (categoryName: string, lat?: number, lng?: number, city?: string) => {
+  const shouldFetch = Boolean(categoryName && categoryName.trim().length > 0);
+  const queryParams = new URLSearchParams();
+  if (lat) queryParams.set("lat", String(lat));
+  if (lng) queryParams.set("lng", String(lng));
+  if (city) queryParams.set("city", city);
+
+  const endpoint = shouldFetch
+    ? `/consumer/restaurants/search/category/${encodeURIComponent(categoryName)}?${queryParams.toString()}`
+    : null;
+
+  const { data, error, isLoading, mutate } = useSWR(endpoint, fetcher, { revalidateOnFocus: false });
+
+  return {
+    categoryData: data,
+    restaurants: data?.restaurants || [],
+    isLoading,
+    isError: error,
+    mutate,
+  };
+};
+
 export * from "./offers";

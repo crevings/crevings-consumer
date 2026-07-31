@@ -21,7 +21,7 @@ import {
   Bookmark
 } from 'lucide-react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
-import { useRestaurants } from "@/api/restaurants";
+import { useRestaurants, useSearch, useSearchSuggestions } from "@/api/restaurants";
 import { MOCK_MENU } from "@/data/menu";
 import { Restaurant, MenuItem, FilterOptions } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
@@ -37,20 +37,14 @@ interface SearchResultsViewProps {
 
 const FILTER_CHIPS = [
   { label: 'Filters', icon: <SlidersHorizontal className="w-4 h-4" />, action: 'filter' },
-  { label: 'Dressing: Tandoori' },
-  { label: 'Burger' },
-  { label: 'Flat 50% OFF' },
-  { label: 'New to you' },
-  { label: 'Great offers' },
+  { label: 'Veg Only', action: 'veg' },
+  { label: 'Rating 4.0+', action: 'rating' },
+  { label: 'Under 15 km', action: 'near' },
 ];
 
 export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, initialQuery = 'Burger', onRestaurantClick, onItemAdd, onMicClick }) => {
-  const { restaurants, isLoadingMore, isReachingEnd, setSize, size } = useRestaurants();
   const [query, setQuery] = useState(initialQuery);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
-  const [restaurantResults, setRestaurantResults] = useState<Restaurant[]>([]);
-  const [dishResults, setDishResults] = useState<(MenuItem & { restaurant: Restaurant })[]>([]);
-  
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterOptions>({
     maxTime: 60,
@@ -62,62 +56,63 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     priceRange: null
   });
 
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastElementRef = useCallback((node: HTMLDivElement) => {
-    if (isLoadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !isReachingEnd && searchType === 'restaurant') {
-        setSize(size + 1);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoadingMore, isReachingEnd, setSize, size, searchType]);
+  // Call real-time H3 powered search API
+  const { data: searchApiResult, isLoading: isSearchLoading } = useSearch({
+    query,
+    vegOnly: activeFilters.dietary === 'veg',
+    minRating: activeFilters.minRating,
+  });
 
-  const restaurantIdsString = restaurants.map(r => r.id).join(',');
-  const stableRestaurants = useMemo(() => restaurants, [restaurantIdsString]);
+  const { suggestions } = useSearchSuggestions(query);
 
-  const restaurantFuse = useMemo(() => new Fuse(stableRestaurants, {
-    keys: ['name', 'cuisine', 'tags', 'area'],
-    threshold: 0.4,
-  }), [stableRestaurants]);
+  const apiRestaurants = useMemo(() => {
+    if (!searchApiResult?.restaurants) return [];
+    return searchApiResult.restaurants.map((b: any) => ({
+      id: b.branchId,
+      name: b.name,
+      cuisine: b.cuisineType,
+      rating: b.rating || 4.2,
+      time: `${b.estimatedDeliveryMinutes || 25} min`,
+      timeValue: b.estimatedDeliveryMinutes || 25,
+      price: '₹350 for two',
+      images: b.logo ? [b.logo] : [],
+      distance: `${b.distanceKm || 1.5} km`,
+      distanceValue: b.distanceKm || 1.5,
+      isDeliverable: b.isDeliverable,
+      area: b.address?.city || 'Local',
+      dietary: ['veg', 'non-veg'],
+    }));
+  }, [searchApiResult]);
 
-  const dishFuse = useMemo(() => new Fuse(MOCK_MENU.map((item, index) => ({
-    ...item,
-    restaurant: stableRestaurants[index % stableRestaurants.length] || { id: 'temp', name: 'Restaurant', cuisine: 'Food', rating: 4.5, time: '30 min', timeValue: 30, price: '₹400 for two', images: [], distance: '1.2 km', distanceValue: 1.2, dietary: [] }
-  })), {
-    keys: ['name', 'category', 'description'],
-    threshold: 0.4,
-  }), [stableRestaurants]);
+  const apiDishes = useMemo(() => {
+    if (!searchApiResult?.dishes) return [];
+    return searchApiResult.dishes.map((d: any) => ({
+      id: d.itemId,
+      name: d.name,
+      category: d.category || 'Special',
+      description: d.description || '',
+      price: d.price || 199,
+      isVeg: d.dietaryType === 'Veg',
+      images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c'],
+      rating: 4.5,
+      restaurant: {
+        id: d.restaurant?.branchId || 'temp',
+        name: d.restaurant?.name || 'Restaurant',
+        cuisine: 'Multi',
+        rating: 4.5,
+        time: '25 min',
+        timeValue: 25,
+        price: '₹350 for two',
+        images: [],
+        distance: `${d.restaurant?.distanceKm || 2} km`,
+        distanceValue: d.restaurant?.distanceKm || 2,
+        isDeliverable: d.restaurant?.isDeliverable,
+        dietary: [],
+      },
+    }));
+  }, [searchApiResult]);
 
-  useEffect(() => {
-    if (!query.trim()) {
-      setRestaurantResults([]);
-      setDishResults([]);
-      return;
-    }
-    
-    // Filter restaurants using fuzzy search and then apply exact filters
-    const fuzzyRestaurants = restaurantFuse.search(query).map(r => r.item);
-    const filteredRestaurants = fuzzyRestaurants.filter(r => {
-      const matchRating = r.rating >= activeFilters.minRating;
-      const matchDietary = activeFilters.dietary === 'all' || r.dietary?.includes(activeFilters.dietary);
-      const matchOffer = !activeFilters.offersOnly || !!r.offer;
-      return matchRating && matchDietary && matchOffer;
-    });
-    setRestaurantResults(filteredRestaurants);
-
-    // Filter dishes using fuzzy search and then apply exact filters
-    const fuzzyDishes = dishFuse.search(query).map(d => d.item);
-    const filteredDishes = fuzzyDishes.filter(m => {
-      const matchRating = m.rating >= activeFilters.minRating;
-      const matchDietary = activeFilters.dietary === 'all' || (activeFilters.dietary === 'veg' && m.isVeg) || (activeFilters.dietary === 'non-veg' && !m.isVeg);
-      return matchRating && matchDietary;
-    });
-    setDishResults(filteredDishes);
-  }, [query, activeFilters, restaurantFuse, dishFuse]);
-
-  const currentResultsLength = searchType === 'restaurant' ? restaurantResults.length : dishResults.length;
+  const currentResultsLength = searchType === 'restaurant' ? apiRestaurants.length : apiDishes.length;
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
@@ -265,37 +260,45 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
           <div className="animate-[fadeSlideUp_0.4s_ease-out]">
             {currentResultsLength > 0 ? (
               searchType === 'restaurant' ? (
-                <div className="space-y-4">
-                   {restaurantResults.map((item) => (
-                      <RestaurantCard
-                        key={item.id}
-                        {...item}
-                        onClick={() => onRestaurantClick?.(item)}
-                      />
+                 <div className="space-y-4">
+                   {apiRestaurants.map((item: any) => (
+                      <div key={item.id} className="relative">
+                        {!item.isDeliverable && (
+                          <div className="mb-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-amber-600" />
+                            Outside 15 km delivery radius (City Search Result)
+                          </div>
+                        )}
+                        <RestaurantCard
+                          {...item}
+                          onClick={() => onRestaurantClick?.(item)}
+                        />
+                      </div>
                    ))}
-                   <div ref={lastElementRef} className="py-6 flex items-center justify-center">
-                     {isLoadingMore && searchType === 'restaurant' && (
-                       <div className="w-6 h-6 border-2 border-slate-300 border-t-[#00BD6F] rounded-full animate-spin"></div>
-                     )}
-                   </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 pb-6">
-                  {dishResults.map((item) => (
-                    <GridMenuItemCard
-                      key={`${item.restaurant.id}-${item.id}`}
-                      item={item}
-                      quantity={0}
-                      restaurantName={item.restaurant.name}
-                      onAdd={(id) => {
-                        onRestaurantClick?.(item.restaurant);
-                        onItemAdd?.(item.restaurant, id);
-                      }}
-                      onRemove={() => {}}
-                      onClick={() => {
-                        onRestaurantClick?.(item.restaurant);
-                      }}
-                    />
+                  {apiDishes.map((item: any) => (
+                    <div key={`${item.restaurant.id}-${item.id}`} className="relative">
+                      {!item.restaurant.isDeliverable && (
+                        <div className="mb-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          Out of range
+                        </div>
+                      )}
+                      <GridMenuItemCard
+                        item={item}
+                        quantity={0}
+                        restaurantName={item.restaurant.name}
+                        onAdd={(id) => {
+                          onRestaurantClick?.(item.restaurant);
+                          onItemAdd?.(item.restaurant, id);
+                        }}
+                        onRemove={() => {}}
+                        onClick={() => {
+                          onRestaurantClick?.(item.restaurant);
+                        }}
+                      />
+                    </div>
                   ))}
                 </div>
               )

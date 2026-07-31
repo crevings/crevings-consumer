@@ -82,6 +82,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     }
   };
 
+  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
+
   useEffect(() => {
     const restaurantId = order.restaurantId;
     const orderId = order.realOrderId || order.id;
@@ -101,6 +103,9 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
         }
         if (data.deliveryPartner) {
           setAssignedPartner(data.deliveryPartner);
+        }
+        if (data.lat && data.lng) {
+          setDriverLocation({ lat: Number(data.lat), lng: Number(data.lng) });
         }
         if (data.status) {
           setOrderStatus(prev => {
@@ -154,6 +159,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
         computedProgress = 55;
         break;
       case 'READY':
+        computedProgress = 45;
+        break;
       case 'OUT FOR DELIVERY':
       case 'ORDER_PICKED_UP':
         computedProgress = 75;
@@ -259,6 +266,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             <div className="absolute inset-0 z-0">
               <LiveTrackingMap 
                 progress={progress} 
+                orderStatus={orderStatus}
+                driverCoordinates={driverLocation}
                 restaurantCoordinates={order.restaurantCoordinates} 
                 deliveryCoordinates={order.deliveryCoordinates} 
               />
@@ -333,7 +342,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   <div className="shrink-0">
                     <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 flex flex-col items-center">
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">OTP</span>
-                      <span className="text-sm tracking-widest">{otp}</span>
+                      <span className="text-sm tracking-widest">{order.pickupOtp || order.customerPin || '1234'}</span>
                     </div>
                   </div>
                 </div>
@@ -469,7 +478,9 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             {order.type === 'Delivery' ? (
               <div className="w-full h-full relative">
                 <LiveTrackingMap 
-                  progress={isCancelled ? 0 : (cancelTimeLeft > 0 ? 0 : 50)} 
+                  progress={isCancelled ? 0 : (cancelTimeLeft > 0 ? 0 : progress)} 
+                  orderStatus={orderStatus}
+                  driverCoordinates={driverLocation}
                   restaurantCoordinates={order.restaurantCoordinates} 
                   deliveryCoordinates={order.deliveryCoordinates} 
                 />
@@ -526,10 +537,10 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
               </h2>
               <div className="flex items-center justify-center gap-4 mb-3">
                 <div className="text-5xl font-black text-slate-900 tracking-widest">
-                  {deliveryPin}
+                  {deliveryPin || order.customerPin || order.pickupOtp || ''}
                 </div>
                 <button 
-                  onClick={() => navigator.clipboard.writeText(deliveryPin)}
+                  onClick={() => navigator.clipboard.writeText(deliveryPin || order.customerPin || order.pickupOtp || '')}
                   className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center active:scale-95 transition-all hover:bg-slate-200"
                 >
                   <Copy className="w-5 h-5 text-slate-600" />
@@ -595,15 +606,27 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 )}
                 
                 <div className="flex gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 70 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                    {progress >= 70 && <CheckCircle2 className="w-5 h-5 text-white" />}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 75 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
+                    {progress >= 75 && <CheckCircle2 className="w-5 h-5 text-white" />}
                   </div>
                   <div className="pt-1">
-                    <h3 className={`text-sm font-bold ${progress >= 70 ? 'text-slate-900' : 'text-slate-500'}`}>
-                      {order.type === 'Delivery' ? 'Order picked by driver' : 'Ready for Pickup'}
+                    <h3 className={`text-sm font-bold ${progress >= 75 ? 'text-slate-900' : progress >= 45 ? (assignedPartner ? 'text-slate-900' : 'text-amber-600') : 'text-slate-500'}`}>
+                      {order.type === 'Delivery' 
+                        ? (progress >= 75 
+                            ? 'Order picked by driver' 
+                            : progress >= 45 
+                              ? (assignedPartner ? 'Food Ready • Driver Assigned' : 'Food Ready • Searching for Driver') 
+                              : 'Awaiting Driver') 
+                        : 'Ready for Pickup'}
                     </h3>
                     <p className="text-xs text-slate-500">
-                      {order.type === 'Delivery' ? 'Driver has collected your order' : 'Your order is ready to be collected'}
+                      {order.type === 'Delivery' 
+                        ? (progress >= 75 
+                            ? 'Driver has collected your order' 
+                            : progress >= 45 
+                              ? (assignedPartner ? 'Driver is at the restaurant to pick up' : 'Kitchen has prepared your order') 
+                              : 'Assigning nearest driver') 
+                        : 'Your order is ready to be collected'}
                     </p>
                   </div>
                 </div>

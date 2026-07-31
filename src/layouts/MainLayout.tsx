@@ -58,7 +58,7 @@ export const MainLayout: React.FC = () => {
     });
   };
 
-  const { currentLocation, addresses } = useAppLocation();
+  const { currentLocation, addresses, isServiceable } = useAppLocation();
   const {
     activeOrder,
     setActiveOrder,
@@ -147,6 +147,19 @@ export const MainLayout: React.FC = () => {
           onLocationClick={() => navigate("/location")}
           onProfileClick={() => navigate("/profile")}
         />
+      )}
+
+      {/* Non-serviceable zone banner */}
+      {!isServiceable && currentLocation && (
+        <div className="bg-amber-500 text-white px-4 py-2 text-center text-xs font-bold flex items-center justify-center gap-2 sticky top-[60px] z-30 shadow-md">
+          <span>⚠️ Crevings is not available in your selected area yet!</span>
+          <button 
+            onClick={() => navigate("/location")} 
+            className="underline bg-amber-600 px-2 py-0.5 rounded text-[11px] hover:bg-amber-700"
+          >
+            Change Location
+          </button>
+        </div>
       )}
 
       {/* Main Content Area */}

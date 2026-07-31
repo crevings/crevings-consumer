@@ -110,13 +110,15 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
   const handleSetDefault = (id: string) => {
     setAddresses(addresses.map(a => ({
       ...a,
-      isDefault: a.id === id
+      isDefault: a.id === id,
+      icon: a.icon || Home
     })));
     setActiveMenuId(null);
     const selected = addresses.find(a => a.id === id);
     if (selected && onSelectLocation) {
       onSelectLocation({ type: selected.type, address: selected.address });
     }
+    onClose?.();
   };
 
   if (isInitialLoading) {
@@ -291,8 +293,20 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
                           {/* Dropdown Menu */}
                           {activeMenuId === addr.id && (
                             <>
-                              <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }} />
-                              <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-slate-100 py-2 shadow-lg animate-[fadeIn_0.2s_ease-out]">
+                              <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setActiveMenuId(null); }} />
+                              <div className="absolute right-0 top-10 w-48 bg-white rounded-xl border border-slate-100 py-2 shadow-lg animate-[fadeIn_0.2s_ease-out] z-20">
+                                {!addr.isDefault && (
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSetDefault(addr.id);
+                                    }}
+                                    className="w-full px-4 py-2.5 text-left text-[14px] font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                                  >
+                                    <MapPin className="w-4 h-4 text-[#00BD6F]" />
+                                    Set as Default
+                                  </button>
+                                )}
                                 <button 
                                   onClick={(e) => handleEdit(e, addr.id)}
                                   className="w-full px-4 py-2.5 text-left text-[14px] font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-3"

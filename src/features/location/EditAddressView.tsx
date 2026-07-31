@@ -36,6 +36,7 @@ export const EditAddressView: React.FC<EditAddressViewProps> = ({ address, setAd
               address: fullAddress,
               building: houseNo,
               street: roadArea,
+              icon: saveAs === 'Home' ? Home : saveAs === 'Work' ? Briefcase : Map,
             }
           : addr
       )

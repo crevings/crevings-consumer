@@ -170,6 +170,32 @@ const RestaurantInfoRouteWrapper: React.FC = () => {
   return null;
 };
 
+const CategoryDetailRouteWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { selectedCategory, setSelectedRestaurant, handleItemAdd } = useRestaurant();
+
+  const categoryName = id || selectedCategory || "Burgers";
+
+  return (
+    <CategoryDetailView
+      category={categoryName}
+      onBack={() => {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate("/");
+        }
+      }}
+      onRestaurantClick={(rest) => {
+        setSelectedRestaurant(rest);
+        navigate(`/restaurant/${rest.id}`);
+      }}
+      onItemAdd={handleItemAdd}
+    />
+  );
+};
+
 export const AppRoutes: React.FC = () => {
   const { restaurants } = useRestaurants();
   const navigate = useNavigate();
@@ -418,21 +444,7 @@ export const AppRoutes: React.FC = () => {
 
         <Route
           path="/category/:id"
-          element={
-            selectedCategory ? (
-              <CategoryDetailView
-                category={selectedCategory}
-                onBack={() => navigate("/")}
-                onRestaurantClick={(rest) => {
-                  setSelectedRestaurant(rest);
-                  navigate(`/restaurant/${rest.id}`);
-                }}
-                onItemAdd={handleItemAdd}
-              />
-            ) : (
-              <Navigate to="/" />
-            )
-          }
+          element={<CategoryDetailRouteWrapper />}
         />
 
         <Route
