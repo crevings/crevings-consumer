@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ currentLocation, onSearchClick, 
             <ChevronDown className="w-4 h-4 text-blue-500 group-hover:translate-y-0.5 transition-transform" />
           </div>
           <p className="text-[12px] font-bold text-slate-500 mt-1.5 truncate max-w-[200px]">
-            {currentLocation?.address || 'Amanat Prakash - Electronic City'}
+            {currentLocation?.address || 'Select Delivery Location'}
           </p>
         </div>
         

@@ -84,19 +84,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const observerTargetRef = useRef<HTMLDivElement>(null);
+  const isFetchingRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   const fetchOrders = async (currentCursor?: string) => {
-    if (isLoadingOrders) return;
+    if (isFetchingRef.current || !hasMoreRef.current) return;
+    isFetchingRef.current = true;
     setIsLoadingOrders(true);
+
     try {
       const res = await getPastOrders(5, currentCursor);
-      setPastOrders(prev => currentCursor ? [...prev, ...res.orders] : res.orders);
-      setCursor(res.nextCursor);
-      setHasMore(res.hasMore);
+      if (res && Array.isArray(res.orders)) {
+        setPastOrders(prev => currentCursor ? [...prev, ...res.orders] : res.orders);
+        setCursor(res.nextCursor);
+        const more = Boolean(res.hasMore && res.nextCursor);
+        setHasMore(more);
+        hasMoreRef.current = more;
+      } else {
+        setHasMore(false);
+        hasMoreRef.current = false;
+      }
     } catch (err) {
       console.error("Failed to load past orders:", err);
+      setHasMore(false);
+      hasMoreRef.current = false;
     } finally {
       setIsLoadingOrders(false);
+      isFetchingRef.current = false;
     }
   };
 
@@ -110,7 +124,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isLoadingOrders) {
+        if (entries[0].isIntersecting && !isFetchingRef.current && hasMoreRef.current) {
           fetchOrders(cursor);
         }
       },
@@ -121,7 +135,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     return () => {
       observer.unobserve(target);
     };
-  }, [cursor, hasMore, isLoadingOrders]);
+  }, [cursor, hasMore]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

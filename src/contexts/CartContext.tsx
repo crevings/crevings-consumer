@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartItem } from "@/types";
 import { useApp } from "./AppContext";
+import { consolidateCart } from "@/utils/cartUtils";
 
 interface CartContextType {
   cart: CartItem[];
@@ -14,10 +15,19 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [rawCart, setRawCart] = useState<CartItem[]>([]);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const { setIsLoadingCheckout } = useApp();
   const navigate = useNavigate();
+
+  const cart = useMemo(() => consolidateCart(rawCart), [rawCart]);
+
+  const setCart: React.Dispatch<React.SetStateAction<CartItem[]>> = (action) => {
+    setRawCart((prev) => {
+      const nextCart = typeof action === "function" ? action(prev) : action;
+      return consolidateCart(nextCart);
+    });
+  };
 
   const openCheckout = (newCart: any[], items: any[]) => {
     setCart(newCart);

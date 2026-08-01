@@ -18,6 +18,7 @@ import { OfferDetailsSheet } from "./components/OfferDetailsSheet";
 import { useCart } from "../../contexts/CartContext";
 import { useRestaurant } from "../../contexts/RestaurantContext";
 import { Skeleton } from "boneyard-js/react";
+import { addOrUpdateCartItem } from "@/utils/cartUtils";
 
 interface RestaurantDetailViewProps {
   restaurant: Restaurant;
@@ -147,15 +148,13 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       const hasBeverages = item.allowedBeverages && item.allowedBeverages.length > 0;
 
       if (!hasPricingOptions && !hasAddons && !hasToppings && !hasBeverages) {
-        setCart(prev => [
-          ...prev,
-          {
-            cartItemId: Math.random().toString(36).substr(2, 9),
-            item: item,
-            quantity: 1,
-            totalPrice: item.price
-          }
-        ]);
+        const newItem: CartItem = {
+          cartItemId: Math.random().toString(36).substr(2, 9),
+          item: item,
+          quantity: 1,
+          totalPrice: item.price
+        };
+        setCart(prev => addOrUpdateCartItem(prev, newItem));
       } else {
         setSelectedAddonItem(item);
       }

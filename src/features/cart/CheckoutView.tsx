@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
-  Edit2,
   Plus,
   Minus,
   Tag,
@@ -12,7 +11,6 @@ import {
   ChevronLeft,
   X,
   Loader2,
-  CheckCircle2,
   Trash2,
   Bike,
   ShoppingBag,
@@ -24,11 +22,9 @@ import {
   DoorClosed,
   Shield,
   Heart,
-  Sparkles,
   Banknote,
   Check,
   Search,
-  ShoppingCart,
 } from "lucide-react";
 import { useCart } from "../../contexts/CartContext";
 import { UpiLogo } from "../../shared/components/UpiLogo";
@@ -40,6 +36,8 @@ import { CartPreviewSheet } from "./components/CartPreviewSheet";
 import { ConfirmationBottomSheet } from "../../shared/components/ConfirmationBottomSheet";
 import { useRestaurantOffers } from "../../api/restaurants";
 import { BASE_URL } from "../../api/fetcher";
+import { addOrUpdateCartItem } from "@/utils/cartUtils";
+import { calculateFeeFromSlabs } from "@/utils/deliveryUtils";
 
 export const CheckoutView: React.FC = () => {
   const navigate = useNavigate();
@@ -69,7 +67,7 @@ export const CheckoutView: React.FC = () => {
       quantity: 1,
       totalPrice: Number(item.price),
     };
-    setCart((prev) => [...prev, newCartItem]);
+    setCart((prev) => addOrUpdateCartItem(prev, newCartItem));
   };
 
   const { offers } = useRestaurantOffers(selectedRestaurant?.id, 20);
@@ -209,11 +207,55 @@ export const CheckoutView: React.FC = () => {
     }
   };
 
-  const deliveryFee = orderType === "Delivery" ? 35 : 0;
+
+
+  const distanceKm = (() => {
+    if (!selectedRestaurant) return 1.2;
+    if (typeof (selectedRestaurant as any).distanceValue === "number") {
+      return (selectedRestaurant as any).distanceValue;
+    }
+    if (typeof selectedRestaurant.distance === "string") {
+      const parsed = parseFloat(selectedRestaurant.distance);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return 1.2;
+  })();
+
+  const deliveryFee = (cart.length === 0 || orderType !== "Delivery")
+    ? 0
+    : (typeof (selectedRestaurant as any)?.deliveryFee === "number" && (selectedRestaurant as any).deliveryFee > 0)
+      ? (selectedRestaurant as any).deliveryFee
+      : calculateFeeFromSlabs(distanceKm, (selectedRestaurant as any)?.deliveryFeeSlabs);
+
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0;
-  const platformFee = 5;
-  const taxes = Math.round((subtotal - discountAmount) * 0.05); // 5% GST rounded
-  const total = subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount;
+  const platformFee = cart.length === 0 ? 0 : 5;
+
+  // Calculate taxable subtotal: ONLY items where gstCategory !== 'MRP Based Item' AND gstIncluded === false
+  const taxableSubtotal = cart.reduce((sum, cartItem) => {
+    const isMrp = cartItem.item?.gstCategory === "MRP Based Item";
+    const isGstIncluded = cartItem.item?.gstIncluded !== false; // Default is true in restaurant partner app
+
+    // If MRP Based Item or GST Included, no additional GST is charged to consumer
+    if (isMrp || isGstIncluded) {
+      return sum;
+    }
+    return sum + cartItem.totalPrice;
+  }, 0);
+
+  const discountRatio = subtotal > 0 ? (subtotal - discountAmount) / subtotal : 1;
+  const netTaxableAmount = taxableSubtotal * discountRatio;
+  const rawTaxes = cart.length === 0 ? 0 : netTaxableAmount * 0.05;
+  const taxes = Number(rawTaxes.toFixed(2)); // Exact float up to 2 decimal places (no Integer rounding errors)
+  const rawTotal = cart.length === 0 ? 0 : Math.max(0, subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount);
+  const total = Number(rawTotal.toFixed(2));
+
+  const formatAmount = (num: number): string => {
+    if (Number.isInteger(num)) {
+      return num.toString();
+    }
+    const fixed = num.toFixed(2);
+    return fixed.endsWith('.00') ? Math.round(num).toString() : fixed;
+  };
 
   const handleConfirmOrder = async () => {
     if (!selectedPaymentMethod || !selectedRestaurant) return;
@@ -445,6 +487,26 @@ export const CheckoutView: React.FC = () => {
             Please wait while we confirm your order...
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (cart.length === 0 && !showProcessing) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+          <ShoppingBag size={36} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Your cart is empty</h2>
+        <p className="text-slate-500 text-sm mb-6 max-w-xs">
+          Good food is always being cooked! Add items from a restaurant to start your order.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="px-6 py-3 bg-[#00bd6f] text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-transform"
+        >
+          Browse Restaurants
+        </button>
       </div>
     );
   }
@@ -818,14 +880,14 @@ export const CheckoutView: React.FC = () => {
                   To Pay{" "}
                   {discountAmount > 0 && (
                     <span className="text-slate-400 line-through font-medium">
-                      ₹{total + discountAmount}
+                      ₹{formatAmount(total + discountAmount)}
                     </span>
                   )}{" "}
-                  ₹{total}
+                  ₹{formatAmount(total)}
                 </h3>
                 {discountAmount > 0 && (
                   <p className="text-[14px] font-medium text-green-600 mt-0.5">
-                    ₹{discountAmount} saved on the total!
+                    ₹{formatAmount(discountAmount)} saved on the total!
                   </p>
                 )}
               </div>
@@ -835,21 +897,21 @@ export const CheckoutView: React.FC = () => {
           <div className="p-5 space-y-4">
             <div className="flex justify-between items-center text-[15px]">
               <span className="text-slate-500">Item Total</span>
-              <span className="text-slate-700 font-medium">₹{subtotal}</span>
+              <span className="text-slate-700 font-medium">₹{formatAmount(subtotal)}</span>
             </div>
 
             {orderType === "Delivery" ? (
               <div className="flex justify-between items-start text-[15px]">
                 <div className="flex flex-col text-left">
                   <span className="text-slate-500">
-                    Delivery Fee | <span className="text-green-600">0.1 kms</span>
+                    Delivery Fee{distanceKm > 0 ? <span className="text-green-600 font-medium"> | {distanceKm} km</span> : ""}
                   </span>
                   <span className="text-[13px] text-slate-400 mt-2 max-w-[220px] leading-snug">
                     This amount goes directly to our local rider to ensure safe and timely delivery.
                   </span>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className="text-green-600 font-medium">₹{deliveryFee}</span>
+                  <span className="text-green-600 font-medium">₹{formatAmount(deliveryFee)}</span>
                 </div>
               </div>
             ) : null}
@@ -857,7 +919,7 @@ export const CheckoutView: React.FC = () => {
             {discountAmount > 0 && (
               <div className="flex justify-between items-center text-[15px]">
                 <span className="text-slate-500">Extra discount for you</span>
-                <span className="text-green-600 font-medium">- ₹{discountAmount}</span>
+                <span className="text-green-600 font-medium">- ₹{formatAmount(discountAmount)}</span>
               </div>
             )}
 
@@ -865,7 +927,7 @@ export const CheckoutView: React.FC = () => {
 
             <div className="flex justify-between items-center text-[15px]">
               <span className="text-slate-500">Delivery Tip</span>
-              <span className="text-green-600 font-medium">₹{tipAmount}</span>
+              <span className="text-green-600 font-medium">₹{formatAmount(tipAmount)}</span>
             </div>
 
             <div className="flex justify-between items-center text-[15px]">
@@ -876,14 +938,14 @@ export const CheckoutView: React.FC = () => {
                 <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST & Other Charges</span>
                 <Info size={14} className="text-slate-400" />
               </div>
-              <span className="text-slate-700 font-medium">₹{taxes + platformFee}</span>
+              <span className="text-slate-700 font-medium">₹{formatAmount(taxes + platformFee)}</span>
             </div>
 
             <div className="border-b border-dashed border-slate-200 my-2" />
 
             <div className="flex justify-between items-center pt-1 pb-1">
               <span className="font-bold text-slate-800 text-[17px]">To Pay</span>
-              <span className="font-bold text-slate-800 text-[17px]">₹{total}</span>
+              <span className="font-bold text-slate-800 text-[17px]">₹{formatAmount(total)}</span>
             </div>
           </div>
         </div>
@@ -1213,7 +1275,7 @@ export const CheckoutView: React.FC = () => {
                     This is collected by the restaurant to pay to the government.
                   </span>
                 </div>
-                <span className="text-slate-900 font-medium">₹{taxes}</span>
+                <span className="text-slate-900 font-medium">₹{formatAmount(taxes)}</span>
               </div>
               
               <div className="border-b border-slate-100" />
@@ -1225,13 +1287,13 @@ export const CheckoutView: React.FC = () => {
                     This helps us operate and improve the app experience for you.
                   </span>
                 </div>
-                <span className="text-slate-900 font-medium">₹{platformFee}</span>
+                <span className="text-slate-900 font-medium">₹{formatAmount(platformFee)}</span>
               </div>
             </div>
 
             <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
               <span>Total</span>
-              <span>₹{taxes + platformFee}</span>
+              <span>₹{formatAmount(taxes + platformFee)}</span>
             </div>
           </div>
         </div>

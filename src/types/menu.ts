@@ -20,6 +20,8 @@ export interface MenuItem {
   allowedToppings?: any[];
   allowedBeverages?: any[];
   comboItems?: any[];
+  gstCategory?: string;
+  gstIncluded?: boolean;
 }
 
 export interface CartItem {

@@ -201,7 +201,7 @@ export const AppRoutes: React.FC = () => {
   const navigate = useNavigate();
   const reactRouterLocation = useReactRouterLocation();
 
-  const { userProfile, setUserProfile, rawProfileImage, setRawProfileImage, reviews, setReviews, logout } = useUser();
+  const { userProfile, setUserProfile, rawProfileImage, setRawProfileImage, reviews, setReviews, logout, isAuthenticated } = useUser();
   const { currentLocation, setCurrentLocation, addresses, setAddresses } = useAppLocation();
   const {
     selectedRestaurant,
@@ -291,6 +291,14 @@ export const AppRoutes: React.FC = () => {
 
     navigate("/checkout");
   };
+
+  const isAddressRequired = isAuthenticated && (!addresses || addresses.length === 0);
+
+  React.useEffect(() => {
+    if (isAddressRequired && reactRouterLocation.pathname !== "/location") {
+      navigate("/location", { replace: true, state: { from: reactRouterLocation.pathname } });
+    }
+  }, [isAddressRequired, reactRouterLocation.pathname, navigate]);
 
   return (
     <Routes>

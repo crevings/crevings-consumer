@@ -160,14 +160,25 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
       {/* Header */}
       <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20 border-b border-slate-100">
         <div className="flex items-center gap-4 mt-4">
-          <button onClick={onClose} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
-            <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
-          </button>
+          {addresses && addresses.length > 0 && (
+            <button onClick={onClose} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
+              <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
+            </button>
+          )}
           <h1 className="text-[18px] font-bold text-slate-900">Select Location</h1>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar px-5 pt-5 pb-10">
+        {(!addresses || addresses.length === 0) && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-800 animate-in fade-in">
+            <MapPin className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs font-semibold">
+              <p className="font-bold text-amber-900 text-sm mb-0.5">Delivery Address Required</p>
+              Please add at least 1 delivery location to proceed using Crevings.
+            </div>
+          </div>
+        )}
         {/* Search Bar */}
         <div className="relative mb-6">
           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
