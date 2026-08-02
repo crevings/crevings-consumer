@@ -42,7 +42,6 @@ interface ProfileViewProps {
   onBack: () => void;
   reviews: Record<string, Review>;
   onRateClick: (order: Order) => void;
-  onViewReviewClick: (order: Order) => void;
   onReorderClick: (order: Order) => void;
   onViewDetailsClick: (order: Order) => void;
 }
@@ -68,7 +67,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onBack,
   reviews,
   onRateClick,
-  onViewReviewClick,
   onReorderClick,
   onViewDetailsClick
 }) => {
@@ -349,7 +347,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                               order={order} 
                               review={reviews[order.id]}
                               onRateClick={onRateClick}
-                              onViewReviewClick={onViewReviewClick}
                               onReorderClick={onReorderClick}
                               onViewDetailsClick={onViewDetailsClick}
                           />

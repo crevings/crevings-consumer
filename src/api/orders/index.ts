@@ -26,21 +26,23 @@ export const useActiveOrders = () => {
 };
 
 /**
- * Fetch past order history with SWR.
+ * Fetch past order history with cursor-based pagination.
  */
-export const useOrderHistory = () => {
-  const { data, error, isLoading, mutate } = useSWR<Order[]>(
-    "/orders/past",
+export const useOrderHistory = (limit: number = 10, cursor?: string) => {
+  const endpoint = `/consumer/profile/orders/past?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+  const { data, error, isLoading, mutate } = useSWR(
+    endpoint,
     fetcher,
     {
-      fallbackData: PAST_ORDERS,
       revalidateOnMount: true,
       revalidateOnFocus: false,
     }
   );
 
   return {
-    pastOrders: data || PAST_ORDERS,
+    pastOrders: data?.orders || PAST_ORDERS,
+    nextCursor: data?.nextCursor,
+    hasMore: data?.hasMore || false,
     isLoading,
     isError: error,
     mutate,

@@ -115,7 +115,16 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
       status: o.status === "COMPLETED" || o.status === "DELIVERED" ? "Completed" : "Cancelled",
       price: o.total || 0,
       total: o.total || 0,
+      subtotal: o.subtotal || o.total || 0,
+      tax: o.tax || 0,
+      deliveryFee: o.deliveryFee || 0,
+      discount: o.discount || 0,
       createdAt: o.createdAt,
+      isRated: o.isRated || false,
+      ratingData: o.ratingData || null,
+      rawItems: o.items || [],
+      customerDetails: o.customerDetails || null,
+      payment: o.payment || null,
     };
   });
 

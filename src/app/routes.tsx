@@ -24,6 +24,7 @@ import { RefundsView } from "../features/profile/pages/RefundsView";
 import { DataSharingView } from "../features/profile/pages/DataSharingView";
 import { PoliciesView } from "../features/profile/pages/PoliciesView";
 import { PrivacyPolicyView } from "../features/profile/pages/PrivacyPolicyView";
+import { TermsAndConditionsView } from "../features/profile/pages/TermsAndConditionsView";
 import { LicensesView } from "../features/profile/pages/LicensesView";
 import { GstDetailsView } from "../features/profile/pages/GstDetailsView";
 import { AccessibilityView } from "../features/profile/pages/AccessibilityView";
@@ -32,7 +33,7 @@ import { HiddenRestaurantsView } from "../features/favourites/HiddenRestaurantsV
 import { FavoritesView } from "../features/favourites/FavoritesView";
 import { PlatformFeedbackView } from "../features/profile/pages/PlatformFeedbackView";
 import { RateOrderView } from "../features/orders/RateOrderView";
-import { ViewReviewDetailsView } from "../features/orders/ViewReviewDetailsView";
+import { OrderDetailsModal } from "../features/orders/components/OrderDetailsModal";
 import { LocationPickerView } from "../features/location/LocationPickerView";
 
 import { useUser } from "../contexts/UserContext";
@@ -225,6 +226,7 @@ export const AppRoutes: React.FC = () => {
   } = useRestaurant();
   const { cart, setCart, menuItems, setMenuItems } = useCart();
   const { setIsLoadingView, setLoadingViewType, isVoiceSearchOpen, setIsVoiceSearchOpen, searchQuery, setSearchQuery } = useApp();
+  const [detailsOrder, setDetailsOrder] = React.useState<Order | null>(null);
 
   const handleHideRestaurant = (id: string | number) => {
     setConfirmModal({ type: "hide", restaurantId: String(id) });
@@ -301,6 +303,7 @@ export const AppRoutes: React.FC = () => {
   }, [isAddressRequired, reactRouterLocation.pathname, navigate]);
 
   return (
+    <>
     <Routes>
       {/* Main Layout: wrapped tab views */}
       <Route element={<MainLayout />}>
@@ -363,7 +366,7 @@ export const AppRoutes: React.FC = () => {
               onHelpClick={() => navigate("/help")}
               onNotificationsClick={() => navigate("/notifications")}
               onRefundsClick={() => navigate("/refunds")}
-              onPoliciesClick={() => navigate("/policies")}
+              onPoliciesClick={() => navigate("/terms")}
               onPrivacyClick={() => navigate("/privacy-policy")}
               onLicensesClick={() => navigate("/licenses")}
               onGstClick={() => navigate("/gst")}
@@ -377,14 +380,14 @@ export const AppRoutes: React.FC = () => {
                 setSelectedOrder(order);
                 navigate("/rate-order");
               }}
-              onViewReviewClick={(order) => {
-                setSelectedOrder(order);
-                navigate("/view-review");
-              }}
               onReorderClick={handleReorder}
               onViewDetailsClick={(order) => {
-                setActiveOrder(order);
-                navigate("/order-tracking");
+                if (order.status === 'Active') {
+                  setActiveOrder(order);
+                  navigate("/order-tracking");
+                } else {
+                  setDetailsOrder(order);
+                }
               }}
             />
           }
@@ -487,6 +490,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="/data-sharing" element={<DataSharingView onBack={() => navigate(-1)} />} />
         <Route path="/policies" element={<PoliciesView onBack={() => navigate(-1)} />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyView onBack={() => navigate(-1)} />} />
+        <Route path="/terms" element={<TermsAndConditionsView onBack={() => navigate(-1)} />} />
+        <Route path="/terms-and-conditions" element={<TermsAndConditionsView onBack={() => navigate(-1)} />} />
         <Route path="/licenses" element={<LicensesView onBack={() => navigate(-1)} />} />
         <Route path="/gst" element={<GstDetailsView onBack={() => navigate(-1)} />} />
         <Route path="/accessibility" element={<AccessibilityView onBack={() => navigate(-1)} />} />
@@ -538,21 +543,6 @@ export const AppRoutes: React.FC = () => {
         />
 
         <Route
-          path="/view-review"
-          element={
-            selectedOrder && reviews[selectedOrder.id] ? (
-              <ViewReviewDetailsView
-                order={selectedOrder}
-                review={reviews[selectedOrder.id]}
-                onBack={() => navigate(-1)}
-              />
-            ) : (
-              <Navigate to="/" />
-            )
-          }
-        />
-
-        <Route
           path="/location"
           element={
             <LocationPickerView
@@ -578,5 +568,12 @@ export const AppRoutes: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
+    {detailsOrder && (
+      <OrderDetailsModal 
+        order={detailsOrder} 
+        onClose={() => setDetailsOrder(null)} 
+      />
+    )}
+    </>
   );
 };

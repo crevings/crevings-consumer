@@ -24,16 +24,40 @@ export const PoliciesView: React.FC<PoliciesViewProps> = ({ onBack }) => {
     },
     {
       id: 2,
-      title: 'Terms of Service',
+      title: 'Terms & Conditions',
       icon: FileText,
-      summary: 'Usage guidelines and legal agreements between you and Crevings App regarding our delivery platform.',
-      fullText: `1. Acceptance of Terms: By accessing or using the Crevings App, you agree to be bound by these Terms of Service and all applicable laws and regulations.
+      summary: 'Rules, guidelines, and legal agreements between you and Crevings Marketplace Private Limited.',
+      fullText: `Effective Date: July 10, 2025
 
-2. User Accounts: You are responsible for maintaining the confidentiality of your account credentials. You must be at least 18 years old to use our services.
+These Terms & Conditions ("Terms") govern the access, use, and interaction with the Crevings platform operated by Crevings Marketplace Private Limited ("Crevings", "Company", "we", "our", or "us").
 
-3. Ordering & Delivery: While we strive for accuracy, delivery times are estimates and may vary due to external factors like traffic or weather. Prices are set by restaurants and are subject to change.
+1. DEFINITIONS
+1.1 Platform: Refers to Crevings mobile applications, website, software systems, APIs, and digital infrastructure.
+1.2 User or Customer: Refers to any individual accessing or using the platform for ordering food, making payments, or availing services.
+1.3 Food Partner: Refers to restaurants, cafés, cloud kitchens, and food businesses listed on Crevings.
+1.4 Delivery Partner: Refers to independent riders or logistics providers.
 
-4. User Conduct: Users must not use the platform for any fraudulent or illegal activities. We reserve the right to suspend accounts that violate these terms.`
+2. ELIGIBILITY
+Users below the age of 18 may access the platform only under supervision of a parent or legal guardian.
+
+3. ACCOUNT REGISTRATION & VERIFICATION
+Users register via valid mobile number and OTP verification and remain responsible for maintaining account confidentiality.
+
+4. PLATFORM SERVICES & FOOD PARTNER RESPONSIBILITY
+Crevings operates as a technology intermediary. Food Partners remain solely responsible for food preparation, quality, hygiene, and allergen disclosures.
+
+5. ORDER CANCELLATION WINDOW
+- Within 60 Seconds: Full refund eligible.
+- After 60 Seconds: Order enters preparation status; partial or no refund may apply.
+- After "Ready for Pickup": Cancellation no longer accepted; non-refundable.
+
+6. PRICING & PAYMENTS
+Prices include food cost, GST, packaging, delivery, and platform fees. Payments accepted via UPI, Cards, Net Banking, Wallets, and COD.
+
+7. GOVERNING LAW
+Governed by the laws of India under the exclusive jurisdiction of competent courts in Delhi, India.
+
+Contact Support: support@crevings.com | WhatsApp: +91 8780971385 | https://www.crevings.com`
     },
     {
       id: 3,

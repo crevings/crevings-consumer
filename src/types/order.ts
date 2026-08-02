@@ -33,4 +33,13 @@ export interface Order {
   pickupOtp?: string;
   restaurantCoordinates?: { lat: number; lng: number } | null;
   deliveryCoordinates?: { lat: number; lng: number } | null;
+  isRated?: boolean;
+  ratingData?: any;
+  subtotal?: number;
+  tax?: number;
+  deliveryFee?: number;
+  discount?: number;
+  rawItems?: any[];
+  customerDetails?: any;
+  payment?: any;
 }

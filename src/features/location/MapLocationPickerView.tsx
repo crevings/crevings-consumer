@@ -1,8 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, MapPin, Crosshair, Navigation, CheckCircle2, Home, Briefcase, X, Loader2 } from 'lucide-react';
-import { GoogleMap, useJsApiLoader, Autocomplete } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 
 const libraries: ("places" | "marker" | "geometry")[] = ["places", "marker", "geometry"];
+
+interface PredictionItem {
+  id: string;
+  mainText: string;
+  secondaryText: string;
+  fullText: string;
+  suggestionObj?: any;
+}
 
 interface MapLocationPickerViewProps {
   initialLocation?: { title: string, subtitle: string, coords: [number, number] } | null;
@@ -24,7 +32,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
   const [addressType, setAddressType] = useState('Home');
   const [customAddressType, setCustomAddressType] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialLocation?.title || '');
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const [predictions, setPredictions] = useState<PredictionItem[]>([]);
 
   const [mapCenter, setMapCenter] = useState<{ lat: number, lng: number }>(() => {
     if (initialLocation && initialLocation.coords) {
@@ -77,21 +85,135 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
     });
   };
 
-  const onPlaceChanged = () => {
-    if (autocomplete !== null) {
-      const place = autocomplete.getPlace();
-      if (place.geometry && place.geometry.location) {
-        const newPos = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng()
-        };
-        setMapCenter(newPos);
-        setSelectedAddress({
-          title: place.name || 'Selected Location',
-          subtitle: place.formatted_address || ''
+  const handleSearchChange = async (q: string) => {
+    setSearchQuery(q);
+    if (!q.trim() || !window.google) {
+      setPredictions([]);
+      return;
+    }
+
+    // 1. Modern Places API v2: AutocompleteSuggestion
+    try {
+      if (google.maps.places && (google.maps.places as any).AutocompleteSuggestion) {
+        const { AutocompleteSuggestion } = (google.maps.places as any);
+        const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          input: q,
+          componentRestrictions: { country: "in" },
         });
-        mapRef.current?.panTo(newPos);
+
+        if (response && response.suggestions && response.suggestions.length > 0) {
+          const mapped: PredictionItem[] = response.suggestions.map((s: any) => {
+            const p = s.placePrediction;
+            return {
+              id: p.placeId || Math.random().toString(),
+              mainText: p.mainText?.text || p.text?.text || q,
+              secondaryText: p.secondaryText?.text || "",
+              fullText: p.text?.text || q,
+              suggestionObj: s,
+            };
+          });
+          setPredictions(mapped);
+          return;
+        }
       }
+    } catch (err) {
+      console.warn("AutocompleteSuggestion notice, falling back to Geocoder search:", err);
+    }
+
+    // 2. Geocoder fallback (100% reliable across all Maps SDK builds & keys, 0 deprecation warnings)
+    try {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: q, componentRestrictions: { country: "IN" } }, (results, status) => {
+        if (status === "OK" && results && results.length > 0) {
+          const mapped: PredictionItem[] = results.slice(0, 5).map((res) => {
+            const titleComponent = res.address_components.find(
+              c => c.types.includes('sublocality_level_1') || 
+                   c.types.includes('locality') || 
+                   c.types.includes('neighborhood')
+            );
+            return {
+              id: res.place_id,
+              mainText: titleComponent ? titleComponent.long_name : res.formatted_address.split(',')[0],
+              secondaryText: res.formatted_address,
+              fullText: res.formatted_address,
+            };
+          });
+          setPredictions(mapped);
+        } else {
+          setPredictions([]);
+        }
+      });
+    } catch (e) {
+      setPredictions([]);
+    }
+  };
+
+  const handleSelectPrediction = async (item: PredictionItem) => {
+    setPredictions([]);
+    setSearchQuery(item.fullText);
+
+    // 1. Fetch location from AutocompleteSuggestion -> Place
+    if (item.suggestionObj && item.suggestionObj.placePrediction?.toPlace) {
+      try {
+        const place = item.suggestionObj.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["location", "displayName", "formattedAddress"] });
+        if (place.location) {
+          const newPos = {
+            lat: place.location.lat(),
+            lng: place.location.lng()
+          };
+          setMapCenter(newPos);
+          setSelectedAddress({
+            title: place.displayName || item.mainText,
+            subtitle: place.formattedAddress || item.secondaryText || item.fullText
+          });
+          mapRef.current?.panTo(newPos);
+          return;
+        }
+      } catch (err) {
+        console.warn("Place.fetchFields error:", err);
+      }
+    }
+
+    // 2. Modern google.maps.places.Place class
+    if (window.google && google.maps.places && (google.maps.places as any).Place) {
+      try {
+        const PlaceClass = (google.maps.places as any).Place;
+        const place = new PlaceClass({ id: item.id });
+        await place.fetchFields({ fields: ["location", "displayName", "formattedAddress"] });
+        if (place.location) {
+          const newPos = {
+            lat: place.location.lat(),
+            lng: place.location.lng()
+          };
+          setMapCenter(newPos);
+          setSelectedAddress({
+            title: place.displayName || item.mainText,
+            subtitle: place.formattedAddress || item.secondaryText || item.fullText
+          });
+          mapRef.current?.panTo(newPos);
+          return;
+        }
+      } catch (err) {
+        console.warn("Place constructor error:", err);
+      }
+    }
+
+    // 3. Geocoder fallback
+    if (window.google) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: item.fullText }, (results, status) => {
+        if (status === "OK" && results?.[0] && results[0].geometry?.location) {
+          const loc = results[0].geometry.location;
+          const newPos = { lat: loc.lat(), lng: loc.lng() };
+          setMapCenter(newPos);
+          setSelectedAddress({
+            title: item.mainText,
+            subtitle: results[0].formatted_address
+          });
+          mapRef.current?.panTo(newPos);
+        }
+      });
     }
   };
 
@@ -173,31 +295,53 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex-1 relative">
-          <Autocomplete 
-            onLoad={setAutocomplete} 
-            onPlaceChanged={onPlaceChanged}
-          >
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <Search className="w-5 h-5" />
-              </div>
-              <input 
-                type="text" 
-                placeholder="Search for area or address"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all text-slate-950"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-200 text-slate-500 rounded-full hover:bg-slate-300"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+          <div className="relative">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <Search className="w-5 h-5" />
             </div>
-          </Autocomplete>
+            <input 
+              type="text" 
+              placeholder="Search for area or address"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all text-slate-950"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => {
+                  setSearchQuery('');
+                  setPredictions([]);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-slate-200 text-slate-500 rounded-full hover:bg-slate-300"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Autocomplete Predictions Dropdown */}
+          {predictions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[500] max-h-60 overflow-y-auto">
+              {predictions.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleSelectPrediction(p)}
+                  className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-start gap-3 transition-colors"
+                >
+                  <MapPin className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
+                      {p.mainText}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {p.secondaryText || p.fullText}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -218,211 +362,182 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
         />
 
         {/* Center Pin Overlay (draggable via map panning) */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full z-[400] flex flex-col items-center pointer-events-none">
-          <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl mb-2 whitespace-nowrap transition-all duration-300">
-            {isMoving ? 'Fetching details...' : 'Order will be delivered here'}
-            <div className="absolute -bottom-1.5 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900"></div>
-          </div>
-          <MapPin className="w-10 h-10 text-green-600 fill-green-600/30" />
-        </div>
-
-        {/* Current Location Button */}
-        <div className="absolute bottom-6 right-4 z-[400] flex flex-col gap-3">
-          <button 
-            onClick={handleLocateMe}
-            className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-700 hover:text-[#00BD6F] active:scale-95 transition-all"
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-
-          {/* Grant Permission Toggle Indicator */}
-          <button 
-            onClick={() => setPermissionGranted(!permissionGranted)}
-            className={`flex items-center justify-center gap-1 px-3 h-10 rounded-full shadow-lg text-[10px] font-bold transition-all ${permissionGranted ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-white text-slate-700 border border-slate-200'}`}
-          >
-            <Crosshair className="w-3.5 h-3.5" />
-            {permissionGranted ? 'GPS Active' : 'GPS Off'}
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Sheet */}
-      <div className="bg-white rounded-t-[24px] shadow-[0_-10px_40px_rgba(0,0,0,0.08)] relative z-[500] px-4 pt-5 pb-6 transition-all duration-300">
-        {!showAddressForm ? (
-          <>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {isMoving ? 'Locating...' : 'Select Delivery Location'}
-              </h3>
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10 pb-8">
+          <div className="relative flex flex-col items-center">
+            {/* Pulsing Target Dot on Ground */}
+            <div className="w-3 h-1.5 bg-black/20 rounded-full blur-[1px] animate-pulse mb-[-2px]" />
+            
+            {/* Custom Google Maps Location Pin */}
+            <div className={`transition-transform duration-200 ${isMoving ? '-translate-y-3 scale-110' : 'translate-y-0 scale-100'}`}>
+              <div className="w-12 h-12 bg-red-500 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white relative">
+                <MapPin className="w-6 h-6 fill-white text-red-500" />
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-red-500" />
+              </div>
             </div>
 
-            <div className="flex gap-3 mb-5 items-start bg-slate-50 p-3 rounded-xl border border-slate-100">
-              <div className="mt-0.5 shrink-0">
-                <div className="w-8 h-8 bg-white rounded-full shadow-sm flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-[#00bd6f] fill-[#00bd6f]/20" />
-                </div>
+            {/* Address Pill Overlay above Pin */}
+            <div className="absolute bottom-16 bg-slate-900/90 backdrop-blur-md text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-lg whitespace-nowrap flex items-center gap-1.5">
+              {isMoving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-green-400" />
+                  <span>Locating...</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-ping" />
+                  <span>Order will be delivered here</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Locate Me Floating Action Button */}
+        <button
+          onClick={handleLocateMe}
+          className="absolute right-4 bottom-6 z-20 bg-white text-slate-800 p-3.5 rounded-2xl shadow-xl border border-slate-100 hover:bg-slate-50 active:scale-95 transition-all flex items-center gap-2 font-semibold text-xs"
+        >
+          <Crosshair className="w-5 h-5 text-green-600" />
+          <span>Locate Me</span>
+        </button>
+      </div>
+
+      {/* Bottom Sheet for Confirming Address */}
+      <div className="bg-white rounded-t-3xl shadow-2xl px-6 pt-5 pb-8 z-30 border-t border-slate-100 animate-[slideUp_0.3s_ease-out]">
+        {!showAddressForm ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-green-50 rounded-2xl text-green-600 mt-1 shrink-0">
+                <MapPin className="w-6 h-6" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-base font-bold text-slate-900 mb-0.5">{isMoving ? 'Fetching address...' : selectedAddress.title}</h2>
-                <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
-                  {isMoving ? 'Please wait while we locate you' : selectedAddress.subtitle}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-slate-900 truncate">{selectedAddress.title}</h3>
+                <p className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                  {selectedAddress.subtitle}
                 </p>
               </div>
             </div>
 
-            <button 
+            <button
               onClick={() => setShowAddressForm(true)}
-              disabled={isMoving}
-              className={`w-full font-bold text-sm py-3 rounded-xl active:scale-[0.98] transition-all ${isMoving ? 'bg-slate-200 text-slate-400' : 'bg-[#00bd6f] text-white hover:bg-[#00a35f]'}`}
+              className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md shadow-green-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
             >
-              Confirm Location
+              <span>Confirm Location & Enter Address Details</span>
             </button>
-          </>
+          </div>
         ) : (
-          <div className="animate-[fadeIn_0.3s_ease-out] max-h-[70vh] overflow-y-auto no-scrollbar">
-            {/* Header & Change button */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">Location Details</h2>
+          <div className="space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar pt-1">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Enter Address Details</h3>
+                <p className="text-xs text-slate-500 font-medium">Save complete address for faster delivery</p>
+              </div>
               <button 
-                onClick={() => setShowAddressForm(false)} 
-                className="text-sm font-bold text-[#00bd6f] hover:text-green-700 transition-colors"
+                onClick={() => setShowAddressForm(false)}
+                className="p-1.5 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
               >
-                Change
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Address Type Selector Pills */}
-            <div className="mb-5">
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setAddressType('Home')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-xs transition-all border ${addressType === 'Home' ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-                >
-                  <Home className="w-3.5 h-3.5" />
-                  House
-                </button>
-                <button 
-                  onClick={() => setAddressType('Work')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-xs transition-all border ${addressType === 'Work' ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  Office
-                </button>
-                <button 
-                  onClick={() => setAddressType('Other')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-bold text-xs transition-all border ${addressType === 'Other' ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600'}`}
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                  Other
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-              {/* Building / Floor Input */}
-              <div>
-                <input 
-                  type="text" 
-                  placeholder="Building / Floor *"
-                  value={building}
-                  onChange={(e) => setBuilding(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
-                  required
-                />
-              </div>
-             
-              {/* Street Input */}
-              <div>
-                <input 
-                  type="text" 
-                  placeholder="Street (Recommended)"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
-                />
+            {/* Address Type Selector */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-2">Save address as</label>
+              <div className="flex gap-2">
+                {[
+                  { label: 'Home', icon: Home },
+                  { label: 'Work', icon: Briefcase },
+                  { label: 'Other', icon: MapPin },
+                ].map(({ label, icon: Icon }) => (
+                  <button
+                    key={label}
+                    onClick={() => setAddressType(label)}
+                    className={`flex-1 py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      addressType === label
+                        ? 'border-green-500 bg-green-50 text-green-700 shadow-sm'
+                        : 'border-slate-200 text-slate-600 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
 
-              {/* Area / Locality Swiggy-Style Field with Map Thumbnail */}
-              <div className="flex gap-3 items-stretch">
-                <div className="flex-1 relative border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 flex flex-col justify-center">
-                  <span className="absolute -top-2 left-3 bg-white px-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Area/Locality
-                  </span>
-                  <p className="text-[13px] text-slate-600 font-bold leading-relaxed line-clamp-2 pr-2 pt-1">
-                    {selectedAddress.subtitle}
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={() => setShowAddressForm(false)}
-                  className="w-[76px] h-[76px] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shrink-0 relative flex flex-col items-center justify-center group active:scale-95 transition-all"
-                >
-                  <div className="absolute inset-0 bg-slate-50 flex items-center justify-center opacity-40">
-                    <div className="w-full h-full relative bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:12px_12px]" />
-                  </div>
-                  <div className="relative z-10 flex flex-col items-center justify-center">
-                    <MapPin className="w-5 h-5 text-[#00bd6f] fill-[#00bd6f]/20" />
-                    <span className="text-[11px] font-bold text-[#00bd6f] mt-0.5">Change</span>
-                  </div>
-                </button>
-              </div>
-
-              {/* Save Address As Input (Shown when address type is Custom/Other) */}
               {addressType === 'Other' && (
-                <div className="animate-[fadeIn_0.2s_ease-out]">
-                  <input 
-                    type="text" 
-                    placeholder="Save address as *"
-                    value={customAddressType}
-                    onChange={(e) => setCustomAddressType(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
-                    required
+                <input
+                  type="text"
+                  placeholder="e.g. Friend's Place, Gym"
+                  value={customAddressType}
+                  onChange={(e) => setCustomAddressType(e.target.value)}
+                  className="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-green-500"
+                />
+              )}
+            </div>
+
+            {/* Building / House No */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">House / Flat / Block No.</label>
+              <input
+                type="text"
+                placeholder="e.g. Flat 402, Block A"
+                value={building}
+                onChange={(e) => setBuilding(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-green-500"
+              />
+            </div>
+
+            {/* Apartment / Street / Area */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Apartment / Road / Area Name</label>
+              <input
+                type="text"
+                placeholder="e.g. Green Valley Society, MG Road"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:border-green-500"
+              />
+            </div>
+
+            {/* Receiver Contact Details Toggle */}
+            <div className="pt-2 border-t border-slate-100">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useAccountDetails}
+                  onChange={(e) => setUseAccountDetails(e.target.checked)}
+                  className="w-4 h-4 accent-green-600 rounded"
+                />
+                <span className="text-xs font-semibold text-slate-700">Use my profile details for delivery contact</span>
+              </label>
+
+              {!useAccountDetails && (
+                <div className="grid grid-cols-2 gap-2 mt-3 animate-in fade-in">
+                  <input
+                    type="text"
+                    placeholder="Receiver's Name"
+                    value={receiverName}
+                    onChange={(e) => setReceiverName(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-green-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Receiver's Phone"
+                    value={receiverPhone}
+                    onChange={(e) => setReceiverPhone(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-green-500"
                   />
                 </div>
               )}
-
-              {/* Receiver Details */}
-              <div className="pt-4 border-t border-slate-100 mt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-bold text-slate-900">Receiver Details</span>
-                  <button 
-                    onClick={() => setUseAccountDetails(!useAccountDetails)}
-                    className="flex items-center gap-2 text-xs font-bold text-slate-600 active:scale-95 transition-transform"
-                  >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${useAccountDetails ? 'bg-[#00bd6f] border-[#00bd6f]' : 'border-slate-300'}`}>
-                      {useAccountDetails && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
-                    </div>
-                    Use my account details
-                  </button>
-                </div>
-                
-                {!useAccountDetails && (
-                  <div className="space-y-3 animate-[fadeIn_0.2s_ease-out]">
-                    <input 
-                      type="text" 
-                      placeholder="Receiver Name"
-                      value={receiverName}
-                      onChange={(e) => setReceiverName(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
-                    />
-                    <input 
-                      type="tel" 
-                      placeholder="Receiver Phone Number"
-                      value={receiverPhone}
-                      onChange={(e) => setReceiverPhone(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-xl py-3.5 px-4 text-[14px] focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-[#00bd6f] transition-all font-medium text-slate-950 placeholder:text-slate-400"
-                    />
-                  </div>
-                )}
-              </div>
             </div>
 
-            <button 
+            {/* Final Save Address Button */}
+            <button
               onClick={handleFinalSave}
-              disabled={building.trim() === ''}
-              className={`w-full text-white font-bold text-base py-4 rounded-xl active:scale-[0.98] transition-all shadow-md ${building.trim() === '' ? 'bg-slate-300 cursor-not-allowed' : 'bg-[#00bd6f] hover:bg-[#00a35f]'}`}
+              className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3.5 rounded-2xl font-bold text-sm shadow-md shadow-green-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4"
             >
-              Save Address
+              <CheckCircle2 className="w-5 h-5" />
+              <span>Save & Proceed</span>
             </button>
           </div>
         )}

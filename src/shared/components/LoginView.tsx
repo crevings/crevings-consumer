@@ -129,7 +129,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       setAuthenticatedUser(data.user);
 
       // Check if first-time user without a custom name
-      if (data.isNewUser || !data.user?.name || data.user.name === "Valued Customer") {
+      if (data.isNewUser || !data.user?.name || data.user.name === "New User" || data.user.name === "Valued Customer") {
         setView("name");
       } else {
         if (onLoginSuccess) {

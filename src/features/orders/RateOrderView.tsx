@@ -1,7 +1,9 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Star, Phone, MessageSquare, ChevronRight, HelpCircle, CheckCircle2, Percent } from 'lucide-react';
+import { ArrowLeft, Star, Phone, MessageSquare, ChevronRight, HelpCircle, CheckCircle2, Percent, AlertCircle } from 'lucide-react';
 import { Order, Review } from "@/types";
+import { BASE_URL } from "@/api/fetcher";
+import { downloadInvoice } from "./components/OrderDetailsModal";
 
 interface RateOrderViewProps {
   order: Order;
@@ -10,16 +12,19 @@ interface RateOrderViewProps {
 }
 
 export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onSubmit }) => {
-  const [deliveryRating, setDeliveryRating] = useState(0);
-  const [restaurantRating, setRestaurantRating] = useState(0);
+  const [deliveryRating, setDeliveryRating] = useState(order.ratingData?.deliveryRating || 0);
+  const [restaurantRating, setRestaurantRating] = useState(order.ratingData?.restaurantRating || 0);
   const [selectedTip, setSelectedTip] = useState<number | null>(null);
-  const [itemsRating, setItemsRating] = useState<Record<string, number>>({});
+  const [itemsRating, setItemsRating] = useState<Record<string, number>>(order.ratingData?.itemRatings || {});
   const [itemsFeedback, setItemsFeedback] = useState<Record<string, string>>({});
   const [packagingRating, setPackagingRating] = useState<string | null>(null);
   const [selectedDeliveryTags, setSelectedDeliveryTags] = useState<string[]>([]);
   const [customTipAmount, setCustomTipAmount] = useState<string>('');
   const [isTipPaid, setIsTipPaid] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [alreadyRated, setAlreadyRated] = useState(order.isRated || false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Simulating that 10 minutes have passed since delivery
   const isPast10Mins = true;
@@ -30,34 +35,70 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
   const foodItems = order.items.split(',').map(item => item.trim());
 
   const handleItemRate = (item: string, rating: number) => {
+    if (alreadyRated) return;
     setItemsRating(prev => ({ ...prev, [item]: rating }));
   };
 
   const toggleDeliveryTag = (tag: string) => {
+    if (alreadyRated) return;
     setSelectedDeliveryTags(prev => 
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
 
-  const isSubmitEnabled = deliveryRating > 0 || restaurantRating > 0;
+  const isSubmitEnabled = !alreadyRated && !isSubmitting && (deliveryRating > 0 || restaurantRating > 0);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isSubmitEnabled) return;
-    
-    setShowSuccessMessage(true);
-    
-    setTimeout(() => {
-      const reviewData: Review = {
-        itemsRating,
-        deliveryRating,
-        reviewText: JSON.stringify({ restaurantRating, tip: selectedTip === -1 ? Number(customTipAmount) : selectedTip, packagingRating, selectedDeliveryTags, itemsFeedback }),
-        selectedTags: selectedDeliveryTags,
-        mediaFiles: [],
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      };
+    setIsSubmitting(true);
+    setErrorMessage('');
 
-      onSubmit(reviewData);
-    }, 1500);
+    try {
+      const orderId = order.realOrderId || order.id;
+      const response = await fetch(`${BASE_URL}/consumer/profile/orders/${orderId}/rate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantRating,
+          deliveryRating,
+          itemRatings: itemsRating,
+          comment: JSON.stringify({
+            tip: selectedTip === -1 ? Number(customTipAmount) : selectedTip,
+            packagingRating,
+            selectedDeliveryTags,
+            itemsFeedback
+          })
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to submit rating.');
+      }
+
+      setAlreadyRated(true);
+      setShowSuccessMessage(true);
+      
+      setTimeout(() => {
+        const reviewData: Review = {
+          itemsRating,
+          deliveryRating,
+          reviewText: JSON.stringify({ restaurantRating, selectedDeliveryTags }),
+          selectedTags: selectedDeliveryTags,
+          mediaFiles: [],
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        };
+
+        onSubmit(reviewData);
+      }, 1500);
+
+    } catch (err: any) {
+      console.error("Submit rating error:", err.message);
+      setErrorMessage(err.message || 'Failed to submit rating. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -387,11 +428,11 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           </div>
 
           <div className="flex flex-col gap-2">
-            <button className="w-full py-2.5 bg-slate-50 text-blue-600 rounded-xl text-sm font-bold border border-slate-200 active:scale-95 transition-transform">
+            <button 
+              onClick={() => downloadInvoice(order)}
+              className="w-full py-2.5 bg-[#00bd6f] text-white rounded-xl text-sm font-bold active:scale-95 transition-transform flex items-center justify-center gap-2 shadow-sm"
+            >
               Download Invoice
-            </button>
-            <button className="w-full py-2.5 bg-slate-50 text-blue-600 rounded-xl text-sm font-bold border border-slate-200 active:scale-95 transition-transform">
-              Download Restaurant Invoice
             </button>
           </div>
         </div>

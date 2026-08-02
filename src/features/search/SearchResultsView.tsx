@@ -26,6 +26,7 @@ import { MOCK_MENU } from "@/data/menu";
 import { Restaurant, MenuItem, FilterOptions } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { GridMenuItemCard } from "@/features/collection/GridMenuItemCard";
+import { useDebounce } from "@/shared/hooks/useDebounce";
 
 interface SearchResultsViewProps {
   onBack: () => void;
@@ -44,6 +45,7 @@ const FILTER_CHIPS = [
 
 export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, initialQuery = 'Burger', onRestaurantClick, onItemAdd, onMicClick }) => {
   const [query, setQuery] = useState(initialQuery);
+  const debouncedQuery = useDebounce(query, 300);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterOptions>({
@@ -56,14 +58,15 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     priceRange: null
   });
 
-  // Call real-time H3 powered search API
+  // Call real-time H3 powered search API with debounced query & pagination limits
   const { data: searchApiResult, isLoading: isSearchLoading } = useSearch({
-    query,
+    query: debouncedQuery,
     vegOnly: activeFilters.dietary === 'veg',
     minRating: activeFilters.minRating,
+    limit: 20,
   });
 
-  const { suggestions } = useSearchSuggestions(query);
+  const { suggestions } = useSearchSuggestions(debouncedQuery);
 
   const apiRestaurants = useMemo(() => {
     if (!searchApiResult?.restaurants) return [];

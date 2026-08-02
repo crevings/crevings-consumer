@@ -141,10 +141,12 @@ export interface SearchApiParams {
   city?: string;
   vegOnly?: boolean;
   minRating?: number;
+  limit?: number;
+  offset?: number;
 }
 
 export const useSearch = (params: SearchApiParams) => {
-  const { query, lat, lng, city, vegOnly, minRating } = params;
+  const { query, lat, lng, city, vegOnly, minRating, limit = 20, offset = 0 } = params;
   const shouldFetch = Boolean(query && query.trim().length > 0);
 
   const queryParams = new URLSearchParams();
@@ -154,6 +156,8 @@ export const useSearch = (params: SearchApiParams) => {
   if (city) queryParams.set("city", city);
   if (vegOnly) queryParams.set("vegOnly", "true");
   if (minRating) queryParams.set("minRating", String(minRating));
+  queryParams.set("limit", String(limit));
+  queryParams.set("offset", String(offset));
 
   const endpoint = shouldFetch ? `/consumer/restaurants/search?${queryParams.toString()}` : null;
   const { data, error, isLoading, mutate } = useSWR(endpoint, fetcher, { revalidateOnFocus: false });
@@ -181,12 +185,21 @@ export const useSearchSuggestions = (query: string, city?: string) => {
   };
 };
 
-export const useCategoryDetail = (categoryName: string, lat?: number, lng?: number, city?: string) => {
+export const useCategoryDetail = (
+  categoryName: string, 
+  lat?: number, 
+  lng?: number, 
+  city?: string, 
+  limit: number = 20, 
+  offset: number = 0
+) => {
   const shouldFetch = Boolean(categoryName && categoryName.trim().length > 0);
   const queryParams = new URLSearchParams();
   if (lat) queryParams.set("lat", String(lat));
   if (lng) queryParams.set("lng", String(lng));
   if (city) queryParams.set("city", city);
+  queryParams.set("limit", String(limit));
+  queryParams.set("offset", String(offset));
 
   const endpoint = shouldFetch
     ? `/consumer/restaurants/search/category/${encodeURIComponent(categoryName)}?${queryParams.toString()}`

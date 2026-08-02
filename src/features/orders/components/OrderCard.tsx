@@ -36,8 +36,8 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onViewDetailsClick,
   onReorderClick
 }) => {
-  const isCompleted = order.status === 'Completed';
-  const isCancelled = order.status === 'Cancelled';
+  const isCompleted = (order.status as string) === 'Completed' || (order.status as string) === 'COMPLETED' || (order.status as string) === 'DELIVERED';
+  const isCancelled = (order.status as string) === 'Cancelled' || (order.status as string) === 'CANCELLED';
   const isActive = order.status === 'Active';
 
   const getTypeConfig = (type: OrderType) => {
@@ -187,13 +187,15 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
       {/* Action Buttons */}
       <div className="flex gap-2.5">
-        <button 
-          onClick={() => onViewDetailsClick?.(order)}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors shadow-sm border border-slate-100/50 active:scale-95"
-        >
-          <FileText className="w-4 h-4 text-slate-500" />
-          Details
-        </button>
+        {!isCancelled && (
+          <button 
+            onClick={() => onViewDetailsClick?.(order)}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors shadow-sm border border-slate-100/50 active:scale-95"
+          >
+            <FileText className="w-4 h-4 text-slate-500" />
+            Details
+          </button>
+        )}
         
         <button 
           onClick={() => onReorderClick?.(order)}
@@ -204,13 +206,23 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         </button>
 
         {isCompleted && (
-          <button 
-            onClick={() => review ? onViewReviewClick?.(order) : onRateClick?.(order)}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors shadow-sm border border-slate-100/50 active:scale-95"
-          >
-            <Star className={`w-4 h-4 ${review ? 'fill-amber-400 text-amber-400' : 'text-slate-500'}`} />
-            {review ? 'Rated' : 'Rate Order'}
-          </button>
+          (order.isRated || review) ? (
+            <button 
+              disabled
+              className="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 text-slate-400 py-2.5 rounded-xl text-[13px] font-medium border border-slate-200 cursor-not-allowed"
+            >
+              <Star className="w-4 h-4 text-slate-400 fill-slate-300" />
+              Rated
+            </button>
+          ) : (
+            <button 
+              onClick={() => onRateClick?.(order)}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors shadow-sm border border-slate-100/50 active:scale-95"
+            >
+              <Star className="w-4 h-4 text-slate-500" />
+              Rate Order
+            </button>
+          )
         )}
       </div>
     </div>
