@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { BASE_URL } from "../../api/fetcher";
 
 interface LoginViewProps {
@@ -21,6 +21,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [isSavingName, setIsSavingName] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
+  const [showRestoredModal, setShowRestoredModal] = useState(false);
+  const [isNewUserLogin, setIsNewUserLogin] = useState(false);
 
   const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -128,14 +130,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
       setAuthenticatedUser(data.user);
 
-      // Check if first-time user without a custom name
-      if (data.isNewUser || !data.user?.name || data.user.name === "New User" || data.user.name === "Valued Customer") {
-        setView("name");
+      const isNew = Boolean(data.isNewUser || !data.user?.name || data.user.name === "New User" || data.user.name === "Valued Customer");
+      setIsNewUserLogin(isNew);
+
+      if (data.deletionCancelled) {
+        setShowRestoredModal(true);
       } else {
-        if (onLoginSuccess) {
-          onLoginSuccess(data.user);
+        if (isNew) {
+          setView("name");
+        } else {
+          if (onLoginSuccess) {
+            onLoginSuccess(data.user);
+          }
+          navigate("/");
         }
-        navigate("/");
       }
     } catch (err: any) {
       setOtpError(true);
@@ -359,6 +367,39 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
       </div>
+
+      {/* Account Restored Custom UI Modal */}
+      {showRestoredModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[28px] p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center text-[#00bd6f] mb-4 border border-emerald-100/60 shadow-sm">
+              <ShieldCheck className="w-9 h-9" strokeWidth={2.2} />
+            </div>
+            
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Account Restored!</h3>
+            <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
+              Welcome back! Your scheduled account deletion request has been automatically cancelled and your account is fully retained.
+            </p>
+
+            <button
+              onClick={() => {
+                setShowRestoredModal(false);
+                if (isNewUserLogin) {
+                  setView("name");
+                } else {
+                  if (onLoginSuccess) {
+                    onLoginSuccess(authenticatedUser);
+                  }
+                  navigate("/");
+                }
+              }}
+              className="w-full py-3.5 bg-[#00bd6f] text-white font-bold rounded-xl text-base shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+            >
+              Continue to App
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

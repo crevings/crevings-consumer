@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { UserProfile, Order, Review } from '@/types';
-import { updateUserProfile, getPastOrders } from '../../api/user';
+import { updateUserProfile, requestAccountDeletionApi, getPastOrders } from '../../api/user';
 import { OrderCard } from './components/OrderCard';
 
 interface ProfileViewProps {
@@ -75,6 +75,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<UserProfile>(userProfile);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [showDeletionScheduledModal, setShowDeletionScheduledModal] = useState(false);
   const navigate = useNavigate();
 
   const [pastOrders, setPastOrders] = useState<Order[]>([]);
@@ -539,8 +540,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                  <h3 className="text-[20px] font-black text-slate-900 tracking-tight text-center mb-3">
                    Request Account Deletion
                  </h3>
-                 <p className="text-[15px] font-medium text-slate-500 text-center mb-8 px-2 leading-relaxed">
-                   Are you sure you want to delete your account? This action cannot be undone. You will lose access to all your saved addresses and order history.
+                 <p className="text-[14px] font-medium text-slate-500 text-center mb-6 px-2 leading-relaxed">
+                   Initiating deletion will schedule your account for permanent deletion in <strong className="text-slate-800">48 hours</strong>.
+                   <br /><br />
+                   Logging back into your account within the 48-hour period will automatically cancel the deletion request and retain your account.
                  </p>
                  
                  <div className="w-full flex gap-3 pb-4">
@@ -551,16 +554,63 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                      Cancel
                    </button>
                    <button 
-                     onClick={() => {
-                       setShowDeleteAccount(false);
-                       // Add deletion logic here
-                     }}
-                     className="flex-1 bg-red-600 text-white font-bold py-4 rounded-[16px] active:scale-95 transition-all text-[15px] shadow-lg shadow-red-600/20"
-                   >
-                     Delete Account
-                   </button>
+                      onClick={async () => {
+                        try {
+                          await requestAccountDeletionApi();
+                          setShowDeleteAccount(false);
+                          setShowDeletionScheduledModal(true);
+                        } catch (err: any) {
+                          alert(err.message || "Failed to schedule account deletion");
+                        }
+                      }}
+                      className="flex-1 bg-red-600 text-white font-bold py-4 rounded-[16px] active:scale-95 transition-all text-[15px] shadow-lg shadow-red-600/20"
+                    >
+                      Delete Account
+                    </button>
                  </div>
                </div>
+             </motion.div>
+           </>
+         )}
+       </AnimatePresence>
+
+       {/* Custom Account Deletion Scheduled Modal */}
+       <AnimatePresence>
+         {showDeletionScheduledModal && (
+           <>
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               className="fixed inset-0 bg-slate-900/60 z-[110] backdrop-blur-sm"
+             />
+             <motion.div 
+               initial={{ scale: 0.9, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               exit={{ scale: 0.9, opacity: 0 }}
+               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+               className="fixed inset-x-4 top-1/2 -translate-y-1/2 bg-white rounded-[32px] z-[120] p-6 max-w-sm mx-auto shadow-2xl flex flex-col items-center text-center border border-slate-100"
+             >
+               <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 mb-4 border border-amber-100/60 shadow-sm">
+                 <Clock className="w-8 h-8" strokeWidth={2.2} />
+               </div>
+               
+               <h3 className="text-xl font-bold text-slate-900 mb-2">Account Deletion Scheduled</h3>
+               <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
+                 Your account is scheduled for permanent deletion in <strong className="text-slate-800">48 hours</strong>.
+                 <br /><br />
+                 If you change your mind, simply log back into your account within 48 hours to retain it.
+               </p>
+
+               <button
+                 onClick={() => {
+                   setShowDeletionScheduledModal(false);
+                   onLogout();
+                 }}
+                 className="w-full py-4 bg-slate-900 text-white font-bold rounded-[16px] text-[15px] shadow-lg shadow-slate-900/20 active:scale-95 transition-transform"
+               >
+                 Understood, Log Out
+               </button>
              </motion.div>
            </>
          )}

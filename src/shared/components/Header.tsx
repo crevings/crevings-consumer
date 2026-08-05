@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ currentLocation, onSearchClick, 
         <div className="flex items-center gap-2 mb-1 relative z-10">
           <div 
             onClick={onSearchClick}
-            className="flex-1 flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-[1.25rem] shadow-sm cursor-pointer transition-all active:scale-[0.98] group overflow-hidden"
+            className="flex-1 flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-[1.25rem] cursor-pointer transition-all active:scale-[0.98] group overflow-hidden"
           >
             <div className="flex items-center gap-3 truncate">
               <Search className="w-5 h-5 text-slate-900 stroke-[2.5] shrink-0" />

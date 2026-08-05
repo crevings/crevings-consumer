@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, Bike, UtensilsCrossed, Star, Store, ChevronRight } from "lucide-react";
+import { SlidersHorizontal, Bike, UtensilsCrossed, Star, Store, ChevronRight, ChefHat } from "lucide-react";
 import { Restaurant, FilterOptions } from "@/types";
 import { useRestaurants, useItemsUnder99 } from "../../api/restaurants";
 import { CURATED_COLLECTIONS } from "../../data/collections";
@@ -474,20 +474,36 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                 />
               ))}
 
-              <div ref={lastElementRef} className="py-6 flex items-center justify-center">
+              <div ref={lastElementRef} className="pt-6 pb-2 flex items-center justify-center">
                 {isLoadingMore && (
                   <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
                 )}
-                {!isLoadingMore && isReachingEnd && visibleRestaurants.length > 0 && (
-                  <p className="text-xs text-slate-400 font-medium">You've reached the end!</p>
-                )}
               </div>
 
-              <div className="mt-2 text-left">
-                <p className="text-sm font-medium text-slate-400">
-                  built with 💖
-                </p>
-              </div>
+              {/* Bottom Page Art SVG & Loud Greyed-Out Crevings Branding */}
+              {(!isLoadingMore || isReachingEnd) && visibleRestaurants.length > 0 && (
+                <div className="mt-8 mb-6 flex flex-col items-center text-center px-2">
+                  {/* Home Page Bottom Art SVG */}
+                  <div className="w-[calc(100%+2rem)] -mx-4 mb-6 overflow-hidden bg-white flex items-center justify-center">
+                    <img 
+                      src="/home-page-bottom-art.svg" 
+                      alt="Crevings Bottom Art" 
+                      className="w-full h-[260px] sm:h-[320px] object-contain bg-white" 
+                    />
+                  </div>
+
+                  {/* Loud Greyed-Out Crevings Branding */}
+                  <div className="py-4 flex flex-col items-center select-none opacity-80">
+                   
+
+                    <p className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                      <span>You've reached the end!</span>
+                      <span>•</span>
+                      <span>Built with 💖</span>
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="py-20 flex flex-col items-center text-center">

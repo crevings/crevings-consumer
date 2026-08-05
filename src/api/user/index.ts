@@ -106,8 +106,8 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
 
     return {
       id: o.orderId,
-      restaurantName: o.branchDetails?.profile?.restaurantInfo?.name || "Crevings Restaurant",
-      location: o.branchDetails?.profile?.restaurantInfo?.address || o.customerDetails?.address || "Delivery Address",
+      restaurantName: o.restaurantName || o.branchDetails?.profile?.restaurantInfo?.name || o.branchDetails?.name || o.branchDetails?.profile?.restaurantInfo?.legalName || o.branchName || "",
+      location: o.restaurantAddress || o.branchDetails?.profile?.restaurantInfo?.address || (typeof o.branchDetails?.address === 'string' ? o.branchDetails.address : [o.branchDetails?.address?.street, o.branchDetails?.address?.city].filter(Boolean).join(', ')) || "",
       rating: 0,
       items: itemsList || "1 item",
       orderDate: formattedDate,
@@ -133,4 +133,23 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
     nextCursor: data.nextCursor,
     hasMore: data.hasMore,
   };
+};
+
+/**
+ * Request account deletion (48-hour grace period).
+ */
+export const requestAccountDeletionApi = async () => {
+  const response = await fetch(`${BASE_URL}/consumer/profile/request-deletion`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Failed to request account deletion.");
+  }
+  return data;
 };

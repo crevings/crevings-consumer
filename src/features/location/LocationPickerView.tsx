@@ -1,11 +1,18 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Home, MapPin, Briefcase, Map, MoreVertical, Plus, ArrowLeft, Navigation, ChevronRight, ChevronDown, ChevronUp, Edit2, Trash2, Landmark, Building, Castle, Building2, Church, HandMetal, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Home, MapPin, Briefcase, Map, MoreVertical, Plus, ArrowLeft, Navigation, ChevronRight, ChevronDown, ChevronUp, Edit2, Trash2, Landmark, Building, Castle, Building2, Church, HandMetal, X, Loader2 } from 'lucide-react';
 import { MapLocationPickerView } from "@/features/location/MapLocationPickerView";
 import { EditAddressView } from '@/features/location/EditAddressView';
 import { motion, AnimatePresence } from 'framer-motion';
-import Fuse from 'fuse.js';
 
 import { SavedAddress } from '@/types';
+
+interface SearchResultItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  coords?: [number, number];
+  placeId?: string;
+}
 
 function uuidv7(): string {
   const now = Date.now();
@@ -51,7 +58,8 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
   const [showEditAddress, setShowEditAddress] = useState(false);
   const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [isSearchingLocations, setIsSearchingLocations] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showAllAddresses, setShowAllAddresses] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -59,32 +67,122 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setIsInitialLoading(false);
-    }, 1000);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
-  const searchSuggestions = useMemo(() => [
-    { id: 1, title: 'Koregaon Park', subtitle: 'Pune, Maharashtra', coords: [18.5362, 73.8939] as [number, number], distance: '2.4 km' },
-    { id: 2, title: 'Viman Nagar', subtitle: 'Pune, Maharashtra', coords: [18.5679, 73.9143] as [number, number], distance: '4.1 km' },
-    { id: 3, title: 'Baner', subtitle: 'Pune, Maharashtra', coords: [18.5590, 73.7868] as [number, number], distance: '8.5 km' },
-    { id: 4, title: 'Kalyani Nagar', subtitle: 'Pune, Maharashtra', coords: [18.5482, 73.9033] as [number, number], distance: '3.2 km' },
-    { id: 5, title: 'Hinjewadi', subtitle: 'Pune, Maharashtra', coords: [18.5913, 73.7389] as [number, number], distance: '12.8 km' },
-    { id: 6, title: 'Kharadi', subtitle: 'Pune, Maharashtra', coords: [18.5515, 73.9348] as [number, number], distance: '6.2 km' },
-    { id: 7, title: 'Wagholi', subtitle: 'Pune, Maharashtra', coords: [18.5794, 73.9818] as [number, number], distance: '9.4 km' },
-    { id: 8, title: 'Pimpri-Chinchwad', subtitle: 'Maharashtra', coords: [18.6298, 73.7997] as [number, number], distance: '15.1 km' },
-    { id: 9, title: 'Shivajinagar', subtitle: 'Pune, Maharashtra', coords: [18.5314, 73.8446] as [number, number], distance: '1.2 km' },
-    { id: 10, title: 'Magarpatta', subtitle: 'Pune, Maharashtra', coords: [18.5123, 73.9240] as [number, number], distance: '5.6 km' },
-  ], []);
+  // Filter saved addresses matching searchQuery
+  const matchingSavedAddresses = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().trim();
+    return (addresses || []).filter(
+      a => a.type.toLowerCase().includes(q) || 
+           a.address.toLowerCase().includes(q) || 
+           (a.building && a.building.toLowerCase().includes(q)) || 
+           (a.street && a.street.toLowerCase().includes(q))
+    );
+  }, [searchQuery, addresses]);
 
-  const fuse = useMemo(() => new Fuse(searchSuggestions, {
-    keys: ['title', 'subtitle'],
-    threshold: 0.4,
-  }), [searchSuggestions]);
+  // Dynamic location search effect (Google Places / Nominatim API)
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q || q.length < 2) {
+      setSearchResults([]);
+      setIsSearchingLocations(false);
+      return;
+    }
 
-  const filteredSuggestions = useMemo(() => {
-    if (!searchQuery) return [];
-    return fuse.search(searchQuery).map(result => result.item);
-  }, [searchQuery, fuse]);
+    setIsSearchingLocations(true);
+    const timer = setTimeout(async () => {
+      // 1. Google Places Autocomplete fallback check
+      if (typeof window !== 'undefined' && window.google?.maps?.places?.AutocompleteService) {
+        try {
+          const service = new google.maps.places.AutocompleteService();
+          service.getPlacePredictions(
+            { input: q, componentRestrictions: { country: 'in' } },
+            (predictions, status) => {
+              setIsSearchingLocations(false);
+              if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const results: SearchResultItem[] = predictions.map((p, idx) => ({
+                  id: p.place_id || String(idx),
+                  title: p.structured_formatting?.main_text || p.description,
+                  subtitle: p.structured_formatting?.secondary_text || '',
+                  placeId: p.place_id,
+                }));
+                setSearchResults(results);
+              }
+            }
+          );
+          return;
+        } catch (err) {
+          console.warn('[LocationPicker] Google Autocomplete warning:', err);
+        }
+      }
+
+      // 2. OpenStreetMap Nominatim real-time search API
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=8`);
+        const data = await res.json();
+        setIsSearchingLocations(false);
+        if (Array.isArray(data)) {
+          const results: SearchResultItem[] = data.map((item: any) => {
+            const parts = (item.display_name || '').split(',');
+            const title = parts[0] ? parts[0].trim() : item.display_name;
+            const subtitle = parts.slice(1).join(',').trim();
+            return {
+              id: String(item.place_id || item.osm_id || Math.random()),
+              title,
+              subtitle,
+              coords: [parseFloat(item.lat), parseFloat(item.lon)] as [number, number],
+            };
+          });
+          setSearchResults(results);
+        }
+      } catch (err) {
+        console.warn('[LocationPicker] Geocoding API search error:', err);
+        setIsSearchingLocations(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSelectSearchResult = (result: SearchResultItem) => {
+    if (result.coords) {
+      setSelectedInitialLocation({
+        title: result.title,
+        subtitle: result.subtitle,
+        coords: result.coords,
+      });
+      setShowMapPicker(true);
+    } else if (result.placeId && typeof window !== 'undefined' && window.google?.maps?.Geocoder) {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ placeId: result.placeId }, (results, status) => {
+        if (status === 'OK' && results?.[0]?.geometry?.location) {
+          const loc = results[0].geometry.location;
+          setSelectedInitialLocation({
+            title: result.title,
+            subtitle: result.subtitle,
+            coords: [loc.lat(), loc.lng()],
+          });
+        } else {
+          setSelectedInitialLocation({
+            title: result.title,
+            subtitle: result.subtitle,
+            coords: [28.6139, 77.2090], // Fallback default center
+          });
+        }
+        setShowMapPicker(true);
+      });
+    } else {
+      setSelectedInitialLocation({
+        title: result.title,
+        subtitle: result.subtitle,
+        coords: [28.6139, 77.2090],
+      });
+      setShowMapPicker(true);
+    }
+  };
 
   const toggleMenu = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -202,30 +300,56 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
         </div>
 
         {searchQuery.length > 0 ? (
-          <div className="bg-white rounded-[24px] border border-slate-100 overflow-hidden mb-8">
-            {filteredSuggestions.map((suggestion, idx, arr) => (
+          <div className="bg-white rounded-[24px] border border-slate-100 overflow-hidden mb-8 shadow-sm">
+            {/* Matching Saved Addresses */}
+            {matchingSavedAddresses.length > 0 && (
+              <div className="border-b border-slate-100 bg-emerald-50/40 p-3">
+                <p className="text-[11px] font-bold text-[#00BD6F] uppercase tracking-wider px-2">Saved Addresses</p>
+                {matchingSavedAddresses.map((addr) => (
+                  <button
+                    key={addr.id}
+                    onClick={() => handleSetDefault(addr.id)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white transition-colors text-left mt-1"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                      <Home className="w-4 h-4 text-[#00BD6F]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 text-xs">{addr.type}</p>
+                      <p className="text-[12px] text-slate-500 truncate">{addr.address}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Dynamic Search Results */}
+            {searchResults.map((suggestion, idx, arr) => (
               <button 
                 key={suggestion.id}
-                onClick={() => {
-                  setSelectedInitialLocation({ title: suggestion.title, subtitle: suggestion.subtitle, coords: suggestion.coords });
-                  setShowMapPicker(true);
-                }}
-                className={`w-full flex items-center gap-4 p-5 hover:bg-slate-50 active:bg-slate-100 transition-all group ${idx !== arr.length - 1 ? 'border-b border-slate-100' : ''}`}
+                onClick={() => handleSelectSearchResult(suggestion)}
+                className={`w-full flex items-center gap-4 p-4 hover:bg-slate-50 active:bg-slate-100 transition-all text-left group ${idx !== arr.length - 1 ? 'border-b border-slate-100' : ''}`}
               >
-                  <div className="w-[42px] h-[42px] bg-[#00BD6F] rounded-[14px] flex items-center justify-center shrink-0 shadow-sm transition-colors">
-                      <MapPin className="w-5 h-5 text-white stroke-[2]" />
-                  </div>
-                  <div className="flex-1 text-left">
-                      <h4 className="font-bold text-slate-900 text-[15px]">{suggestion.title}</h4>
-                      <p className="text-[13px] text-slate-500 mt-0.5">{suggestion.subtitle}</p>
-                  </div>
-                  <div className="text-[12px] font-bold text-[#00BD6F] shrink-0">
-                      {suggestion.distance}
-                  </div>
+                <div className="w-[40px] h-[40px] bg-[#00BD6F]/10 rounded-[14px] flex items-center justify-center shrink-0">
+                  <MapPin className="w-5 h-5 text-[#00BD6F] stroke-[2]" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <h4 className="font-bold text-slate-900 text-[14px] line-clamp-1">{suggestion.title}</h4>
+                  <p className="text-[12px] text-slate-500 mt-0.5 line-clamp-2">{suggestion.subtitle}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
               </button>
             ))}
-            {filteredSuggestions.length === 0 && (
-              <div className="p-8 text-center text-slate-500 text-[14px]">No results found for "{searchQuery}"</div>
+
+            {isSearchingLocations && (
+              <div className="p-6 flex items-center justify-center gap-2 text-slate-500 text-xs font-medium">
+                <Loader2 className="w-4 h-4 animate-spin text-[#00BD6F]" />
+                Searching places...
+              </div>
+            )}
+
+            {!isSearchingLocations && searchResults.length === 0 && matchingSavedAddresses.length === 0 && (
+              <div className="p-8 text-center text-slate-500 text-[14px]">No location results found for "{searchQuery}"</div>
             )}
           </div>
         ) : (

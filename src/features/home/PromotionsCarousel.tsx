@@ -3,60 +3,29 @@ import React, { useState, useEffect, useRef } from 'react';
 const PROMOTIONS = [
   {
     id: 1,
-    title: '50% OFF',
-    subtitle: 'On your first 3 orders',
-    badge: 'Limited Time',
-    buttonText: 'Order Now',
-    bgClass: 'bg-gradient-to-br from-slate-900 to-slate-800',
-    badgeClass: 'bg-yellow-400/20 text-yellow-400 border border-yellow-400/30',
-    buttonClass: 'bg-white text-slate-900 hover:bg-slate-50',
-    images: [
-      'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=50&h=50&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=50&h=50&fit=crop&q=80',
-    ],
-    decorations: (
-      <>
-        <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-400 rounded-full blur-[60px] opacity-20 transform translate-x-1/3 -translate-y-1/3"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500 rounded-full blur-[50px] opacity-20 transform -translate-x-1/2 translate-y-1/2"></div>
-      </>
-    )
+    tagline: "CELEBRATE",
+    title: "Flat ₹150 OFF",
+    subtitle: "ON YOUR FIRST 3 ORDERS THIS WEEK!",
+    buttonText: "Order Now",
+    bgColor: "bg-[#4e2718]",
+    taglineColor: "text-[#e8b982] italic font-black text-xs tracking-wider uppercase",
+    titleColor: "text-[#fff6e5] text-2xl sm:text-[26px] font-black leading-tight mt-1 mb-1",
+    subtitleColor: "text-[#f3d9bd] text-[10px] font-extrabold tracking-wide uppercase leading-tight max-w-[145px]",
+    buttonBg: "bg-[#33180d] text-[#fff6e5] hover:bg-[#281209]",
+    image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80"
   },
   {
     id: 2,
-    title: 'Fresh Salads',
-    subtitle: 'Start at ₹149 only',
-    badge: 'Healthy Eats',
-    buttonText: 'Explore Menu',
-    bgClass: 'bg-gradient-to-br from-blue-600 to-indigo-700',
-    badgeClass: 'bg-white/20 text-white border border-white/20',
-    buttonClass: 'bg-white text-blue-700 hover:bg-slate-50',
-    images: [
-      'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=50&h=50&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=50&h=50&fit=crop&q=80',
-    ],
-    decorations: (
-      <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-[60px] opacity-20 transform translate-x-1/3 -translate-y-1/3"></div>
-    )
-  },
-  {
-    id: 3,
-    title: 'Free Delivery',
-    subtitle: 'On orders above ₹499',
-    badge: 'Weekend Special',
-    buttonText: 'Claim Now',
-    bgClass: 'bg-gradient-to-br from-[#00BD6F] to-emerald-700',
-    badgeClass: 'bg-white/20 text-white border border-white/20',
-    buttonClass: 'bg-white text-[#00BD6F] hover:bg-slate-50',
-    images: [
-      'https://images.unsplash.com/photo-1626132647523-66f5bf380027?w=50&h=50&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1606491956689-2ea866880c84?w=50&h=50&fit=crop&q=80',
-    ],
-    decorations: (
-      <>
-        <div className="absolute bottom-0 right-0 w-40 h-40 bg-white rounded-full blur-[60px] opacity-20 transform translate-x-1/3 translate-y-1/3"></div>
-        <div className="absolute top-0 left-0 w-20 h-20 bg-yellow-400 rounded-full blur-[40px] opacity-20 transform -translate-x-1/2 -translate-y-1/2"></div>
-      </>
-    )
+    tagline: "FRIENDS' ZONE",
+    title: "Up To 50% OFF",
+    subtitle: "AT TOP SPOTS THIS FRIENDSHIP DAY!",
+    buttonText: "Book Now",
+    bgColor: "bg-[#f4d4b3]",
+    taglineColor: "text-[#8e9213] italic font-black text-xs tracking-wider uppercase",
+    titleColor: "text-[#124528] text-2xl sm:text-[26px] font-black leading-tight mt-1 mb-1",
+    subtitleColor: "text-[#1b4d2e] text-[10px] font-extrabold tracking-wide uppercase leading-tight max-w-[145px]",
+    buttonBg: "bg-[#124528] text-white hover:bg-[#0c331c]",
+    image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=500&auto=format&fit=crop&q=80"
   }
 ];
 
@@ -69,7 +38,7 @@ export const PromotionsCarousel: React.FC = () => {
       if (!scrollRef.current) return;
       
       const nextIndex = (activeIndex + 1) % PROMOTIONS.length;
-      const cardWidth = 320 + 16; // w-[320px] + gap-4
+      const cardWidth = 320 + 16;
       
       if (nextIndex === 0) {
         scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
@@ -78,7 +47,7 @@ export const PromotionsCarousel: React.FC = () => {
       }
       
       setActiveIndex(nextIndex);
-    }, 4000);
+    }, 4500);
 
     return () => clearInterval(interval);
   }, [activeIndex]);
@@ -94,44 +63,41 @@ export const PromotionsCarousel: React.FC = () => {
   };
 
   return (
-    <div className="mb-10 pl-4 mt-2">
+    <div className="mb-8 px-4 mt-2">
       <div 
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto no-scrollbar pr-4 snap-x snap-mandatory"
+        className="flex gap-4 overflow-x-auto no-scrollbar -mx-4 px-4 snap-x snap-mandatory"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         {PROMOTIONS.map((promo) => (
           <div 
             key={promo.id}
-            className={`w-[320px] h-[160px] ${promo.bgClass} rounded-[28px] p-5 text-white relative overflow-hidden shrink-0 snap-center shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-slate-700/50`}
+            className={`w-[320px] sm:w-[340px] h-[175px] ${promo.bgColor} rounded-[32px] p-5 text-white relative overflow-hidden shrink-0 snap-start shadow-md flex items-center justify-between gap-3 border border-slate-900/5`}
           >
-            {promo.decorations}
-            <div className="relative z-10 h-full flex flex-col justify-between">
-               <div>
-                   <div className={`inline-block ${promo.badgeClass} text-[10px] uppercase font-black px-2.5 py-1 rounded-full mb-2 tracking-wider`}>
-                     {promo.badge}
-                   </div>
-                   <h3 className="text-[26px] font-black leading-tight tracking-tight">{promo.title}</h3>
-                   <p className="text-white/80 text-[13px] font-medium mt-1">{promo.subtitle}</p>
-               </div>
-               <div className="flex items-center justify-between mt-2">
-                  <button className={`${promo.buttonClass} px-5 py-2.5 rounded-[14px] text-[13px] font-bold active:scale-95 transition-transform shadow-md`}>
-                    {promo.buttonText}
-                  </button>
-                  <div className="flex -space-x-3">
-                     {promo.images.map((img, idx) => (
-                       <img key={idx} src={img} className="w-9 h-9 rounded-full border-2 border-slate-800/20 object-cover" />
-                     ))}
-                  </div>
-               </div>
+            <div className="flex-1 flex flex-col justify-between h-full py-0.5 z-10">
+              <div>
+                <p className={promo.taglineColor}>{promo.tagline}</p>
+                <h3 className={promo.titleColor}>{promo.title}</h3>
+                <p className={promo.subtitleColor}>{promo.subtitle}</p>
+              </div>
+
+              <div className="pt-1.5 pb-2">
+                <button className={`${promo.buttonBg} px-5 py-2.5 rounded-[16px] text-xs font-bold leading-none active:scale-95 transition-transform shadow-md inline-flex items-center justify-center whitespace-nowrap mb-1.5`}>
+                  {promo.buttonText}
+                </button>
+              </div>
+            </div>
+
+            <div className="w-[135px] h-[135px] rounded-[24px] overflow-hidden shrink-0 shadow-sm border border-white/10 relative z-10">
+              <img src={promo.image} alt={promo.title} className="w-full h-full object-cover" />
             </div>
           </div>
         ))}
       </div>
       
       {/* Pagination Indicators */}
-      <div className="flex justify-center gap-1.5 mt-4 pr-4">
+      <div className="flex justify-center gap-1.5 mt-4">
         {PROMOTIONS.map((_, idx) => (
           <div 
             key={idx}

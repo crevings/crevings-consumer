@@ -260,8 +260,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button 
                     key={star}
-                    onClick={() => setDeliveryRating(star)}
-                    className="active:scale-90 transition-transform p-1"
+                    disabled={alreadyRated}
+                    onClick={() => { if (!alreadyRated) setDeliveryRating(star); }}
+                    className={`p-1 transition-transform ${alreadyRated ? 'cursor-default opacity-80' : 'active:scale-90'}`}
                   >
                     <Star 
                       className={`w-8 h-8 transition-colors duration-200 ${
@@ -278,8 +279,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                   {['Good Nature', 'Timely delivered', 'Very fast', 'Polite'].map(tag => (
                     <button
                       key={tag}
+                      disabled={alreadyRated}
                       onClick={() => toggleDeliveryTag(tag)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${alreadyRated ? 'cursor-default' : ''} ${
                         selectedDeliveryTags.includes(tag)
                           ? 'bg-blue-50 border-blue-500 text-blue-700'
                           : 'bg-white border-slate-200 text-slate-600'
@@ -316,7 +318,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           </div>
 
           <div className="mb-5 border-b border-slate-100 pb-4">
-            <p className="text-xs font-bold text-slate-500 mb-1">Order #{order.id}</p>
+            <p className="text-xs font-bold text-slate-500 mb-1">Order #{order.realOrderId || order.id}</p>
             <p className="text-sm font-medium text-slate-800">{order.items}</p>
           </div>
 
@@ -326,8 +328,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
               {[1, 2, 3, 4, 5].map((star) => (
                 <button 
                   key={star}
-                  onClick={() => setRestaurantRating(star)}
-                  className="active:scale-90 transition-transform p-1"
+                  disabled={alreadyRated}
+                  onClick={() => { if (!alreadyRated) setRestaurantRating(star); }}
+                  className={`p-1 transition-transform ${alreadyRated ? 'cursor-default opacity-80' : 'active:scale-90'}`}
                 >
                   <Star 
                     className={`w-8 h-8 transition-colors duration-200 ${
@@ -337,7 +340,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 font-medium text-center">Thank you for your feedback! This helps us serve you better.</p>
+            <p className="text-[10px] text-slate-400 font-medium text-center">
+              {alreadyRated ? 'You have already submitted feedback for this order.' : 'Thank you for your feedback! This helps us serve you better.'}
+            </p>
           </div>
 
           {/* Rate Items */}
@@ -352,8 +357,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button 
                           key={star}
+                          disabled={alreadyRated}
                           onClick={() => handleItemRate(item, star)}
-                          className="active:scale-90 transition-transform p-0.5"
+                          className={`p-0.5 transition-transform ${alreadyRated ? 'cursor-default opacity-80' : 'active:scale-90'}`}
                         >
                           <Star 
                             className={`w-5 h-5 transition-colors duration-200 ${
@@ -368,10 +374,11 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                     <div className="animate-fadeInUp">
                       <input
                         type="text"
+                        disabled={alreadyRated}
                         placeholder="What did you like or dislike?"
                         value={itemsFeedback[item] || ''}
                         onChange={(e) => setItemsFeedback(prev => ({ ...prev, [item]: e.target.value }))}
-                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-700"
+                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-700 disabled:opacity-60"
                       />
                     </div>
                   )}
@@ -387,8 +394,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
               {['Good', 'Not good', 'Need to improve'].map(option => (
                 <button
                   key={option}
-                  onClick={() => setPackagingRating(option)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  disabled={alreadyRated}
+                  onClick={() => { if (!alreadyRated) setPackagingRating(option); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${alreadyRated ? 'cursor-default' : ''} ${
                     packagingRating === option
                       ? 'bg-blue-50 border-blue-500 text-blue-700'
                       : 'bg-white border-slate-200 text-slate-600'
@@ -408,22 +416,22 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           <div className="space-y-2 mb-4 text-sm">
             <div className="flex justify-between text-slate-600">
               <span>Item Total</span>
-              <span>₹{(order.price || order.total || 40) - 40}</span>
+              <span>₹{order.subtotal || (order.total > 40 ? order.total - 40 : order.total || order.price || 0)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Delivery Fee</span>
-              <span>₹20</span>
+              <span>₹{order.deliveryFee || 25}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Taxes & Charges</span>
-              <span>₹20</span>
+              <span>₹{order.tax || 15}</span>
             </div>
             <div className="flex justify-between font-bold text-slate-800 pt-2 border-t border-slate-100">
               <span>Total Paid</span>
-              <span>₹{order.price || order.total || 0}</span>
+              <span>₹{order.total || order.price || 0}</span>
             </div>
             <div className="flex justify-between text-slate-500 text-xs pt-1">
-              <span>Paid via UPI</span>
+              <span>Paid via {order.payment?.method || 'Online'}</span>
             </div>
           </div>
 
@@ -465,12 +473,15 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
         {/* Section 4: Customer Details Card */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
           <div className="mb-3">
-            <h3 className="text-sm font-bold text-slate-800 mb-0.5">Amanat, 749387XXXX</h3>
+            <h3 className="text-sm font-bold text-slate-800 mb-0.5">
+              {order.customerDetails?.name || (order as any).customer || 'Customer'}
+              {order.customerDetails?.phone ? `, ${order.customerDetails.phone}` : ''}
+            </h3>
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-700 mb-0.5">Delivered at Home</p>
+            <p className="text-xs font-bold text-slate-700 mb-0.5">Delivery Address</p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              123, 4th Cross, 5th Main Rd, Sector 6, HSR Layout, Bengaluru, Karnataka 560102
+              {order.customerDetails?.address || order.location || 'Delivery Address'}
             </p>
           </div>
         </div>
@@ -502,12 +513,14 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           onClick={handleSubmit}
           disabled={!isSubmitEnabled}
           className={`w-full py-4 rounded-xl font-bold text-base transition-all ${
-            isSubmitEnabled 
+            alreadyRated
+              ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+              : isSubmitEnabled 
               ? 'bg-blue-600 text-white active:bg-blue-700 shadow-md' 
               : 'bg-slate-200 text-slate-400 cursor-not-allowed'
           }`}
         >
-          Submit Feedback
+          {alreadyRated ? 'Already Rated' : 'Submit Feedback'}
         </button>
       </div>
 

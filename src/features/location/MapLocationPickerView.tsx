@@ -14,6 +14,10 @@ interface PredictionItem {
 
 interface MapLocationPickerViewProps {
   initialLocation?: { title: string, subtitle: string, coords: [number, number] } | null;
+  initialBuilding?: string;
+  initialStreet?: string;
+  initialAddressType?: string;
+  isEditing?: boolean;
   onClose: () => void;
   onConfirm: (address: { 
     type: string; 
@@ -24,12 +28,20 @@ interface MapLocationPickerViewProps {
   }) => void;
 }
 
-export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ initialLocation, onClose, onConfirm }) => {
+export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ 
+  initialLocation, 
+  initialBuilding = '',
+  initialStreet = '',
+  initialAddressType = 'Home',
+  isEditing = false,
+  onClose, 
+  onConfirm 
+}) => {
   const [isMoving, setIsMoving] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [useAccountDetails, setUseAccountDetails] = useState(true);
-  const [showAddressForm, setShowAddressForm] = useState(false);
-  const [addressType, setAddressType] = useState('Home');
+  const [showAddressForm, setShowAddressForm] = useState(isEditing);
+  const [addressType, setAddressType] = useState(initialAddressType);
   const [customAddressType, setCustomAddressType] = useState('');
   const [searchQuery, setSearchQuery] = useState(initialLocation?.title || '');
   const [predictions, setPredictions] = useState<PredictionItem[]>([]);
@@ -38,20 +50,20 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ in
     if (initialLocation && initialLocation.coords) {
       return { lat: initialLocation.coords[0], lng: initialLocation.coords[1] };
     }
-    return { lat: 18.5822, lng: 73.9197 }; // Default Pune Airport
+    return { lat: 28.6139, lng: 77.2090 }; // Default Center
   });
 
   const [selectedAddress, setSelectedAddress] = useState({
-    title: initialLocation?.title || 'Pune International Airport',
-    subtitle: initialLocation?.subtitle || 'New Airport Road, Pune International Airport Area, Lohegaon, Pune, Maharashtra 411032, India'
+    title: initialLocation?.title || 'Selected Location',
+    subtitle: initialLocation?.subtitle || 'Selected Address Area'
   });
 
   const isDragging = useRef(false);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   // Form Fields
-  const [building, setBuilding] = useState('');
-  const [street, setStreet] = useState('');
+  const [building, setBuilding] = useState(initialBuilding);
+  const [street, setStreet] = useState(initialStreet);
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
 

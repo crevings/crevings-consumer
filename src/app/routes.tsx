@@ -33,7 +33,6 @@ import { HiddenRestaurantsView } from "../features/favourites/HiddenRestaurantsV
 import { FavoritesView } from "../features/favourites/FavoritesView";
 import { PlatformFeedbackView } from "../features/profile/pages/PlatformFeedbackView";
 import { RateOrderView } from "../features/orders/RateOrderView";
-import { OrderDetailsModal } from "../features/orders/components/OrderDetailsModal";
 import { LocationPickerView } from "../features/location/LocationPickerView";
 
 import { useUser } from "../contexts/UserContext";
@@ -226,7 +225,6 @@ export const AppRoutes: React.FC = () => {
   } = useRestaurant();
   const { cart, setCart, menuItems, setMenuItems } = useCart();
   const { setIsLoadingView, setLoadingViewType, isVoiceSearchOpen, setIsVoiceSearchOpen, searchQuery, setSearchQuery } = useApp();
-  const [detailsOrder, setDetailsOrder] = React.useState<Order | null>(null);
 
   const handleHideRestaurant = (id: string | number) => {
     setConfirmModal({ type: "hide", restaurantId: String(id) });
@@ -303,7 +301,6 @@ export const AppRoutes: React.FC = () => {
   }, [isAddressRequired, reactRouterLocation.pathname, navigate]);
 
   return (
-    <>
     <Routes>
       {/* Main Layout: wrapped tab views */}
       <Route element={<MainLayout />}>
@@ -386,7 +383,8 @@ export const AppRoutes: React.FC = () => {
                   setActiveOrder(order);
                   navigate("/order-tracking");
                 } else {
-                  setDetailsOrder(order);
+                  setSelectedOrder(order);
+                  navigate("/rate-order");
                 }
               }}
             />
@@ -568,12 +566,5 @@ export const AppRoutes: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
-    {detailsOrder && (
-      <OrderDetailsModal 
-        order={detailsOrder} 
-        onClose={() => setDetailsOrder(null)} 
-      />
-    )}
-    </>
   );
 };
