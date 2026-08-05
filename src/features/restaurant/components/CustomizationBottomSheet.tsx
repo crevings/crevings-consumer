@@ -322,7 +322,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                 <p className="text-[13px] text-gray-500 font-medium mt-0.5">{section.subtitle}</p>
               </div>
 
-              <div className="px-4 py-3 grid grid-cols-2 gap-3">
+              <div className="px-4 py-3 flex flex-col gap-3">
                 {section.items.map((addon) => {
                   const isAddonSelected = addonQuantities[addon.id] > 0;
                   const isBeverageSelected = selectedBeverages[addon.id];
@@ -351,39 +351,34 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                           handleAddonIncrement(addon.id, section);
                         }
                       }}
-                      className={`relative flex flex-col p-3 rounded-2xl border transition-all cursor-pointer ${isSelected
+                      className={`relative flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${isSelected
                           ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]'
-                          : 'border-gray-200 bg-white shadow-sm'
+                          : 'border-gray-200 bg-white'
                         } ${!addon.inStock || isUnselectable ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      {/* Top: Veg/Non-veg & Name */}
-                      <div className="flex items-start gap-2 mb-1">
-                        <div className={`mt-0.5 w-3.5 h-3.5 border flex items-center justify-center rounded-sm shrink-0 ${addon.isVeg ? 'border-green-600' : 'border-red-600'}`}>
-                          {addon.isVeg ? (
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
-                          ) : (
-                            <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px] border-b-red-600" />
-                          )}
+                      {/* Left: image thumbnail (no veg badge) */}
+                      {addon.image ? (
+                        <div className="relative w-[70px] h-[70px] rounded-xl overflow-hidden shrink-0">
+                          <img src={addon.image} alt={addon.name} className="w-full h-full object-cover" />
                         </div>
-                        <h4 className="text-[13px] font-bold text-gray-900 leading-tight">{addon.name}</h4>
-                      </div>
+                      ) : null}
 
-                      {/* Middle: Description */}
-                      <div className="flex-1 mb-3 pl-[22px]">
+                      {/* Center: name + description */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-[14px] font-bold text-gray-900 leading-tight">{addon.name}</h4>
                         {addon.description && (
-                          <p className="text-[11px] text-gray-500 line-clamp-2 leading-snug">{addon.description}</p>
+                          <p className="text-[11px] text-gray-500 line-clamp-2 leading-snug mt-0.5">{addon.description}</p>
                         )}
                         {!addon.inStock && (
                           <span className="inline-block mt-1 text-[9px] font-bold text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md uppercase tracking-wide">Out of Stock</span>
                         )}
                       </div>
 
-                      {/* Bottom: Price & Action */}
-                      <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-100">
-                        <span className="text-[14px] font-black text-gray-900">₹{addon.price}</span>
-
-                        {section.type === 'beverage' ? (
-                          addon.inStock ? (
+                      {/* Right: price + action */}
+                      {section.type === 'beverage' ? (
+                        <div className="flex flex-col items-end gap-2 shrink-0">
+                          <span className="text-[15px] font-black text-gray-900 leading-none">₹{addon.price}</span>
+                          {addon.inStock ? (
                             addonQuantities[addon.id] ? (
                               <div className="flex items-center justify-between bg-[#00bd6f] rounded-lg h-7 px-1 min-w-[64px] shadow-sm">
                                 <button onClick={(e) => { e.stopPropagation(); handleAddonDecrement(addon.id); }} className="w-6 h-full flex items-center justify-center text-white active:scale-95">
@@ -409,19 +404,41 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                             <button disabled className="bg-gray-50 text-gray-400 border border-gray-200 px-3 py-1 rounded-lg font-bold text-[12px]">
                               ADD
                             </button>
-                          )
-                        ) : (
-                          // Addon selection (Checkbox)
-                          <button
-                            disabled={!addon.inStock || isUnselectable}
-                            onClick={(e) => { e.stopPropagation(); toggleBeverage(addon.id, section.items, section.selectionLimit); }}
-                            className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${selectedBeverages[addon.id] ? 'border-[#00bd6f] bg-[#00bd6f]' : 'border-gray-300 bg-white'
-                              } ${isUnselectable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[15px] font-black text-gray-900 leading-none">₹{addon.price}</span>
+                          {/* Addon selection (Animated Checkbox matching custom styling) */}
+                          <label
+                            onClick={(e) => e.stopPropagation()}
+                            className={`relative inline-block w-6 h-6 cursor-pointer select-none transition-transform duration-200 hover:scale-110 active:scale-85 ${
+                              !addon.inStock || isUnselectable ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
-                            {selectedBeverages[addon.id] && <CheckCircle2 className="w-4 h-4 text-white" />}
-                          </button>
-                        )}
-                      </div>
+                            <input
+                              type="checkbox"
+                              checked={!!selectedBeverages[addon.id]}
+                              disabled={!addon.inStock || isUnselectable}
+                              onChange={() => toggleBeverage(addon.id, section.items, section.selectionLimit)}
+                              className="absolute opacity-0 w-0 h-0 peer"
+                            />
+                            <div className="absolute inset-0 bg-white border-2 border-gray-300 rounded-[8px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex items-center justify-center peer-checked:bg-[#00bd6f] peer-checked:border-[#00bd6f] peer-checked:shadow-[0_2px_10px_rgba(0,189,111,0.4)] peer-focus-visible:outline-2 peer-focus-visible:outline-[#00bd6f] peer-focus-visible:outline-offset-2">
+                              <svg
+                                className="w-[65%] h-[65%] fill-none stroke-white stroke-[3.5] stroke-linecap-round stroke-linejoin-round"
+                                style={{
+                                  strokeDasharray: 24,
+                                  strokeDashoffset: selectedBeverages[addon.id] ? 0 : 24,
+                                  transition: 'stroke-dashoffset 0.3s ease 0.1s',
+                                }}
+                                viewBox="0 0 24 24"
+                              >
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

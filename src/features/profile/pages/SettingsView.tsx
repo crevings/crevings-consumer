@@ -15,6 +15,7 @@ import {
   Share2,
   Moon,
 } from "lucide-react";
+import { requestLocationAndGetPosition, isCapacitorNative, openLocationSettings } from "@/services/geolocation";
 
 interface SettingsViewProps {
   onBack: () => void;
@@ -37,6 +38,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [modalAlert, setModalAlert] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    isLocation?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
@@ -73,11 +84,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleToggle = async (key: keyof typeof toggles) => {
     // If turning OFF, just do it
     if (toggles[key]) {
-      setToggles((prev) => ({ ...prev, [key]: false }));
       if (key === "darkMode") {
         document.documentElement.classList.remove("dark");
         localStorage.setItem("theme", "light");
       }
+      setToggles((prev) => ({ ...prev, [key]: false }));
       return;
     }
 
@@ -85,21 +96,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     try {
       switch (key) {
         case "location":
-          if (!navigator.geolocation) {
-            alert("Location is not supported by your browser");
-            return;
-          }
-          await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 5000,
-              maximumAge: 0,
-            });
-          });
+          await requestLocationAndGetPosition();
           break;
         case "mic":
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Microphone is not supported by your browser");
+            setModalAlert({
+              isOpen: true,
+              title: "Microphone Access",
+              message: "Microphone is not supported by your browser or device.",
+            });
             return;
           }
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -109,12 +114,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           break;
         case "push":
           if (!("Notification" in window)) {
-            alert("Notifications are not supported by your browser");
+            setModalAlert({
+              isOpen: true,
+              title: "Notifications",
+              message: "Notifications are not supported by your browser or device.",
+            });
             return;
           }
           const perm = await Notification.requestPermission();
           if (perm !== "granted") {
-            alert("Notification permission denied");
+            setModalAlert({
+              isOpen: true,
+              title: "Notification Permission",
+              message: "Notification permission was denied. Please enable notifications in device settings.",
+            });
             return;
           }
           break;
@@ -126,8 +139,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         case "email":
         case "call":
         case "rcs":
-          // These are communication preferences, no native browser "permission prompt" exists.
-          // We treat them as user consent toggles.
           break;
       }
 
@@ -135,14 +146,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setToggles((prev) => ({ ...prev, [key]: true }));
     } catch (err: any) {
       console.warn(`Could not enable ${key}:`, err);
-      if (err.code === 1) {
-        // User denied
-        alert(
-          `${key === "location" ? "Location" : key} permission was denied.`,
-        );
-      } else {
-        alert(`Could not access ${key}. Please check your browser settings.`);
-      }
+      setModalAlert({
+        isOpen: true,
+        title: `${key === "location" ? "Location" : key} Access Needed`,
+        message:
+          err?.code === 1
+            ? `${key === "location" ? "Location" : key} permission was denied. Please allow permission to proceed.`
+            : `Could not access ${key}. Please check your device permission settings.`,
+        isLocation: key === "location",
+      });
     }
   };
 
@@ -325,6 +337,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </button>
               <button className="flex-1 py-4 rounded-[16px] font-bold text-white bg-red-500 hover:bg-red-600 transition-colors">
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permission Alert Popup Modal */}
+      {modalAlert.isOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/50 backdrop-blur-[2px] px-6">
+          <div className="w-full max-w-[340px] bg-white rounded-3xl shadow-2xl p-6 text-center animate-[slideUp_0.25s_ease-out]">
+            <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
+              <MapPin className="w-7 h-7 text-[#00bd6f]" />
+            </div>
+            <h3 className="text-[16px] font-bold text-slate-900 mt-4">
+              {modalAlert.title}
+            </h3>
+            <p className="text-[13px] text-slate-500 mt-1.5 leading-relaxed font-medium">
+              {modalAlert.message}
+            </p>
+            <div className="mt-5 space-y-2">
+              {modalAlert.isLocation && isCapacitorNative() && (
+                <button
+                  onClick={openLocationSettings}
+                  className="w-full bg-[#00bd6f] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all shadow-md shadow-green-500/20"
+                >
+                  Open Device Settings
+                </button>
+              )}
+              <button
+                onClick={() => setModalAlert((prev) => ({ ...prev, isOpen: false }))}
+                className="w-full border border-slate-200 text-slate-700 py-3 rounded-xl font-bold text-[13px] hover:bg-slate-50 active:scale-[0.99] transition-all"
+              >
+                Got it
               </button>
             </div>
           </div>

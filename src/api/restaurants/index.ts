@@ -93,6 +93,28 @@ export const useRestaurantDetail = (id: string | undefined, limit: number = 20) 
 };
 
 /**
+ * Fetch active custom menus with their highlighted items arranged in order.
+ */
+export const useRestaurantCustomMenus = (id: string | undefined) => {
+  const { data, error, isLoading } = useSWR(
+    id ? `/consumer/restaurants/${id}/menus` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  return {
+    customMenus: (data?.data || []) as Array<{
+      menuId: string;
+      name: string;
+      itemCount: number;
+      items: MenuItem[];
+    }>,
+    isLoading,
+    isError: error,
+  };
+};
+
+/**
  * Fetch items under 99 with SWR Infinite.
  */
 export const useItemsUnder99 = (limit: number = 10) => {

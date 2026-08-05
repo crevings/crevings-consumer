@@ -1,5 +1,6 @@
 import React from "react";
 import { SWRConfig } from "swr";
+import { UtensilsCrossed } from "lucide-react";
 import { AppProvider, useApp } from "./src/contexts/AppContext";
 import { UserProvider, useUser } from "./src/contexts/UserContext";
 import { LocationProvider } from "./src/contexts/LocationContext";
@@ -15,9 +16,9 @@ const AppContent: React.FC = () => {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
-        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-bold text-sm">Initializing Crevings...</p>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3" />
+        <p className="text-slate-500 font-bold text-sm">Loading...</p>
       </div>
     );
   }
@@ -36,7 +37,7 @@ const AppContent: React.FC = () => {
           {/* Header skeleton */}
           <div className="bg-white px-4 py-4 flex items-center justify-between border-b border-slate-100/50">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse" />
+              <div className="w-9 h-9 rounded-xl bg-slate-100 animate-pulse" />
               <div className="h-5 w-24 bg-slate-100 rounded-lg animate-pulse" />
             </div>
             <div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />

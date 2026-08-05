@@ -6,7 +6,7 @@ import { CustomizationBottomSheet } from "@/features/restaurant/components/Custo
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
-import { useRestaurantDetail, useRestaurantOffers } from "../../api/restaurants";
+import { useRestaurantDetail, useRestaurantOffers, useRestaurantCustomMenus } from "../../api/restaurants";
 import { RestaurantHeader } from "./components/RestaurantHeader";
 import { RestaurantOffers } from "./components/RestaurantOffers";
 import { RestaurantFilters } from "./components/RestaurantFilters";
@@ -48,6 +48,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   autoAddItem
 }) => {
   const { menuItems, isLoading: isMenuLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurantDetail(restaurant.id);
+  const { customMenus } = useRestaurantCustomMenus(restaurant.id);
   const { offers, isLoadingMore: isOffersLoadingMore, isReachingEnd: isOffersReachingEnd, size: offersSize, setSize: setOffersSize } = useRestaurantOffers(restaurant.id, 5);
   const { cart, setCart } = useCart();
   const { setAutoAddItem } = useRestaurant();
@@ -295,6 +296,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         />
 
         <RestaurantMenuList 
+          customMenus={customMenus}
           filteredMenu={filteredMenu}
           categories={categories}
           expandedCategories={expandedCategories}

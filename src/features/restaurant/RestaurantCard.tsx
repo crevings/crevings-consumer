@@ -70,11 +70,11 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
       <div className="mb-4">
         <div className="flex justify-between items-start mb-3">
           <div>
-            <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
-              {isAd && <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Ad</span>}
-              {isPureVeg && <span className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Pure Veg</span>}
-              <span className="bg-orange-50 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Best in {bestIn}</span>
-            </div>
+            {isPureVeg && (
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <span className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Pure Veg</span>
+              </div>
+            )}
             <h3 className="text-[22px] font-black text-slate-900 leading-tight tracking-tight mb-1">
               {name}
             </h3>

@@ -33,12 +33,8 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             </div>
         </div>
         
-        <div className="absolute bottom-16 flex flex-col items-center gap-4">
-            <div className="flex gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-            </div>
+        <div className="absolute bottom-16 flex flex-col items-center gap-3">
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin"></div>
             <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Preparing Delights</p>
         </div>
     </div>

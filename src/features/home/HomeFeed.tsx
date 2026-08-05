@@ -171,21 +171,21 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           <h3 className="text-lg font-black text-slate-900 mb-4 tracking-tight">
             Explore Categories
           </h3>
-          <div className="grid grid-rows-2 grid-flow-col gap-x-6 gap-y-4 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x">
+          <div className="grid grid-rows-2 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x">
             {MIND_CATEGORIES.map((cat, i) => (
               <div
                 key={i}
                 onClick={() => onCategoryClick(cat.name)}
-                className="w-[86px] flex flex-col items-center gap-2 shrink-0 group cursor-pointer active:scale-95 transition-transform snap-start"
+                className="w-[90px] flex flex-col items-center gap-0.5 shrink-0 group cursor-pointer active:scale-95 transition-transform snap-start"
               >
-                <div className="w-[74px] h-[74px] rounded-full bg-slate-50 p-1.5 flex items-center justify-center overflow-hidden border border-slate-100/90 shadow-sm group-hover:shadow-md transition-all">
+                <div className="w-[80px] h-[72px] flex items-center justify-center">
                   <img
                     src={cat.image}
                     alt={cat.name}
-                    className="w-full h-full object-contain transform group-hover:scale-110 transition-transform duration-300"
+                    className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
                   />
                 </div>
-                <span className="text-[13px] font-bold text-slate-800 text-center leading-tight transition-colors group-hover:text-slate-950 line-clamp-1">
+                <span className="text-[13px] font-bold text-slate-800 text-center leading-tight transition-colors group-hover:text-slate-950 line-clamp-1 -mt-0.5">
                   {cat.name}
                 </span>
               </div>
@@ -196,10 +196,14 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
         {/* Items Under ₹99 Section */}
         <div className="mb-10 px-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[19px] font-black text-slate-900 tracking-tight">
-              Items under ₹99
+            <h3 className="flex items-center gap-1.5 text-[19px] font-black text-slate-900 tracking-tight">
+              <span>Item</span>
+              <span className="bg-[#00bd6f] text-white text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full leading-none">
+                under
+              </span>
+              <span className="text-[#00bd6f]">₹99</span>
             </h3>
-            <span className="text-[13px] font-bold text-blue-600 active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer">
+            <span className="text-[13px] font-bold text-[#00a862] active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer">
               See all <ChevronRight className="w-4 h-4" />
             </span>
           </div>
@@ -301,7 +305,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           </div>
         </div>
 
-        <div className="px-4 mb-6">
+        <div id="all-restaurants-section" className="px-4 mb-6">
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center -mx-4 px-4">
             <button
               onClick={() => setIsFilterOpen(true)}

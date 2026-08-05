@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Bell } from 'lucide-react';
+import { requestLocationAndGetPosition } from '@/services/geolocation';
 
 export const PermissionManager = () => {
   const [step, setStep] = useState(0);
@@ -36,7 +37,7 @@ export const PermissionManager = () => {
     if (allowed) {
         try {
             if (currentPerm.id === 'location') {
-                navigator.geolocation.getCurrentPosition(() => {}, () => {});
+                await requestLocationAndGetPosition();
             } else if (currentPerm.id === 'notification') {
                 if ('Notification' in window) {
                     await Notification.requestPermission();

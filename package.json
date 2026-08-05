@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/geolocation": "^8.2.0",
     "@google/genai": "^1.52.0",
     "@react-google-maps/api": "^2.20.8",
     "boneyard-js": "^1.8.1",

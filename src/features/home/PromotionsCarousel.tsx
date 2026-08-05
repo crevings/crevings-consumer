@@ -29,7 +29,11 @@ const PROMOTIONS = [
   }
 ];
 
-export const PromotionsCarousel: React.FC = () => {
+interface PromotionsCarouselProps {
+  onOrderClick?: () => void;
+}
+
+export const PromotionsCarousel: React.FC<PromotionsCarouselProps> = ({ onOrderClick }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -38,7 +42,7 @@ export const PromotionsCarousel: React.FC = () => {
       if (!scrollRef.current) return;
       
       const nextIndex = (activeIndex + 1) % PROMOTIONS.length;
-      const cardWidth = 320 + 16;
+      const cardWidth = 335 + 16;
       
       if (nextIndex === 0) {
         scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
@@ -55,10 +59,21 @@ export const PromotionsCarousel: React.FC = () => {
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const scrollLeft = scrollRef.current.scrollLeft;
-    const cardWidth = 320 + 16;
+    const cardWidth = 335 + 16;
     const newIndex = Math.round(scrollLeft / cardWidth);
     if (newIndex !== activeIndex && newIndex >= 0 && newIndex < PROMOTIONS.length) {
       setActiveIndex(newIndex);
+    }
+  };
+
+  const handleCardClick = () => {
+    if (onOrderClick) {
+      onOrderClick();
+    } else {
+      const el = document.getElementById("all-restaurants-section");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
     }
   };
 
@@ -73,23 +88,30 @@ export const PromotionsCarousel: React.FC = () => {
         {PROMOTIONS.map((promo) => (
           <div 
             key={promo.id}
-            className={`w-[320px] sm:w-[340px] h-[175px] ${promo.bgColor} rounded-[32px] p-5 text-white relative overflow-hidden shrink-0 snap-start shadow-md flex items-center justify-between gap-3 border border-slate-900/5`}
+            onClick={handleCardClick}
+            className={`w-[335px] sm:w-[360px] h-[175px] ${promo.bgColor} rounded-[28px] p-4 text-white relative overflow-hidden shrink-0 snap-start shadow-md flex items-center justify-between gap-2 border border-slate-900/5 cursor-pointer active:scale-[0.99] transition-transform`}
           >
-            <div className="flex-1 flex flex-col justify-between h-full py-0.5 z-10">
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-1 z-10 pr-1">
               <div>
                 <p className={promo.taglineColor}>{promo.tagline}</p>
                 <h3 className={promo.titleColor}>{promo.title}</h3>
                 <p className={promo.subtitleColor}>{promo.subtitle}</p>
               </div>
 
-              <div className="pt-1.5 pb-2">
-                <button className={`${promo.buttonBg} px-5 py-2.5 rounded-[16px] text-xs font-bold leading-none active:scale-95 transition-transform shadow-md inline-flex items-center justify-center whitespace-nowrap mb-1.5`}>
+              <div className="pt-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick();
+                  }}
+                  className={`${promo.buttonBg} px-4 py-2 rounded-xl text-xs font-bold leading-none active:scale-95 transition-transform shadow-md inline-flex items-center justify-center whitespace-nowrap`}
+                >
                   {promo.buttonText}
                 </button>
               </div>
             </div>
 
-            <div className="w-[135px] h-[135px] rounded-[24px] overflow-hidden shrink-0 shadow-sm border border-white/10 relative z-10">
+            <div className="w-[115px] h-[115px] sm:w-[125px] sm:h-[125px] rounded-[20px] overflow-hidden shrink-0 shadow-sm border border-white/10 relative z-10 self-center">
               <img src={promo.image} alt={promo.title} className="w-full h-full object-cover" />
             </div>
           </div>

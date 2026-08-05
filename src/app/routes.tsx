@@ -122,8 +122,8 @@ const RestaurantDetailRouteWrapper: React.FC = () => {
   if (isRestaurantsLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
-        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-bold text-sm">Loading Restaurant...</p>
+        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
+        <p className="text-slate-500 font-bold text-sm">Loading...</p>
       </div>
     );
   }
@@ -157,8 +157,8 @@ const RestaurantInfoRouteWrapper: React.FC = () => {
   if (isRestaurantsLoading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
-        <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-bold text-sm">Loading Restaurant...</p>
+        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
+        <p className="text-slate-500 font-bold text-sm">Loading...</p>
       </div>
     );
   }

@@ -13,17 +13,6 @@ interface GridMenuItemCardProps {
 }
 
 export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quantity, onAdd, onRemove, onClick, restaurantName }) => {
-  const [showOtherApp, setShowOtherApp] = React.useState(true);
-
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setShowOtherApp(prev => !prev);
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
-
-  const otherAppPrice = Math.round(item.price * 1.4);
-
   return (
     <div 
       className={`flex flex-col w-full snap-center cursor-pointer group ${item.available === false ? 'opacity-50 grayscale' : ''}`}
@@ -40,11 +29,6 @@ export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quanti
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
             
-            {/* Rating Badge (Top Left) */}
-            <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-md rounded-[6px] px-1.5 py-0.5 flex items-center gap-0.5 z-10 pointer-events-none">
-              <Star className="w-2.5 h-2.5 text-green-600 fill-green-600" strokeWidth={2} />
-              <span className="text-slate-800 text-[9px] font-bold leading-none mt-0.5">{item.rating}</span>
-            </div>
 
             {/* Bestseller Badge (Top Right) */}
             {item.bestseller && (
@@ -129,33 +113,6 @@ export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quanti
             {/* Price */}
             <div className="mt-1.5 flex flex-col">
                 <span className="text-slate-900 font-black text-[15px] leading-none">₹{item.price}</span>
-                <div className="h-[12px] relative mt-1">
-                    <AnimatePresence mode="wait">
-                    {showOtherApp ? (
-                        <motion.span 
-                        key="other-app"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.3 }}
-                        className="text-[9px] font-bold text-slate-400 line-through absolute whitespace-nowrap"
-                        >
-                        ₹{otherAppPrice} on other apps
-                        </motion.span>
-                    ) : (
-                        <motion.span 
-                        key="save"
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        transition={{ duration: 0.3 }}
-                        className="text-[9px] font-bold text-[#00bd6f] absolute whitespace-nowrap"
-                        >
-                        You save {Math.round(((otherAppPrice - item.price) / otherAppPrice) * 100)}%
-                        </motion.span>
-                    )}
-                    </AnimatePresence>
-                </div>
             </div>
         </div>
     </div>

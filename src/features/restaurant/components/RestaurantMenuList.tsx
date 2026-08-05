@@ -3,12 +3,20 @@ import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { MenuItem } from '@/types';
 import { MenuItemCard } from './MenuItemCard';
 
+export interface CustomMenuSection {
+  menuId: string;
+  name: string;
+  itemCount?: number;
+  items: MenuItem[];
+}
+
 interface Category {
   name: string;
   count: number;
 }
 
 interface RestaurantMenuListProps {
+  customMenus?: CustomMenuSection[];
   filteredMenu: MenuItem[];
   categories: Category[];
   expandedCategories: Record<string, boolean>;
@@ -20,6 +28,7 @@ interface RestaurantMenuListProps {
 }
 
 export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
+  customMenus = [],
   filteredMenu,
   categories,
   expandedCategories,
@@ -39,13 +48,66 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
     );
   }
 
+  const filteredItemIds = new Set(filteredMenu.map((i) => i.id));
+  const customMenuItemIds = new Set(
+    customMenus.flatMap((menu) => (menu.items || []).map((item) => item.id))
+  );
+
   return (
     <div className="space-y-6">
+      {/* 1. Custom Menu Sections (Show menu items first in arranged order with menu name) */}
+      {customMenus.map((menu) => {
+        const isExpanded = expandedCategories[menu.name] !== false;
+        // Keep arranged order of items in this menu while respecting active filters
+        const sectionItems = (menu.items || []).filter((item) => filteredItemIds.has(item.id));
+
+        if (sectionItems.length === 0) return null;
+
+        return (
+          <div key={`custom-${menu.menuId || menu.name}`} className="border-b border-gray-100 pb-6 last:border-0">
+            <button
+              onClick={() => toggleCategory(menu.name)}
+              className="w-full flex items-center justify-between px-4 py-4 bg-gray-50/50 rounded-xl mb-4"
+            >
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[18px] font-bold text-gray-900">{menu.name}</h3>
+                </div>
+                <p className="text-[13px] text-gray-500 font-medium mt-0.5">{sectionItems.length} items</p>
+              </div>
+              {isExpanded ? (
+                <ChevronUp className="w-5 h-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500" />
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="flex flex-col gap-4 pb-4 px-4 -mx-4">
+                {sectionItems.map((item) => (
+                  <MenuItemCard
+                    key={`custom-${menu.name}-${item.id}`}
+                    item={item}
+                    getItemQuantity={getItemQuantity}
+                    handleAdd={handleAdd}
+                    handleRemove={handleRemove}
+                    onItemClick={onItemClick}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* 2. Regular Categories (Only show items that are NOT already in a custom menu) */}
       {categories.map((category) => {
-        const isExpanded = expandedCategories[category.name];
-        const categoryItems = category.name === 'Bestsellers' 
-          ? filteredMenu.filter(item => item.bestseller)
-          : filteredMenu.filter(item => (item.category || 'Main Course') === category.name);
+        const isExpanded = expandedCategories[category.name] !== false;
+        const categoryItems = (
+          category.name === 'Bestsellers' 
+            ? filteredMenu.filter(item => item.bestseller)
+            : filteredMenu.filter(item => (item.category || 'Main Course') === category.name)
+        ).filter((item) => !customMenuItemIds.has(item.id));
         
         if (categoryItems.length === 0) return null;
 

@@ -36,59 +36,50 @@ export const RestaurantOffers: React.FC<RestaurantOffersProps> = ({
   }, [isLoadingMore, isReachingEnd, onLoadMore]);
 
   if (!offers || offers.length === 0) {
-    if (isLoadingMore) {
-      return (
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4">
-          {[1, 2, 3].map(n => (
-            <div key={n} className="bg-slate-50 border border-slate-100 rounded-xl p-3 animate-pulse min-w-[240px] h-[58px] shrink-0" />
-          ))}
-        </div>
-      );
-    }
     return null;
   }
 
   return (
     <div 
       ref={containerRef}
-      className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4"
+      className="flex gap-3 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 pt-1"
     >
       {offers.map((offer) => {
         let title = offer.name;
         let subtitle = offer.description || "";
         
         if (offer.offerType === 'percentage') {
-          title = `${offer.discountPercent}% OFF`;
-          subtitle = offer.maxCap ? `Upto ₹${offer.maxCap} | Min order ₹${offer.minOrder || 0}` : `On all orders | Min order ₹${offer.minOrder || 0}`;
+          title = `Get ${offer.discountPercent}% off${offer.maxCap ? ` upto ₹${offer.maxCap}` : ''}`;
+          subtitle = offer.description || (offer.minOrder ? `On orders above ₹${offer.minOrder}` : `On selected items`);
         } else if (offer.offerType === 'flat') {
           title = `Flat ₹${offer.discountAmount} OFF`;
-          subtitle = `On orders above ₹${offer.minOrder || 0}`;
+          subtitle = offer.description || `On orders above ₹${offer.minOrder || 0}`;
         } else if (offer.offerType === 'bogo') {
           title = "BUY 1 GET 1";
-          subtitle = "BOGO on selected items";
+          subtitle = offer.description || "BOGO on selected items";
         } else if (offer.offerType === 'free_item') {
           title = `FREE ${offer.freeItemName}`;
-          subtitle = `On orders above ₹${offer.minOrder || 0}`;
+          subtitle = offer.description || `On orders above ₹${offer.minOrder || 0}`;
         }
 
         return (
           <div 
             key={offer.offerId}
             onClick={() => onSelectOffer(offer)}
-            className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[240px] shrink-0"
+            className="bg-white border border-slate-200/90 rounded-[18px] p-3.5 px-4 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[245px] shrink-0 shadow-sm"
           >
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-bold text-black leading-tight">{title}</span>
-              <span className="text-xs text-slate-500 font-medium mt-0.5">{subtitle}</span>
+            <div className="flex flex-col text-left pr-2">
+              <span className="text-[14px] font-extrabold text-slate-900 leading-tight">{title}</span>
+              <span className="text-[12px] text-slate-500 font-medium mt-0.5">{subtitle}</span>
             </div>
-            <span className="text-xs font-bold text-blue-600 ml-2 shrink-0">View</span>
+            <span className="text-[13px] font-bold text-[#00bd6f] ml-3 shrink-0">View</span>
           </div>
         );
       })}
 
       {isLoadingMore && (
         <div className="flex items-center justify-center min-w-[80px] shrink-0">
-          <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="w-5 h-5 border-2 border-slate-300 border-t-[#00bd6f] rounded-full animate-spin"></div>
         </div>
       )}
     </div>
