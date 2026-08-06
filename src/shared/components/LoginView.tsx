@@ -222,7 +222,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       {/* Top Hero Section with Full Background Image */}
       <div 
         className="flex-1 w-full bg-cover bg-center bg-no-repeat relative"
-        style={{ backgroundImage: "url('/Loginbgimg.jpg.jpeg')" }}
+        style={{ backgroundImage: "url('/Loginbgimg.jpeg')" }}
       />
 
       {/* Bottom Action Sheet */}
