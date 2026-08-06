@@ -389,7 +389,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         <div className="mt-6 text-center border-t border-slate-100 pt-4">
           <p className="text-[12px] text-slate-500 leading-relaxed">
             By continuing, you agree to our<br />
-            <a href="#" className="text-[#00bd6f] hover:underline font-medium">Terms of Service</a> and <a href="#" className="text-[#00bd6f] hover:underline font-medium">Privacy Policy</a>
+            <button type="button" onClick={() => navigate("/terms")} className="text-[#00bd6f] hover:underline font-medium">Terms of Service</button> and <button type="button" onClick={() => navigate("/privacy-policy")} className="text-[#00bd6f] hover:underline font-medium">Privacy Policy</button>
           </p>
         </div>
       </div>

@@ -9,10 +9,15 @@ import { CartProvider } from "./src/contexts/CartContext";
 import { AppRoutes } from "./src/app/routes";
 import { fetcher } from "./src/api/fetcher";
 import { LoginView } from "./src/shared/components/LoginView";
+import { TermsAndConditionsView } from "./src/features/profile/pages/TermsAndConditionsView";
+import { PrivacyPolicyView } from "./src/features/profile/pages/PrivacyPolicyView";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const AppContent: React.FC = () => {
   const { isLoadingView } = useApp();
   const { isAuthenticated, isLoadingAuth, onLoginSuccess } = useUser();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   if (isLoadingAuth) {
     return (
@@ -24,6 +29,23 @@ const AppContent: React.FC = () => {
   }
 
   if (!isAuthenticated) {
+    // Legal pages must be reachable BEFORE login (they are linked from the
+    // login screen — Terms of Service / Privacy Policy).
+    const isTerms = location.pathname === "/terms" || location.pathname === "/terms-and-conditions";
+    const isPrivacy = location.pathname === "/privacy-policy";
+
+    if (isTerms || isPrivacy) {
+      return (
+        <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto shadow-2xl relative">
+          {isTerms ? (
+            <TermsAndConditionsView onBack={() => navigate(-1)} />
+          ) : (
+            <PrivacyPolicyView onBack={() => navigate(-1)} />
+          )}
+        </div>
+      );
+    }
+
     return <LoginView onLoginSuccess={onLoginSuccess} />;
   }
 
