@@ -72,7 +72,7 @@ export const ConfirmationBottomSheet: React.FC<ConfirmationBottomSheetProps> = (
                 <Icon className="w-8 h-8" strokeWidth={2.5} />
             </div>
             
-            <h3 className="text-xl font-black text-slate-900 mb-2 tracking-tight leading-tight">
+            <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight leading-tight">
                 {getTitle()}
             </h3>
             <p className="text-slate-500 text-sm mb-8 px-4 leading-relaxed font-medium">

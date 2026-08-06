@@ -25,17 +25,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
             <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-sky-400 rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-500/30 mb-8 transform rotate-3 animate-pulse">
                 <ChefHat className="w-12 h-12 text-white" />
             </div>
-            <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Crevings</h1>
+            <h1 className="text-4xl font-bold text-slate-900 tracking-tighter mb-2">Crevings</h1>
             <div className="flex items-center gap-3">
                 <div className="h-0.5 w-6 bg-blue-500/30 rounded-full"></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Premium Delivery</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.4em]">Premium Delivery</p>
                 <div className="h-0.5 w-6 bg-blue-500/30 rounded-full"></div>
             </div>
         </div>
         
         <div className="absolute bottom-16 flex flex-col items-center gap-3">
             <div className="w-5 h-5 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin"></div>
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">Preparing Delights</p>
+            <p className="text-[9px] font-semibold text-slate-300 uppercase tracking-[0.2em]">Preparing Delights</p>
         </div>
     </div>
   );

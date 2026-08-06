@@ -259,7 +259,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
 
         {query && currentResultsLength > 0 && (
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-[13px] font-black text-slate-800 uppercase tracking-widest">
+            <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-widest">
               {searchType === 'restaurant' ? 'Restaurants' : 'Dishes'}
             </h2>
             <span className="text-[12px] font-bold text-slate-500 bg-slate-200/50 px-2.5 py-0.5 rounded-full">{currentResultsLength} results</span>

@@ -302,7 +302,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                     <span className={`text-[14px] font-bold mb-1 ${selectedVariant.id === variant.id ? 'text-[#00bd6f]' : 'text-gray-700'}`}>
                       {variant.name}
                     </span>
-                    <span className="text-[13px] font-black text-gray-900">₹{variant.price}</span>
+                    <span className="text-[13px] font-bold text-gray-900">₹{variant.price}</span>
                   </div>
                 ))}
               </div>
@@ -377,7 +377,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                       {/* Right: price + action */}
                       {section.type === 'beverage' ? (
                         <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className="text-[15px] font-black text-gray-900 leading-none">₹{addon.price}</span>
+                          <span className="text-[15px] font-bold text-gray-900 leading-none">₹{addon.price}</span>
                           {addon.inStock ? (
                             addonQuantities[addon.id] ? (
                               <div className="flex items-center justify-between bg-[#00bd6f] rounded-lg h-7 px-1 min-w-[64px] shadow-sm">
@@ -408,7 +408,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[15px] font-black text-gray-900 leading-none">₹{addon.price}</span>
+                          <span className="text-[15px] font-bold text-gray-900 leading-none">₹{addon.price}</span>
                           {/* Addon selection (Animated Checkbox matching custom styling) */}
                           <label
                             onClick={(e) => e.stopPropagation()}

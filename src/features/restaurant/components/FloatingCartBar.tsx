@@ -29,7 +29,7 @@ export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
         >
           <div className="relative w-10 h-10 flex items-center justify-center bg-[#00bd6f]/10 rounded-full shrink-0">
             <ShoppingCart className="w-5 h-5 text-[#00bd6f]" />
-            <span className="absolute -top-1 -right-1 bg-[#00bd6f] text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
+            <span className="absolute -top-1 -right-1 bg-[#00bd6f] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
               {totalItems}
             </span>
           </div>

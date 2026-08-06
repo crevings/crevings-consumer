@@ -75,7 +75,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
                 <span className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Pure Veg</span>
               </div>
             )}
-            <h3 className="text-[22px] font-black text-slate-900 leading-tight tracking-tight mb-1">
+            <h3 className="text-[22px] font-bold text-slate-900 leading-tight tracking-tight mb-1">
               {name}
             </h3>
             <div className="text-[13px] text-slate-600 font-medium mb-0.5">

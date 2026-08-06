@@ -274,15 +274,9 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
     }
   };
 
-  // Tap on "Use current location" → always show the in-app permission modal first
-  const handleLocateMe = () => {
+  // User tapped "Use current location" → directly request browser / Android system location permissions
+  const handleLocateMe = async () => {
     setLocationError(null);
-    setShowLocationModal(true);
-  };
-
-  // User tapped "Allow" → run the real permission request (OS dialog on Android via
-  // Capacitor, browser prompt on web). No native alert() anywhere.
-  const handleAllowLocation = async () => {
     setIsLocating(true);
     try {
       const pos = await requestLocationAndGetPosition();
@@ -294,17 +288,20 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       setShowLocationModal(false);
       setLocationError(null);
     } catch (error: any) {
-      if (error?.code !== 1) console.error("Error getting location", error); // user denial (code 1) is expected UX
+      if (error?.code !== 1) console.error("Error getting location", error);
       setPermissionGranted(false);
       setLocationError(
         error?.code === 1
-          ? 'Location permission is turned off. Enable it in your device settings to use your current location.'
-          : 'Could not access your location. Please try again.'
+          ? 'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
+          : 'Could not access your location. Please check your location settings and try again.'
       );
+      setShowLocationModal(true);
     } finally {
       setIsLocating(false);
     }
   };
+
+  const handleAllowLocation = handleLocateMe;
 
   const handleFinalSave = () => {
     const finalType = addressType === 'Other' ? (customAddressType || 'Other') : addressType;
@@ -464,9 +461,11 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
         {/* Use current location pill (below the pin) */}
         <button
           onClick={handleLocateMe}
-          className="absolute left-1/2 -translate-x-1/2 top-[calc(50%+108px)] z-20 bg-white text-[#00bd6f] rounded-full px-5 py-2.5 shadow-xl border border-slate-100 text-[13px] font-bold hover:bg-slate-50 active:scale-95 transition-all"
+          disabled={isLocating}
+          className="absolute left-1/2 -translate-x-1/2 top-[calc(50%+108px)] z-20 bg-white text-[#00bd6f] rounded-full px-5 py-2.5 shadow-xl border border-slate-100 text-[13px] font-bold hover:bg-slate-50 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-75"
         >
-          <span>Use current location</span>
+          {isLocating && <Loader2 className="w-4 h-4 animate-spin text-[#00bd6f]" />}
+          <span>{isLocating ? 'Getting location...' : 'Use current location'}</span>
         </button>
       </div>
 

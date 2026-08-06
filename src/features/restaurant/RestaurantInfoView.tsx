@@ -20,7 +20,7 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-lg font-black text-slate-900 leading-tight">About {restaurant.name}</h1>
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">About {restaurant.name}</h1>
             <p className="text-xs text-slate-500 font-medium">Detailed Information</p>
           </div>
         </div>

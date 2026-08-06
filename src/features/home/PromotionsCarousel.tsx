@@ -47,14 +47,14 @@ const PromotionCard: React.FC<{ promo: CompanyPromotion; onClick: () => void }> 
             </p>
           )}
           <h3
-            className="text-2xl sm:text-[26px] font-black leading-tight mt-1 mb-1"
+            className="text-2xl sm:text-[26px] font-bold leading-tight mt-1 mb-1"
             style={{ color: d.titleColor || "#fff6e5" }}
           >
             {promo.title}
           </h3>
           {promo.subtitle && (
             <p
-              className="text-[10px] font-extrabold tracking-wide uppercase leading-tight max-w-[145px]"
+              className="text-[10px] font-semibold tracking-wide uppercase leading-tight max-w-[145px]"
               style={{ color: d.subtitleColor || "#f3d9bd" }}
             >
               {promo.subtitle}

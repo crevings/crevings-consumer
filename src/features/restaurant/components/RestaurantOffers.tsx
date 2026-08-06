@@ -69,7 +69,7 @@ export const RestaurantOffers: React.FC<RestaurantOffersProps> = ({
             className="bg-white border border-slate-200/90 rounded-[18px] p-3.5 px-4 flex items-center justify-between cursor-pointer active:scale-95 transition-transform min-w-[245px] shrink-0 shadow-sm"
           >
             <div className="flex flex-col text-left pr-2">
-              <span className="text-[14px] font-extrabold text-slate-900 leading-tight">{title}</span>
+              <span className="text-[14px] font-semibold text-slate-900 leading-tight">{title}</span>
               <span className="text-[12px] text-slate-500 font-medium mt-0.5">{subtitle}</span>
             </div>
             <span className="text-[13px] font-bold text-[#00bd6f] ml-3 shrink-0">View</span>

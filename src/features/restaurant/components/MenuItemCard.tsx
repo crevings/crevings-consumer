@@ -110,7 +110,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
         <div className="flex items-center justify-between mt-auto pt-2">
           {/* Price & Tags */}
           <div className="flex items-center gap-3">
-            <span className="text-[17px] font-black text-gray-900 leading-none">₹{item.price}</span>
+            <span className="text-[17px] font-bold text-gray-900 leading-none">₹{item.price}</span>
           </div>
           
           {/* Action Button */}
@@ -119,7 +119,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
               <button onClick={() => handleRemove(item.id)} className="w-7 h-full flex items-center justify-center text-white active:scale-95">
                 <Minus className="w-4 h-4 stroke-[3]" />
               </button>
-              <span className="text-[14px] font-black text-white">{quantity}</span>
+              <span className="text-[14px] font-bold text-white">{quantity}</span>
               <button onClick={() => handleAdd(item.id)} className="w-7 h-full flex items-center justify-center text-white active:scale-95">
                 <Plus className="w-4 h-4 stroke-[3]" />
               </button>
@@ -128,7 +128,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <button 
               onClick={() => item.available !== false && handleAdd(item.id)} 
               disabled={item.available === false}
-              className={`px-5 py-1.5 rounded-full font-black text-[13px] flex items-center transition-transform tracking-wide ${
+              className={`px-5 py-1.5 rounded-full font-bold text-[13px] flex items-center transition-transform tracking-wide ${
                 item.available === false 
                   ? 'bg-gray-100 text-gray-400' 
                   : 'bg-[#21c55e] text-white hover:bg-[#16a34a] active:scale-95'

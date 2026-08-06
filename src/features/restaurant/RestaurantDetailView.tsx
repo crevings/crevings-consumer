@@ -414,7 +414,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 max-h-[70vh] flex flex-col"
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
-                <h2 className="text-[20px] font-black text-black">Menu</h2>
+                <h2 className="text-[20px] font-bold text-black">Menu</h2>
                 <button 
                   onClick={() => setShowMenuCategories(false)}
                   className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 active:scale-95 transition-transform"

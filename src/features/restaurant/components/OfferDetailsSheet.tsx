@@ -92,7 +92,7 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <Percent className="w-6 h-6 text-[#00bd6f]" />
             </div>
-            <h2 className="text-[24px] font-black text-white leading-tight mb-2 pr-8">{title}</h2>
+            <h2 className="text-[24px] font-bold text-white leading-tight mb-2 pr-8">{title}</h2>
             <p className="text-[15px] font-medium text-white/90">{subtitle}</p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
             <div className="bg-slate-50 border border-slate-200 border-dashed rounded-2xl p-4 mb-8 flex items-center justify-between relative">
               <div className="flex flex-col">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1">Coupon Code</span>
-                <span className="text-[18px] font-black text-slate-900 tracking-wider font-mono">{code}</span>
+                <span className="text-[18px] font-semibold text-slate-900 tracking-wider font-mono">{code}</span>
               </div>
               <button 
                 onClick={() => handleCopyCode(code)}
