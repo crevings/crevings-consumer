@@ -155,7 +155,66 @@ export const useItemsUnder99 = (limit: number = 10) => {
 };
 
 import useSWR from "swr";
-import { CompanyPromotion } from "@/types";
+import { CompanyPromotion, FilterOptions } from "@/types";
+
+/**
+ * Filtered restaurant feed — everything is applied server-side by the single
+ * /consumer/restaurants/filter API (rating, time, distance, dietary, offers,
+ * price range, sort). Returns the same shape as useRestaurants so the home
+ * feed can swap data sources without touching the UI.
+ */
+export const useFilteredRestaurants = (filters: FilterOptions, limit: number = 10) => {
+  const hasFilters = Boolean(
+    (filters.minRating && filters.minRating > 1) ||
+      (filters.maxTime !== undefined && filters.maxTime < 60) ||
+      (filters.maxDistance !== undefined && filters.maxDistance < 15) ||
+      (filters.dietary && filters.dietary !== "all") ||
+      filters.offersOnly ||
+      (filters.priceRange !== undefined && filters.priceRange !== null) ||
+      (filters.sortBy && filters.sortBy !== "default")
+  );
+
+  const getKey = (pageIndex: number, previousPageData: PaginatedResponse<Restaurant> | null) => {
+    if (!hasFilters) return null;
+    if (previousPageData && !previousPageData.nextCursor) return null;
+
+    const qp = new URLSearchParams();
+    if (filters.minRating && filters.minRating > 1) qp.set("minRating", String(filters.minRating));
+    if (filters.maxTime !== undefined && filters.maxTime < 60) qp.set("maxTime", String(filters.maxTime));
+    if (filters.maxDistance !== undefined && filters.maxDistance < 15) qp.set("maxDistance", String(filters.maxDistance));
+    if (filters.dietary && filters.dietary !== "all") qp.set("dietary", filters.dietary);
+    if (filters.offersOnly) qp.set("offersOnly", "true");
+    if (filters.priceRange) qp.set("priceRange", filters.priceRange);
+    if (filters.sortBy && filters.sortBy !== "default") qp.set("sortBy", filters.sortBy);
+    qp.set("limit", String(limit));
+    if (pageIndex > 0 && previousPageData?.nextCursor) qp.set("cursor", previousPageData.nextCursor);
+
+    return `/consumer/restaurants/filter?${qp.toString()}`;
+  };
+
+  const { data, error, size, setSize, isValidating, mutate } = useSWRInfinite<PaginatedResponse<Restaurant>>(
+    getKey,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  const restaurants = data ? data.flatMap((page) => page.data || []) : [];
+  const isLoadingInitialData = !data && !error;
+  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.data?.length === 0;
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.nextCursor === null);
+
+  return {
+    restaurants,
+    isLoading: isLoadingInitialData,
+    isLoadingMore,
+    isReachingEnd,
+    isError: error,
+    size,
+    setSize,
+    mutate,
+  };
+};
 
 export interface SearchApiParams {
   query: string;

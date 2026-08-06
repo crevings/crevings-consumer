@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, Bike, UtensilsCrossed, Star, Store, ChevronRight, ChefHat } from "lucide-react";
+import { SlidersHorizontal, UtensilsCrossed, Star, Store, ChevronRight, ChefHat } from "lucide-react";
 import { Restaurant, FilterOptions } from "@/types";
-import { useRestaurants, useItemsUnder99 } from "../../api/restaurants";
+import { useRestaurants, useItemsUnder99, useFilteredRestaurants } from "../../api/restaurants";
 import { CURATED_COLLECTIONS } from "../../data/collections";
 import { MIND_CATEGORIES } from "../../data/categories";
 import { Skeleton } from "boneyard-js/react";
@@ -67,6 +67,30 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const [sortMode, setSortMode] = useState<string>("default");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
+  // Server-side filtering: whenever any filter/sort is active, the feed comes
+  // from the single /consumer/restaurants/filter API. UI is untouched — the
+  // chips and the Filter/Sort sheets keep driving the same state as before.
+  const useServerFeed =
+    activeFilters.minRating > 1 ||
+    activeFilters.maxTime < 60 ||
+    activeFilters.maxDistance < 15 ||
+    activeFilters.dietary !== "all" ||
+    activeFilters.offersOnly ||
+    activeFilters.priceRange !== null ||
+    (activeFilters.sortBy && activeFilters.sortBy !== "default") ||
+    sortMode !== "default";
+
+  const filteredFeed = useFilteredRestaurants({
+    ...activeFilters,
+    sortBy: (activeFilters.sortBy && activeFilters.sortBy !== "default" ? activeFilters.sortBy : sortMode) as FilterOptions["sortBy"],
+  });
+
+  const feedRestaurants = useServerFeed ? filteredFeed.restaurants : restaurants;
+  const feedIsLoadingMore = useServerFeed ? filteredFeed.isLoadingMore : isLoadingMore;
+  const feedIsReachingEnd = useServerFeed ? filteredFeed.isReachingEnd : isReachingEnd;
+  const feedSize = useServerFeed ? filteredFeed.size : size;
+  const feedSetSize = useServerFeed ? filteredFeed.setSize : setSize;
+
   useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1500);
     return () => clearTimeout(timer);
@@ -74,18 +98,20 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback((node: HTMLDivElement) => {
-    if (isLoadingMore) return;
+    if (feedIsLoadingMore) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !isReachingEnd) {
-        setSize(size + 1);
+      if (entries[0].isIntersecting && !feedIsReachingEnd) {
+        feedSetSize(feedSize + 1);
       }
     });
     if (node) observer.current.observe(node);
-  }, [isLoadingMore, isReachingEnd, setSize, size]);
+  }, [feedIsLoadingMore, feedIsReachingEnd, feedSetSize, feedSize]);
 
+  // The backend already applies filters + sort when the server feed is active;
+  // here we only drop hidden restaurants and the brand keyword client-side.
   const visibleRestaurants = useMemo(() => {
-    let list = restaurants.filter((r) => !hiddenIds.includes(String(r.id)));
+    let list = feedRestaurants.filter((r) => !hiddenIds.includes(String(r.id)));
 
     if (selectedBrand) {
       list = list.filter((r) =>
@@ -93,61 +119,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       );
     }
 
-    list = list.filter((r) => {
-      const matchRating = r.rating >= activeFilters.minRating;
-      const matchTime = r.timeValue <= activeFilters.maxTime;
-      const matchDistance = r.distanceValue <= activeFilters.maxDistance;
-      const matchOffers = !activeFilters.offersOnly || !!r.offer;
-      const matchDietary =
-        activeFilters.dietary === "all" ||
-        (r.dietary && Array.isArray(r.dietary) && r.dietary.includes(activeFilters.dietary));
-
-      let matchPrice = true;
-      if (activeFilters.priceRange && r.price) {
-        const pricePerPerson = parseInt(r.price.replace(/\D/g, "")) / 2;
-        if (activeFilters.priceRange === "under49") {
-          matchPrice = pricePerPerson <= 49;
-        } else if (activeFilters.priceRange === "49to99") {
-          matchPrice = pricePerPerson > 49 && pricePerPerson <= 99;
-        }
-      }
-
-      return (
-        matchRating &&
-        matchTime &&
-        matchDistance &&
-        matchOffers &&
-        matchDietary &&
-        matchPrice
-      );
-    });
-
-    const currentSort = activeFilters.sortBy || sortMode;
-    if (currentSort === "ratingHigh" || currentSort === "rating")
-      list = [...list].sort((a, b) => b.rating - a.rating);
-    else if (currentSort === "ratingLow")
-      list = [...list].sort((a, b) => a.rating - b.rating);
-    else if (currentSort === "time")
-      list = [...list].sort((a, b) => a.timeValue - b.timeValue);
-    else if (currentSort === "distanceNear" || currentSort === "distance")
-      list = [...list].sort((a, b) => a.distanceValue - b.distanceValue);
-    else if (currentSort === "distanceFar")
-      list = [...list].sort((a, b) => b.distanceValue - a.distanceValue);
-    else if (currentSort === "priceLow")
-      list = [...list].sort(
-        (a, b) =>
-          parseInt(a.price.replace(/\D/g, "")) -
-          parseInt(b.price.replace(/\D/g, ""))
-      );
-    else if (currentSort === "priceHigh")
-      list = [...list].sort(
-        (a, b) =>
-          parseInt(b.price.replace(/\D/g, "")) -
-          parseInt(a.price.replace(/\D/g, ""))
-      );
-
     return list;
-  }, [restaurants, hiddenIds, activeFilters, sortMode, selectedBrand]);
+  }, [feedRestaurants, hiddenIds, selectedBrand]);
 
   const hasAppliedFilters = useMemo(() => {
     return (
@@ -165,7 +138,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const remaining = visibleRestaurants.slice(5);
 
   return (
-    <Skeleton name="home-feed" loading={isLoading || isApiLoading}>
+    <Skeleton name="home-feed" loading={isLoading || isApiLoading || (useServerFeed && filteredFeed.isLoading)}>
       <div className="pb-8 animate-fadeInUp">
         <PromotionsCarousel />
 
@@ -282,7 +255,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                       </div>
                       <button
                         onClick={handleAddClick}
-                        className="bg-white text-[#f34a6e] border border-white px-3 py-1.5 rounded-[10px] text-[12px] font-bold shadow-md hover:bg-slate-50 active:scale-90 transition-transform"
+                        className="bg-white text-[#00bd6f] border border-white px-3 py-1.5 rounded-[10px] text-[12px] font-bold shadow-md hover:bg-slate-50 active:scale-90 transition-transform"
                       >
                         ADD
                       </button>
@@ -291,7 +264,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
                   {/* Details */}
                   <div className="flex flex-col gap-0.5 px-0.5">
-                    <h4 className="text-slate-900 font-bold text-[15px] leading-snug line-clamp-1 group-hover:text-[#f34a6e] transition-colors">
+                    <h4 className="text-slate-900 font-bold text-[15px] leading-snug line-clamp-1 group-hover:text-[#00bd6f] transition-colors">
                       {item.name}
                     </h4>
                     <div className="flex items-center gap-1 text-slate-500 text-[12px] font-medium leading-tight">
@@ -318,21 +291,6 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filter
-            </button>
-            <button
-              onClick={() =>
-                setActiveFilters((prev) => ({
-                  ...prev,
-                  offersOnly: !prev.offersOnly,
-                }))
-              }
-              className={`flex items-center px-4 py-2 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${activeFilters.offersOnly
-                  ? "bg-green-50 border-green-500 text-green-700"
-                  : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-                }`}
-            >
-              <Bike className="w-4 h-4 mr-1" />
-              <span className="text-sm font-medium">Free Delivery</span>
             </button>
             <button
               onClick={() =>
@@ -484,7 +442,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               ))}
 
               <div ref={lastElementRef} className="pt-6 pb-2 flex items-center justify-center">
-                {isLoadingMore && (
+                {feedIsLoadingMore && (
                   <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
                 )}
               </div>
