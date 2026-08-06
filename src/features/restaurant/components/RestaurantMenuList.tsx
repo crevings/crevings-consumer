@@ -103,64 +103,6 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
           </div>
         );
       })}
-
-      {/* 2. Regular Categories (Only show items that are NOT already in a custom menu) */}
-      {categories.map((category) => {
-        const isExpanded = expandedCategories[category.name] !== false;
-        const categoryItems = (
-          category.name === 'Bestsellers' 
-            ? filteredMenu.filter(item => item.bestseller)
-            : filteredMenu.filter(item => (item.category || 'Main Course') === category.name)
-        ).filter((item) => !customMenuItemIds.has(item.id));
-        
-        if (categoryItems.length === 0) return null;
-
-        return (
-          <div
-            key={category.name}
-            data-menu-section={category.name}
-            className="border-b border-gray-100 pb-6 last:border-0 scroll-mt-24"
-          >
-            <button 
-              onClick={() => toggleCategory(category.name)}
-              className="w-full flex items-center justify-between px-4 py-4 bg-gray-50/50 rounded-xl mb-4"
-            >
-              <div className="text-left">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[18px] font-bold text-gray-900">{category.name}</h3>
-                  {category.name === 'Bestsellers' && (
-                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">FLAT 30% OFF</span>
-                  )}
-                  {category.name === 'Pizzas' && (
-                    <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap">BOGO OFFER</span>
-                  )}
-                </div>
-                <p className="text-[13px] text-gray-500 font-medium mt-0.5">{category.count} items</p>
-              </div>
-              {isExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </button>
-
-            {isExpanded && (
-              <div className="flex flex-col gap-4 pb-4 px-4 -mx-4">
-                {categoryItems.map((item) => (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    getItemQuantity={getItemQuantity}
-                    handleAdd={handleAdd}
-                    handleRemove={handleRemove}
-                    onItemClick={onItemClick}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 };

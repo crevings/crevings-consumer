@@ -6,7 +6,7 @@ import { CustomizationBottomSheet } from "@/features/restaurant/components/Custo
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
-import { useRestaurantDetail, useRestaurantOffers, useRestaurantCustomMenus } from "../../api/restaurants";
+import { useRestaurantOffers, useRestaurantCustomMenus } from "../../api/restaurants";
 import { RestaurantHeader } from "./components/RestaurantHeader";
 import { RestaurantOffers } from "./components/RestaurantOffers";
 import { RestaurantFilters } from "./components/RestaurantFilters";
@@ -47,9 +47,19 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   onInfoClick,
   autoAddItem
 }) => {
-  const { menuItems, isLoading: isMenuLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurantDetail(restaurant.id);
-  const { customMenus } = useRestaurantCustomMenus(restaurant.id);
+  const { customMenus, isLoading: isMenuLoading } = useRestaurantCustomMenus(restaurant.id);
   const { offers, isLoadingMore: isOffersLoadingMore, isReachingEnd: isOffersReachingEnd, size: offersSize, setSize: setOffersSize } = useRestaurantOffers(restaurant.id, 5);
+
+  const menuItems = useMemo(() => {
+    if (!customMenus || customMenus.length === 0) return [];
+    const map = new Map<string, MenuItem>();
+    customMenus.forEach(menu => {
+      (menu.items || []).forEach(item => {
+        if (item && item.id) map.set(item.id, item);
+      });
+    });
+    return Array.from(map.values());
+  }, [customMenus]);
   const { cart, setCart } = useCart();
   const { setAutoAddItem } = useRestaurant();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
@@ -254,18 +264,13 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     }
   }
 
-  // Unified menu-section list shown in the MENU popup — mirrors exactly what
-  // RestaurantMenuList renders on the page (custom menus first, then regular
-  // categories with custom-menu items excluded). Clicking one scrolls the page
-  // to that section and expands it.
+  // Menu-section list shown in the MENU popup — mirrors exactly what
+  // RestaurantMenuList renders on the page (custom menus created by restaurant).
   const menuSections = useMemo(() => {
     const sections: { name: string; count: number }[] = [];
     const filteredItemIds = new Set(filteredMenu.map(i => i.id));
-    const customMenuItemIds = new Set(
-      (customMenus || []).flatMap(m => (m.items || []).map(i => i.id))
-    );
 
-    // 1. Custom menu sections in their arranged order
+    // Custom menu sections in their arranged order
     (customMenus || []).forEach(menu => {
       const sectionItems = (menu.items || []).filter(item => filteredItemIds.has(item.id));
       if (sectionItems.length > 0) {
@@ -273,20 +278,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       }
     });
 
-    // 2. Regular categories (excluding items already shown in custom menus)
-    categories.forEach(category => {
-      const items = (
-        category.name === 'Bestsellers'
-          ? filteredMenu.filter(item => item.bestseller)
-          : filteredMenu.filter(item => (item.category || 'Main Course') === category.name)
-      ).filter(item => !customMenuItemIds.has(item.id));
-      if (items.length > 0) {
-        sections.push({ name: category.name, count: items.length });
-      }
-    });
-
     return sections;
-  }, [customMenus, filteredMenu, categories]);
+  }, [customMenus, filteredMenu]);
 
   // Expand the chosen section, close the MENU popup, then smooth-scroll to it
   const handleMenuSectionSelect = (name: string) => {
