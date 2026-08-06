@@ -118,17 +118,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     }
   };
 
-  const observer = useRef<IntersectionObserver | null>(null);
-  const lastElementRef = useCallback((node: HTMLDivElement) => {
-    if (isLoadingMore) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !isReachingEnd) {
-        setSize(size + 1);
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoadingMore, isReachingEnd, setSize, size]);
+
 
   const scrollToTop = () => {
     if (scrollContainerRef.current) {
@@ -351,12 +341,6 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
             setIsMenuItemDetailOpen(true);
           }}
         />
-        
-        <div ref={lastElementRef} className="py-6 flex items-center justify-center">
-          {isLoadingMore && (
-            <div className="w-6 h-6 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
-          )}
-        </div>
       </RestaurantHeader>
 
       <FloatingCartBar 
