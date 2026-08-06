@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { MessageSquare, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { BASE_URL } from "../../api/fetcher";
 
@@ -12,7 +12,25 @@ type LoginStep = "input" | "otp" | "name";
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
-  const [view, setView] = useState<LoginStep>("input");
+  const location = useLocation();
+
+  // The phone → OTP → name steps are UI state inside a full-screen overlay, not
+  // separate routes. Mirror each step into the router history state so the
+  // browser Back button steps back through them (OTP → phone, name → OTP)
+  // instead of popping history under the overlay and leaving the OTP screen up.
+  const [view, setViewState] = useState<LoginStep>("input");
+
+  React.useEffect(() => {
+    const step = (location.state as any)?.loginStep;
+    setViewState(step === "otp" || step === "name" ? step : "input");
+  }, [location.state]);
+
+  const setView = (next: LoginStep) => {
+    setViewState(next);
+    navigate(location.pathname + location.search, {
+      state: { ...((location.state as any) || {}), loginStep: next },
+    });
+  };
   const [phoneNumber, setPhoneNumber] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -296,7 +314,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={() => setView("input")}
+                onClick={() => {
+                  // Pop the pushed "otp" history entry; the location-state
+                  // effect above lands the view back on the phone input step.
+                  if ((location.state as any)?.loginStep) {
+                    navigate(-1);
+                  } else {
+                    setViewState("input");
+                  }
+                }}
                 className="w-1/3 h-14 rounded-xl font-semibold text-[16px] flex items-center justify-center transition-all bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-[0.98]"
               >
                 Back
