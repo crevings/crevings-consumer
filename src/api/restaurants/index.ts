@@ -207,33 +207,59 @@ export const useSearchSuggestions = (query: string, city?: string) => {
   };
 };
 
-export const useCategoryDetail = (
-  categoryName: string, 
-  lat?: number, 
-  lng?: number, 
-  city?: string, 
-  limit: number = 20, 
-  offset: number = 0
-) => {
-  const shouldFetch = Boolean(categoryName && categoryName.trim().length > 0);
-  const queryParams = new URLSearchParams();
-  if (lat) queryParams.set("lat", String(lat));
-  if (lng) queryParams.set("lng", String(lng));
-  if (city) queryParams.set("city", city);
-  queryParams.set("limit", String(limit));
-  queryParams.set("offset", String(offset));
+export interface CategoryResponse {
+  success: boolean;
+  category: string;
+  totalRestaurants: number;
+  restaurants: any[];
+  nextCursor?: string | null;
+  hasMore?: boolean;
+}
 
-  const endpoint = shouldFetch
-    ? `/consumer/restaurants/search/category/${encodeURIComponent(categoryName)}?${queryParams.toString()}`
-    : null;
+/**
+ * Fetch restaurants & dishes for a category with cursor-based infinite
+ * pagination — mirrors the nextCursor contract used by the other consumer
+ * list endpoints (restaurants, menu, items-under-99).
+ */
+export const useCategoryDetail = (categoryName: string, limit: number = 20) => {
+  const getKey = (pageIndex: number, previousPageData: CategoryResponse | null) => {
+    if (!categoryName || !categoryName.trim()) return null;
 
-  const { data, error, isLoading, mutate } = useSWR(endpoint, fetcher, { revalidateOnFocus: false });
+    // Reached the end
+    if (previousPageData && !previousPageData.nextCursor) return null;
+
+    const base = `/consumer/restaurants/search/category/${encodeURIComponent(categoryName)}?limit=${limit}`;
+
+    // First page — no cursor yet
+    if (pageIndex === 0) return base;
+
+    // Subsequent pages carry the cursor from the previous response
+    return `${base}&cursor=${previousPageData!.nextCursor}`;
+  };
+
+  const { data, error, size, setSize, isValidating, mutate } = useSWRInfinite<CategoryResponse>(
+    getKey,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+
+  const restaurants = data ? data.flatMap((page) => page.restaurants || []) : [];
+  const isLoadingInitialData = !data && !error;
+  const isLoadingMore = isLoadingInitialData || (size > 0 && data && typeof data[size - 1] === "undefined");
+  const isEmpty = data?.[0]?.restaurants?.length === 0;
+  const isReachingEnd = isEmpty || (data && data[data.length - 1]?.nextCursor == null);
 
   return {
-    categoryData: data,
-    restaurants: data?.restaurants || [],
-    isLoading,
+    categoryData: data?.[0],
+    restaurants,
+    isLoading: isLoadingInitialData,
+    isLoadingMore,
+    isReachingEnd,
     isError: error,
+    size,
+    setSize,
     mutate,
   };
 };

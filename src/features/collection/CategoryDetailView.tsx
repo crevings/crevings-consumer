@@ -15,7 +15,7 @@ interface CategoryDetailViewProps {
 }
 
 export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category, onBack, onRestaurantClick, onItemAdd }) => {
-  const { restaurants: liveRestaurants, isLoading } = useCategoryDetail(category);
+  const { restaurants: liveRestaurants, isLoading, isLoadingMore, isReachingEnd, setSize } = useCategoryDetail(category);
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -78,25 +78,54 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
 
       {/* Food Items Grid directly under header */}
       <div className="p-4">
-        {allItems.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 pb-6">
-            {allItems.map((item: any) => (
-              <GridMenuItemCard
-                key={`${item.restaurant.id}-${item.id}`}
-                item={{...item, isVeg: item.veg ?? item.isVeg}}
-                quantity={0}
-                restaurantName={item.restaurant.name}
-                onAdd={(id) => {
-                  onRestaurantClick(item.restaurant);
-                  onItemAdd(item.restaurant, id);
-                }}
-                onRemove={() => {}}
-                onClick={() => {
-                  onRestaurantClick(item.restaurant);
-                }}
-              />
-            ))}
+        {isLoading ? (
+          <div className="py-20 flex flex-col items-center text-center">
+            <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
+            <p className="text-slate-500 font-bold text-sm">Loading {category}...</p>
           </div>
+        ) : allItems.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 gap-3 pb-6">
+              {allItems.map((item: any) => (
+                <GridMenuItemCard
+                  key={`${item.restaurant.id}-${item.id}`}
+                  item={{...item, isVeg: item.veg ?? item.isVeg}}
+                  quantity={0}
+                  restaurantName={item.restaurant.name}
+                  onAdd={(id) => {
+                    onRestaurantClick(item.restaurant);
+                    onItemAdd(item.restaurant, id);
+                  }}
+                  onRemove={() => {}}
+                  onClick={() => {
+                    onRestaurantClick(item.restaurant);
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Cursor-based pagination: fetch the next page of restaurants/items.
+                Keep the button visible while its own page is loading. */}
+            {(!isReachingEnd || isLoadingMore) && (
+              <div className="pb-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setSize((s: number) => s + 1)}
+                  disabled={isLoadingMore}
+                  className="w-full max-w-xs h-12 rounded-xl font-semibold text-[15px] flex items-center justify-center gap-2 transition-all bg-[#00bd6f] text-white active:scale-[0.98] shadow-md shadow-emerald-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+                      Loading more...
+                    </>
+                  ) : (
+                    "Load more"
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="py-20 flex flex-col items-center text-center opacity-40">
             <h3 className="text-lg font-bold mb-1">No items found</h3>
