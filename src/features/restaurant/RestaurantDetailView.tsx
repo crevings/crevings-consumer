@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical, Sparkles, ShoppingCart } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Restaurant, MenuItem, CartItem, Offer } from "@/types";
@@ -254,6 +254,55 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     }
   }
 
+  // Unified menu-section list shown in the MENU popup — mirrors exactly what
+  // RestaurantMenuList renders on the page (custom menus first, then regular
+  // categories with custom-menu items excluded). Clicking one scrolls the page
+  // to that section and expands it.
+  const menuSections = useMemo(() => {
+    const sections: { name: string; count: number }[] = [];
+    const filteredItemIds = new Set(filteredMenu.map(i => i.id));
+    const customMenuItemIds = new Set(
+      (customMenus || []).flatMap(m => (m.items || []).map(i => i.id))
+    );
+
+    // 1. Custom menu sections in their arranged order
+    (customMenus || []).forEach(menu => {
+      const sectionItems = (menu.items || []).filter(item => filteredItemIds.has(item.id));
+      if (sectionItems.length > 0) {
+        sections.push({ name: menu.name, count: sectionItems.length });
+      }
+    });
+
+    // 2. Regular categories (excluding items already shown in custom menus)
+    categories.forEach(category => {
+      const items = (
+        category.name === 'Bestsellers'
+          ? filteredMenu.filter(item => item.bestseller)
+          : filteredMenu.filter(item => (item.category || 'Main Course') === category.name)
+      ).filter(item => !customMenuItemIds.has(item.id));
+      if (items.length > 0) {
+        sections.push({ name: category.name, count: items.length });
+      }
+    });
+
+    return sections;
+  }, [customMenus, filteredMenu, categories]);
+
+  // Expand the chosen section, close the MENU popup, then smooth-scroll to it
+  const handleMenuSectionSelect = (name: string) => {
+    setExpandedCategories(prev => ({ ...prev, [name]: true }));
+    setShowMenuCategories(false);
+    // Wait a tick for the sheet to close & section to expand before scrolling
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = scrollContainerRef.current?.querySelector(`[data-menu-section="${name}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  };
+
 
   return (
     <Skeleton name="restaurant-detail" loading={isMenuLoading}>
@@ -374,17 +423,17 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
                 </button>
               </div>
               <div className="overflow-y-auto p-4 space-y-2">
-                {categories.map((category) => (
+                {menuSections.length === 0 && (
+                  <p className="text-center text-sm text-gray-400 py-6">No menu items available</p>
+                )}
+                {menuSections.map((section) => (
                   <button
-                    key={category.name}
-                    onClick={() => {
-                      setExpandedCategories(prev => ({ ...prev, [category.name]: true }));
-                      setShowMenuCategories(false);
-                    }}
+                    key={section.name}
+                    onClick={() => handleMenuSectionSelect(section.name)}
                     className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
-                    <span className="text-[16px] font-bold text-gray-900">{category.name}</span>
-                    <span className="text-[14px] font-bold text-gray-500">{category.count}</span>
+                    <span className="text-[16px] font-bold text-gray-900">{section.name}</span>
+                    <span className="text-[14px] font-bold text-gray-500">{section.count}</span>
                   </button>
                 ))}
               </div>

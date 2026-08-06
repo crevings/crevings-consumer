@@ -16,6 +16,7 @@ export const HomePage: React.FC = () => {
     setSelectedCollection,
     setSelectedCategory,
     favouriteRestaurantIds,
+    setFavouriteRestaurantIds,
     setConfirmModal,
   } = useRestaurant();
   const { setIsLoadingView, setLoadingViewType } = useApp();
@@ -25,7 +26,10 @@ export const HomePage: React.FC = () => {
   };
 
   const handleFavouriteRestaurant = (id: string | number) => {
-    setConfirmModal({ type: "favourite", restaurantId: String(id) });
+    const rid = String(id);
+    setFavouriteRestaurantIds((prev) =>
+      prev.includes(rid) ? prev.filter((fid) => fid !== rid) : [...prev, rid]
+    );
   };
 
   if (!currentLocation || !currentLocation.address) {

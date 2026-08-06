@@ -31,7 +31,7 @@ export const ConfirmationBottomSheet: React.FC<ConfirmationBottomSheetProps> = (
   const getDescription = () => {
     if (isFav) return `Are you sure you want to add ${restaurantName} to your favourites? You can view it later in your profile.`;
     if (isClearCart) return 'Are you sure you want to remove all items from your cart?';
-    return `Are you sure you want to hide ${restaurantName}? It will no longer appear in your feed but can be managed in profile settings.`;
+    return `Are you sure you want to hide ${restaurantName}? It will no longer appear in your feed.`;
   };
 
   const getConfirmText = () => {

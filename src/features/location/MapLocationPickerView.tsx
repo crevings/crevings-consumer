@@ -116,6 +116,15 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
           title: titleComponent ? titleComponent.long_name : 'Selected Location',
           subtitle: res.formatted_address
         });
+
+        // Auto-fill the road/area field from the geocoded location when empty
+        setStreet(prev => {
+          if (prev && prev.trim()) return prev;
+          const roadComponent = res.address_components.find(
+            c => c.types.includes('route') || c.types.includes('sublocality_level_2')
+          );
+          return roadComponent ? roadComponent.long_name : prev;
+        });
       }
     });
   };
@@ -285,7 +294,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       setShowLocationModal(false);
       setLocationError(null);
     } catch (error: any) {
-      console.error("Error getting location", error);
+      if (error?.code !== 1) console.error("Error getting location", error); // user denial (code 1) is expected UX
       setPermissionGranted(false);
       setLocationError(
         error?.code === 1
@@ -405,7 +414,14 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={mapCenter}
           zoom={15}
-          onLoad={(map) => { mapRef.current = map; }}
+          onLoad={(map) => {
+            mapRef.current = map;
+            // Auto-populate the address from the pin's initial position
+            const center = map.getCenter();
+            if (center) {
+              updateAddressFromLatLng(center.lat(), center.lng());
+            }
+          }}
           onDragStart={() => { isDragging.current = true; }}
           onIdle={handleCameraIdle}
           options={{
@@ -584,7 +600,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
         <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/50 backdrop-blur-[2px] px-6">
           <div className="w-full max-w-[340px] bg-white rounded-3xl shadow-2xl p-6 text-center animate-[slideUp_0.25s_ease-out]">
             <div className="mx-auto w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
-              <MapPin className="w-7 h-7 text-[#00bd6f] fill-[#00bd6f]" />
+              <DropPin className="w-7 h-[32px]" />
             </div>
 
             <h3 className="text-[16px] font-bold text-slate-900 mt-4">

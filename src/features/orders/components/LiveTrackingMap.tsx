@@ -84,7 +84,7 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   deliveryCoordinates,
 }) => {
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'google-map-script',
+    id: 'live-tracking-map-script',
     googleMapsApiKey: import.meta.env.VITE_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: MAP_LIBRARIES,
   });

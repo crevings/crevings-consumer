@@ -155,6 +155,7 @@ export const useItemsUnder99 = (limit: number = 10) => {
 };
 
 import useSWR from "swr";
+import { CompanyPromotion } from "@/types";
 
 export interface SearchApiParams {
   query: string;
@@ -260,6 +261,45 @@ export const useCategoryDetail = (categoryName: string, limit: number = 20) => {
     isError: error,
     size,
     setSize,
+    mutate,
+  };
+};
+
+/**
+ * Fetch the area-aware category list for the home "Explore Categories" rail.
+ * The backend only returns categories available from deliverable branches in
+ * the user's area (same area access check as menus).
+ */
+export const useCategories = (limit: number = 12) => {
+  const { data, error, isLoading } = useSWR(
+    `/consumer/restaurants/categories?limit=${limit}`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  return {
+    categories: (data?.data || []) as Array<{ name: string; count: number }>,
+    isLoading,
+    isError: error,
+  };
+};
+
+/**
+ * Fetch active company-level promotional cards from the backend.
+ * The backend only returns isActive: true promotions, each carrying its
+ * full design config as JSON for the dynamic rendering engine.
+ */
+export const usePromotions = () => {
+  const { data, error, isLoading, mutate } = useSWR(
+    "/consumer/promotions",
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  return {
+    promotions: ((data?.data || []) as CompanyPromotion[]).filter((p) => p.isActive !== false),
+    isLoading,
+    isError: error,
     mutate,
   };
 };

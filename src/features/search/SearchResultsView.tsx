@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
 import { useRestaurants, useSearch, useSearchSuggestions } from "@/api/restaurants";
+import { useLocation as useAppLocation } from "@/contexts/LocationContext";
 import { MOCK_MENU } from "@/data/menu";
 import { Restaurant, MenuItem, FilterOptions } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
@@ -58,9 +59,15 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     priceRange: null
   });
 
+  const { currentLocation } = useAppLocation();
+
   // Call real-time H3 powered search API with debounced query & pagination limits
+  // Always pass the selected delivery-area coordinates so out-of-area (other
+  // city/state) restaurants are excluded by the backend's area access check.
   const { data: searchApiResult, isLoading: isSearchLoading } = useSearch({
     query: debouncedQuery,
+    lat: currentLocation?.coordinates?.lat,
+    lng: currentLocation?.coordinates?.lng,
     vegOnly: activeFilters.dietary === 'veg',
     minRating: activeFilters.minRating,
     limit: 20,

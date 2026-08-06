@@ -64,7 +64,11 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
         if (sectionItems.length === 0) return null;
 
         return (
-          <div key={`custom-${menu.menuId || menu.name}`} className="border-b border-gray-100 pb-6 last:border-0">
+          <div
+            key={`custom-${menu.menuId || menu.name}`}
+            data-menu-section={menu.name}
+            className="border-b border-gray-100 pb-6 last:border-0 scroll-mt-24"
+          >
             <button
               onClick={() => toggleCategory(menu.name)}
               className="w-full flex items-center justify-between px-4 py-4 bg-gray-50/50 rounded-xl mb-4"
@@ -112,7 +116,11 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
         if (categoryItems.length === 0) return null;
 
         return (
-          <div key={category.name} className="border-b border-gray-100 pb-6 last:border-0">
+          <div
+            key={category.name}
+            data-menu-section={category.name}
+            className="border-b border-gray-100 pb-6 last:border-0 scroll-mt-24"
+          >
             <button 
               onClick={() => toggleCategory(category.name)}
               className="w-full flex items-center justify-between px-4 py-4 bg-gray-50/50 rounded-xl mb-4"

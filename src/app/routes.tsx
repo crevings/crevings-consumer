@@ -13,7 +13,6 @@ import { OrderTrackingView } from "../features/orders/OrderTrackingView";
 import { ProfileView } from "../features/profile/ProfileView";
 import { EditProfileView } from "../features/profile/EditProfileView";
 import { CropProfileImageView } from "../features/profile/CropProfileImageView";
-import { SettingsView } from "../features/profile/pages/SettingsView";
 import { SearchResultsView } from "../features/search/SearchResultsView";
 import { CategoryDetailView } from "../features/collection/CategoryDetailView";
 import { CollectionDetailView } from "../features/collection/CollectionDetailView";
@@ -21,7 +20,6 @@ import { CollectionDetailView } from "../features/collection/CollectionDetailVie
 import { HelpSupportView } from "../features/profile/pages/HelpSupportView";
 import { NotificationsView } from "../features/profile/pages/NotificationsView";
 import { RefundsView } from "../features/profile/pages/RefundsView";
-import { DataSharingView } from "../features/profile/pages/DataSharingView";
 import { PoliciesView } from "../features/profile/pages/PoliciesView";
 import { PrivacyPolicyView } from "../features/profile/pages/PrivacyPolicyView";
 import { TermsAndConditionsView } from "../features/profile/pages/TermsAndConditionsView";
@@ -109,7 +107,13 @@ const RestaurantDetailRouteWrapper: React.FC = () => {
         }}
         onHide={() => setConfirmModal({ type: "hide", restaurantId: String(selectedRestaurant.id) })}
         onUnhide={() => setHiddenRestaurantIds((prev) => prev.filter((hid) => hid !== String(selectedRestaurant.id)))}
-        onFavourite={() => setConfirmModal({ type: "favourite", restaurantId: String(selectedRestaurant.id) })}
+        onFavourite={() =>
+          setFavouriteRestaurantIds((prev) =>
+            prev.includes(String(selectedRestaurant.id))
+              ? prev
+              : [...prev, String(selectedRestaurant.id)]
+          )
+        }
         onRemoveFavourite={() => setFavouriteRestaurantIds((prev) => prev.filter((fid) => fid !== String(selectedRestaurant.id)))}
         isFavourite={favouriteRestaurantIds.includes(String(selectedRestaurant.id))}
         isHidden={hiddenRestaurantIds.includes(String(selectedRestaurant.id))}
@@ -121,8 +125,8 @@ const RestaurantDetailRouteWrapper: React.FC = () => {
 
   if (isRestaurantsLoading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
-        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
         <p className="text-slate-500 font-bold text-sm">Loading...</p>
       </div>
     );
@@ -156,8 +160,8 @@ const RestaurantInfoRouteWrapper: React.FC = () => {
 
   if (isRestaurantsLoading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 max-w-md mx-auto shadow-2xl">
-        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+        <div className="w-10 h-10 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3"></div>
         <p className="text-slate-500 font-bold text-sm">Loading...</p>
       </div>
     );
@@ -231,7 +235,10 @@ export const AppRoutes: React.FC = () => {
   };
 
   const handleFavouriteRestaurant = (id: string | number) => {
-    setConfirmModal({ type: "favourite", restaurantId: String(id) });
+    const rid = String(id);
+    setFavouriteRestaurantIds((prev) =>
+      prev.includes(rid) ? prev.filter((fid) => fid !== rid) : [...prev, rid]
+    );
   };
 
   const handleUnhideRestaurant = (id: string | number) => {
@@ -359,7 +366,6 @@ export const AppRoutes: React.FC = () => {
               onUpdateProfile={setUserProfile}
               onEditProfileClick={() => navigate("/edit-profile")}
               onLogout={logout}
-              onSettingsClick={() => navigate("/settings")}
               onHelpClick={() => navigate("/help")}
               onNotificationsClick={() => navigate("/notifications")}
               onRefundsClick={() => navigate("/refunds")}
@@ -430,10 +436,6 @@ export const AppRoutes: React.FC = () => {
           }
         />
 
-        <Route
-          path="/settings"
-          element={<SettingsView onBack={() => navigate(-1)} onDataSharingClick={() => navigate("/data-sharing")} />}
-        />
 
         <Route
           path="/search-results"
@@ -485,7 +487,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="/refunds" element={<RefundsView onBack={() => navigate(-1)} />} />
 
 
-        <Route path="/data-sharing" element={<DataSharingView onBack={() => navigate(-1)} />} />
         <Route path="/policies" element={<PoliciesView onBack={() => navigate(-1)} />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyView onBack={() => navigate(-1)} />} />
         <Route path="/terms" element={<TermsAndConditionsView onBack={() => navigate(-1)} />} />

@@ -51,7 +51,7 @@ const TOPIC_FAQS: Record<string, {q: string, a: string}[]> = {
   ],
   'safety': [
     { q: "Is my payment information secure?", a: "We use AES-256 encryption. We do not store your full card details on our servers." },
-    { q: "How can I delete my account?", a: "Request deletion from Profile -> Settings -> Privacy." }
+    { q: "How can I delete my account?", a: "Request deletion from Profile -> Account & Details." }
   ]
 };
 

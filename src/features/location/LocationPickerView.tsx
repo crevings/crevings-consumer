@@ -94,28 +94,31 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
 
     setIsSearchingLocations(true);
     const timer = setTimeout(async () => {
-      // 1. Google Places Autocomplete fallback check
-      if (typeof window !== 'undefined' && window.google?.maps?.places?.AutocompleteService) {
+      // 1. Modern Google Places API v2: AutocompleteSuggestion (replaces deprecated AutocompleteService)
+      if (typeof window !== 'undefined' && window.google?.maps?.places && (window.google.maps.places as any).AutocompleteSuggestion) {
         try {
-          const service = new google.maps.places.AutocompleteService();
-          service.getPlacePredictions(
-            { input: q, componentRestrictions: { country: 'in' } },
-            (predictions, status) => {
-              setIsSearchingLocations(false);
-              if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                const results: SearchResultItem[] = predictions.map((p, idx) => ({
-                  id: p.place_id || String(idx),
-                  title: p.structured_formatting?.main_text || p.description,
-                  subtitle: p.structured_formatting?.secondary_text || '',
-                  placeId: p.place_id,
-                }));
-                setSearchResults(results);
-              }
-            }
-          );
-          return;
+          const { AutocompleteSuggestion } = (window.google.maps.places as any);
+          const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: q,
+            componentRestrictions: { country: 'in' },
+          });
+
+          if (response && response.suggestions && response.suggestions.length > 0) {
+            setIsSearchingLocations(false);
+            const results: SearchResultItem[] = response.suggestions.map((s: any, idx: number) => {
+              const p = s.placePrediction;
+              return {
+                id: p.placeId || String(idx),
+                title: p.mainText?.text || p.text?.text || q,
+                subtitle: p.secondaryText?.text || '',
+                placeId: p.placeId,
+              };
+            });
+            setSearchResults(results);
+            return;
+          }
         } catch (err) {
-          console.warn('[LocationPicker] Google Autocomplete warning:', err);
+          console.warn('[LocationPicker] AutocompleteSuggestion warning:', err);
         }
       }
 

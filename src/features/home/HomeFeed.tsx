@@ -39,6 +39,11 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
     setSize: setSize99
   } = useItemsUnder99(10);
 
+  // Explore Categories rail: curated static list with correct icons (as before).
+  // Area filtering is enforced backend-side for category detail pages and
+  // items-under-₹99, not on this rail.
+  const categories = MIND_CATEGORIES;
+
   const handleUnder99Scroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     const scrollRight = target.scrollWidth - target.scrollLeft - target.clientWidth;
@@ -172,7 +177,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             Explore Categories
           </h3>
           <div className="grid grid-rows-2 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x">
-            {MIND_CATEGORIES.map((cat, i) => (
+            {categories.map((cat, i) => (
               <div
                 key={i}
                 onClick={() => onCategoryClick(cat.name)}
