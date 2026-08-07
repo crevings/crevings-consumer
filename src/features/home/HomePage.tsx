@@ -79,6 +79,7 @@ export const HomePage: React.FC = () => {
         setSelectedCollection(collection);
         navigate(`/collection/${collection.id}`);
       }}
+      onSeeAllUnder99={() => navigate("/items-under-99")}
     />
   );
 };

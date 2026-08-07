@@ -14,47 +14,59 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '16px' };
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
-  zoomControl: true,
-  gestureHandling: 'cooperative',
+  zoomControl: false,
+  gestureHandling: 'none',
   clickableIcons: false,
+  draggable: false,
+  scrollwheel: false,
   mapId: 'DEMO_MAP_ID',
 };
 
 const MAP_LIBRARIES: any = ['marker', 'routes'];
 
-const RESTAURANT_ICON = `
-  <div style="width:40px;height:40px;background:#3b82f6;border-radius:50%;
-    box-shadow:0 4px 14px rgba(59,130,246,0.4);display:flex;align-items:center;
-    justify-content:center;border:3px solid #ffffff;transform:translate(-50%,-50%)">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+// ── Pin-style markers (tip of the pin anchors the exact location) ────────────
+// AdvancedMarkerElement anchors custom HTML content at its bottom-center by
+// default, so the pin's pointed tip (the bottom of this markup) sits precisely
+// on the coordinate — like Uber Eats / Swiggy / Zomato. No CSS transform is
+// applied: translating here would double-shift the pin off its lat/lng.
+const pinMarkerHtml = (color: string, size: number, iconSvg: string) => `
+  <div style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 8px 12px rgba(0,0,0,0.3));">
+    <div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid #ffffff;box-shadow:0 4px 14px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;position:relative;z-index:1;">
+      ${iconSvg}
+    </div>
+    <div style="width:0;height:0;border-left:${Math.round(size * 0.32)}px solid transparent;border-right:${Math.round(size * 0.32)}px solid transparent;border-top:${Math.round(size * 0.4)}px solid ${color};margin-top:-3px;"></div>
+  </div>`;
+
+const RESTAURANT_ICON = pinMarkerHtml(
+  '#3b82f6',
+  44,
+  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/>
       <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
       <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/>
       <path d="M2 7h20"/>
-    </svg>
-  </div>`;
+    </svg>`
+);
 
-const HOME_ICON = `
-  <div style="width:40px;height:40px;background:#ef4444;border-radius:50%;
-    box-shadow:0 4px 14px rgba(239,68,68,0.4);display:flex;align-items:center;
-    justify-content:center;border:3px solid #ffffff;transform:translate(-50%,-50%)">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+const HOME_ICON = pinMarkerHtml(
+  '#ef4444',
+  44,
+  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
-    </svg>
-  </div>`;
+    </svg>`
+);
 
-const DRIVER_ICON = `
-  <div style="width:44px;height:44px;background:#10b981;border-radius:50%;
-    box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;
-    justify-content:center;border:3px solid #ffffff;transform:translate(-50%,-50%)">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+const DRIVER_ICON = pinMarkerHtml(
+  '#10b981',
+  48,
+  `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1 .4-1 1v7c0 .6.4 1 1 1h2"/>
       <circle cx="7" cy="17" r="2"/>
       <path d="M9 17h6"/>
       <circle cx="17" cy="17" r="2"/>
-    </svg>
-  </div>`;
+    </svg>`
+);
 
 function makeAdvancedMarker(
   map: google.maps.Map,
@@ -77,8 +89,6 @@ function removeMarker(marker: google.maps.marker.AdvancedMarkerElement | null) {
 }
 
 export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
-  progress,
-  orderStatus,
   driverCoordinates,
   restaurantCoordinates,
   deliveryCoordinates,
@@ -119,9 +129,11 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
   // Animation ref for smooth driver gliding
   const driverCurrentPosRef = useRef<google.maps.LatLngLiteral | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  // Tracks whether bounds have been fitted with the driver marker in view
+  const fittedWithDriverRef = useRef(false);
 
   // ── Calculate real road route using Routes API or DirectionsService ────────
-  const drawDirectionsRoute = useCallback(async (map: google.maps.Map, origin: google.maps.LatLngLiteral, destination: google.maps.LatLngLiteral) => {
+  const drawDirectionsRoute = useCallback(async (map: google.maps.Map, origin: google.maps.LatLngLiteral, destination: google.maps.LatLngLiteral, extraPoints: google.maps.LatLngLiteral[] = []) => {
     const originLatLng = new window.google.maps.LatLng(origin.lat, origin.lng);
     const destLatLng = new window.google.maps.LatLng(destination.lat, destination.lng);
 
@@ -166,7 +178,9 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
               const bounds = new window.google.maps.LatLngBounds();
               path.forEach((p: google.maps.LatLng) => bounds.extend(p));
-              map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+              extraPoints.forEach((p) => bounds.extend(p));
+              // Extra top padding so tall pin markers don't clip at the map edge
+              map.fitBounds(bounds, { top: 80, right: 60, bottom: 60, left: 60 });
               return;
             }
           }
@@ -201,7 +215,9 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
               const bounds = new window.google.maps.LatLngBounds();
               path.forEach((p: google.maps.LatLng) => bounds.extend(p));
-              map.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+              extraPoints.forEach((p) => bounds.extend(p));
+              // Extra top padding so tall pin markers don't clip at the map edge
+              map.fitBounds(bounds, { top: 80, right: 60, bottom: 60, left: 60 });
             }
           }
         );
@@ -211,14 +227,10 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, []);
 
-  // ── Manage Multi-Stage Routing & Static Endpoints ─────────────────────────
+  // ── Manage Static Endpoints & Always-Focused Route ─────────────────────────
   const updateMapStage = useCallback(() => {
     const map = mapRef.current;
     if (!map || !restPt) return;
-
-    // Stage 2: Out for delivery / Picked up
-    const isOutForDelivery = ['OUT FOR DELIVERY', 'ORDER_PICKED_UP', 'ARRIVING_SOON'].includes(orderStatus || '') || progress >= 75;
-    const stage = isOutForDelivery ? 'REST_TO_HOME' : 'DRIVER_TO_REST';
 
     // 1. Static Markers
     if (!restMarkerRef.current) {
@@ -229,26 +241,13 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
       homeMarkerRef.current = makeAdvancedMarker(map, delivPt, HOME_ICON, 'Delivery Address');
     }
 
-    // 2. Draw Dynamic Road Route
-    if (stage === 'REST_TO_HOME' && delivPt) {
-      if (currentStageRef.current !== 'REST_TO_HOME') {
-        currentStageRef.current = 'REST_TO_HOME';
-        drawDirectionsRoute(map, restPt, delivPt);
-      }
-    } else if (stage === 'DRIVER_TO_REST') {
-      if (drvPt) {
-        if (currentStageRef.current !== 'DRIVER_TO_REST') {
-          currentStageRef.current = 'DRIVER_TO_REST';
-          drawDirectionsRoute(map, drvPt, restPt);
-        }
-      } else if (delivPt) {
-        if (currentStageRef.current !== 'INIT_REST_TO_HOME') {
-          currentStageRef.current = 'INIT_REST_TO_HOME';
-          drawDirectionsRoute(map, restPt, delivPt);
-        }
-      }
+    // 2. Always draw the real road route between the restaurant and the customer
+    //    so the line visibly connects the two pins.
+    if (delivPt && currentStageRef.current !== 'REST_TO_HOME') {
+      currentStageRef.current = 'REST_TO_HOME';
+      drawDirectionsRoute(map, restPt, delivPt, drvPt ? [drvPt] : []);
     }
-  }, [restPt, delivPt, drvPt, orderStatus, progress, drawDirectionsRoute]);
+  }, [restPt, delivPt, drvPt, drawDirectionsRoute]);
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
@@ -306,6 +305,21 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     }
   }, [drvPt, animateDriverMarker]);
 
+  // Driver coordinates usually stream in via SSE after the map first loads, so
+  // once they arrive, re-fit the view once to keep driver + both pins + route
+  // visible without re-zooming on every position update.
+  useEffect(() => {
+    if (!drvPt || fittedWithDriverRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
+    const points = [restPt, delivPt, drvPt].filter(Boolean) as google.maps.LatLngLiteral[];
+    if (points.length < 2) return;
+    const bounds = new window.google.maps.LatLngBounds();
+    points.forEach((p) => bounds.extend(p));
+    map.fitBounds(bounds, { top: 80, right: 60, bottom: 60, left: 60 });
+    fittedWithDriverRef.current = true;
+  }, [drvPt, restPt, delivPt]);
+
   const onMapUnmount = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -321,6 +335,7 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     mapRef.current = null;
     currentStageRef.current = '';
     driverCurrentPosRef.current = null;
+    fittedWithDriverRef.current = false;
   }, []);
 
   if (loadError) {

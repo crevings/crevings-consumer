@@ -16,6 +16,7 @@ import { CropProfileImageView } from "../features/profile/CropProfileImageView";
 import { SearchResultsView } from "../features/search/SearchResultsView";
 import { CategoryDetailView } from "../features/collection/CategoryDetailView";
 import { CollectionDetailView } from "../features/collection/CollectionDetailView";
+import { ItemsUnder99View } from "../features/collection/ItemsUnder99View";
 
 import { HelpSupportView } from "../features/profile/pages/HelpSupportView";
 import { NotificationsView } from "../features/profile/pages/NotificationsView";
@@ -184,6 +185,28 @@ const CategoryDetailRouteWrapper: React.FC = () => {
   return (
     <CategoryDetailView
       category={categoryName}
+      onBack={() => {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate("/");
+        }
+      }}
+      onRestaurantClick={(rest) => {
+        setSelectedRestaurant(rest);
+        navigate(`/restaurant/${rest.id}`);
+      }}
+      onItemAdd={handleItemAdd}
+    />
+  );
+};
+
+const ItemsUnder99RouteWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  const { setSelectedRestaurant, handleItemAdd } = useRestaurant();
+
+  return (
+    <ItemsUnder99View
       onBack={() => {
         if (window.history.length > 1) {
           navigate(-1);
@@ -457,6 +480,8 @@ export const AppRoutes: React.FC = () => {
           path="/category/:id"
           element={<CategoryDetailRouteWrapper />}
         />
+
+        <Route path="/items-under-99" element={<ItemsUnder99RouteWrapper />} />
 
         <Route
           path="/collection/:id"

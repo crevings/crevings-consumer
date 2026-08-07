@@ -19,6 +19,7 @@ interface HomeFeedProps {
   onRestaurantClick: (restaurant: Restaurant) => void;
   onItemAdd: (restaurant: Restaurant, itemId: string) => void;
   onCollectionClick: (collection: any) => void;
+  onSeeAllUnder99: () => void;
 }
 
 export const HomeFeed: React.FC<HomeFeedProps> = ({
@@ -29,6 +30,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onRestaurantClick,
   onItemAdd,
   onCollectionClick,
+  onSeeAllUnder99,
 }) => {
   const { restaurants, isLoading: isApiLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurants();
   const {
@@ -181,9 +183,13 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               </span>
               <span className="text-[#00bd6f]">₹99</span>
             </h3>
-            <span className="text-[13px] font-bold text-[#00a862] active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer">
+            <button
+              type="button"
+              onClick={onSeeAllUnder99}
+              className="text-[13px] font-bold text-[#00a862] active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer"
+            >
               See all <ChevronRight className="w-4 h-4" />
-            </span>
+            </button>
           </div>
           <div
             onScroll={handleUnder99Scroll}

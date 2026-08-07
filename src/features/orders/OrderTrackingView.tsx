@@ -57,7 +57,12 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     const now = new Date().getTime();
     return Math.max(0, Math.floor((now - createdTime) / 1000));
   });
-  const [prepTime, setPrepTime] = useState<string>(order.prepTime || '');
+  const [prepTime, setPrepTime] = useState<string>(order.prepTime || order.timeEstimate || '');
+
+  // Restaurant-set preparation time is only meaningful once the order is accepted.
+  // Only show a value the restaurant actually set (via accept) — no fabricated default.
+  const isOrderAccepted = ['PREPARING', 'ACCEPTED', 'READY', 'OUT FOR DELIVERY', 'DELIVERED', 'COMPLETED'].includes(orderStatus);
+  const estimatedTime = isOrderAccepted ? (prepTime || null) : null;
 
   const handlePickupComplete = async () => {
     if (takeawayOtp.length === 6) {
@@ -289,17 +294,19 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
               
               <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
                 {/* Estimate Time */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                      {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} min
-                    </h2>
-                    <p className="text-sm font-medium text-slate-500 mt-1">Estimated delivery time</p>
+                {estimatedTime && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-3xl font-black text-slate-900 tracking-tight">
+                        {estimatedTime}
+                      </h2>
+                      <p className="text-sm font-medium text-slate-500 mt-1">Estimated delivery time</p>
+                    </div>
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shadow-inner">
+                      <Clock className="w-8 h-8 text-blue-600" />
+                    </div>
                   </div>
-                  <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shadow-inner">
-                    <Clock className="w-8 h-8 text-blue-600" />
-                  </div>
-                </div>
+                )}
 
                 {/* Progress Bar */}
                 <div className="space-y-3">
@@ -378,18 +385,18 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
 
           {/* Timer Section */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-600" />
+            {estimatedTime && (
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-slate-500 font-medium">Estimated Time</p>
+                  <p className="text-lg font-bold text-slate-900">{estimatedTime}</p>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-xs text-slate-500 font-medium">Estimated Time</p>
-                <p className="text-lg font-bold text-slate-900">
-                  {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')} min
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
+            )}
+            <div className={estimatedTime ? "text-right" : "text-left"}>
               <p className="text-xs text-slate-500 font-medium">Status</p>
               <p className="text-sm font-bold text-[#00bd6f]">
                 {isCancelled ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled') : (
@@ -476,26 +483,13 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
           {/* Map Card */}
           <div className="w-full aspect-[16/9] rounded-2xl overflow-hidden relative border border-slate-100 shadow-sm z-0">
             {order.type === 'Delivery' ? (
-              <div className="w-full h-full relative">
-                <LiveTrackingMap 
-                  progress={isCancelled ? 0 : (cancelTimeLeft > 0 ? 0 : progress)} 
-                  orderStatus={orderStatus}
-                  driverCoordinates={driverLocation}
-                  restaurantCoordinates={order.restaurantCoordinates} 
-                  deliveryCoordinates={order.deliveryCoordinates} 
-                />
-                {order.restaurantCoordinates && order.deliveryCoordinates && (
-                  <a 
-                    href={`https://www.google.com/maps/dir/?api=1&origin=${order.restaurantCoordinates.lat},${order.restaurantCoordinates.lng}&destination=${order.deliveryCoordinates.lat},${order.deliveryCoordinates.lng}&travelmode=driving`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="absolute bottom-3 right-3 bg-white/95 backdrop-blur text-slate-800 text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-md border border-slate-200 active:scale-95 transition-transform flex items-center gap-1.5 z-[1000]"
-                  > 
-                    <MapIcon className="w-3.5 h-3.5 text-blue-600" /> 
-                    Open in Google Maps
-                  </a>
-                )}
-              </div>
+              <LiveTrackingMap 
+                progress={isCancelled ? 0 : (cancelTimeLeft > 0 ? 0 : progress)} 
+                orderStatus={orderStatus}
+                driverCoordinates={driverLocation}
+                restaurantCoordinates={order.restaurantCoordinates} 
+                deliveryCoordinates={order.deliveryCoordinates} 
+              />
             ) : (
               <iframe
                 title="Restaurant Location"

@@ -46,8 +46,6 @@ interface CustomizationBottomSheetProps {
 
 // Helper to generate dynamic variants based on item name
 const getVariantsForItem = (item: any): ItemVariant[] => {
-  const basePrice = item.price;
-  
   if (item.pricing_options && item.pricing_options.length > 0) {
     return item.pricing_options.map((opt: any, index: number) => ({
       id: opt._id || `v${index}`,
@@ -56,10 +54,9 @@ const getVariantsForItem = (item: any): ItemVariant[] => {
     }));
   }
 
-  // Default variant if no specific match
-  return [
-    { id: 'v1', name: 'Regular', price: basePrice }
-  ];
+  // No pricing options — single-price item. Return no variants so the cart
+  // never gets a static "Regular" option attached to it.
+  return [];
 };
 
 // Helper to generate dynamic addons based on item name
@@ -123,7 +120,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
   const variants = useMemo(() => getVariantsForItem(item), [item]);
   const sections = useMemo(() => getAddonsForItem(item), [item]);
 
-  const [selectedVariant, setSelectedVariant] = useState<ItemVariant>(variants[0]);
+  const [selectedVariant, setSelectedVariant] = useState<ItemVariant | null>(variants[0] ?? null);
   const [mainQuantity, setMainQuantity] = useState(1);
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
   const [selectedBeverages, setSelectedBeverages] = useState<Record<string, boolean>>({});
@@ -177,7 +174,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
   };
 
   const calculateTotalPrice = () => {
-    let total = selectedVariant.price * mainQuantity;
+    let total = (selectedVariant?.price ?? item.price) * mainQuantity;
 
     sections.forEach(section => {
       section.items.forEach(addon => {
@@ -226,7 +223,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
 
     onAddToCart({
       item,
-      variant: selectedVariant,
+      variant: selectedVariant ?? undefined,
       mainQuantity,
       selectedAddons: selectedAddonsList,
       selectedSides: selectedBeveragesList,
@@ -294,7 +291,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                   <div
                     key={variant.id}
                     onClick={() => setSelectedVariant(variant)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all ${selectedVariant.id === variant.id
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border cursor-pointer transition-all ${selectedVariant?.id === variant.id
                         ? 'border-[#00bd6f] bg-[#f4fdf8] shadow-[0_2px_10px_rgba(0,189,111,0.1)]'
                         : 'border-gray-200 bg-white shadow-sm hover:border-gray-300'
                       }`}
