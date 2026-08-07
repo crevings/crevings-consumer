@@ -1,3 +1,4 @@
+import { BRAND } from "@/config/brand";
 import React from 'react';
 import { 
   ArrowLeft, Shield, Key, Eye, Share2, Lock, 
@@ -38,7 +39,7 @@ export const PrivacyPolicyView: React.FC<PrivacyPolicyViewProps> = ({ onBack }) 
             </div>
             <div>
               <h2 className="font-bold text-base text-slate-900">Crevings Consumer Privacy Policy</h2>
-              <p className="text-xs text-slate-500">Crevings Marketplace Private Limited</p>
+              <p className="text-xs text-slate-500">{BRAND.LEGAL_NAME}</p>
             </div>
           </div>
           <p className="text-slate-600 text-xs leading-relaxed">
@@ -451,13 +452,13 @@ export const PrivacyPolicyView: React.FC<PrivacyPolicyViewProps> = ({ onBack }) 
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                 <a 
-                  href="mailto:support@crevings.com"
+                  href={`mailto:${BRAND.SUPPORT_EMAIL}`}
                   className="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-xl border border-slate-100 text-slate-700"
                 >
                   <Mail className="w-4 h-4 text-[#00bd6f] shrink-0" />
                   <div className="min-w-0">
                     <span className="text-[9px] text-slate-400 block uppercase tracking-wider font-bold">Email</span>
-                    <span className="text-[11px] font-semibold truncate block">support@crevings.com</span>
+                    <span className="text-[11px] font-semibold truncate block">{BRAND.SUPPORT_EMAIL}</span>
                   </div>
                 </a>
 

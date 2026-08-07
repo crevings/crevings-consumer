@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, Search, Mic, User, MapPin } from 'lucide-react';
+import { BRAND } from "@/config/brand";
 
 interface HeaderProps {
   currentLocation?: { type: string, address: string };
@@ -50,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({ currentLocation, onSearchClick, 
           >
             <div className="flex items-center gap-3 truncate">
               <Search className="w-5 h-5 text-slate-900 stroke-[2.5] shrink-0" />
-              <span className="text-slate-700 font-medium text-base truncate">Search for "plum cake"</span>
+              <span className="text-slate-700 font-medium text-base truncate">{BRAND.DEFAULT_SEARCH_PLACEHOLDER}</span>
             </div>
             <button 
               onClick={(e) => { e.stopPropagation(); onMicClick(); }}

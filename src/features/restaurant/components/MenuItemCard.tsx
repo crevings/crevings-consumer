@@ -31,7 +31,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
           className="relative w-[130px] h-[130px] shrink-0 mr-3 cursor-pointer"
           onClick={() => onItemClick(item)}
         >
-          <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-[14px]" />
+          <img loading="lazy" src={item.image} alt={item.name} className="w-full h-full object-cover rounded-[14px]" />
           
           {/* Veg/Nonveg badge top-left */}
           <div className="absolute top-1.5 left-1.5 bg-white p-0.5 rounded shadow-sm">

@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (matches the previous `darkMode: 'class'` config) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Open Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Brand blue/green palettes (previously defined in the CDN tailwind.config) */
+  --color-blue-50: #e6fcf1;
+  --color-blue-100: #c6f7de;
+  --color-blue-200: #91eec0;
+  --color-blue-300: #52e09d;
+  --color-blue-400: #1bcd76;
+  --color-blue-500: #00bd6f;
+  --color-blue-600: #00995a;
+  --color-blue-700: #007a4a;
+  --color-blue-800: #06603d;
+  --color-blue-900: #084f34;
+  --color-blue-950: #032d1e;
+
+  --color-green-50: #e6fcf1;
+  --color-green-100: #c6f7de;
+  --color-green-200: #91eec0;
+  --color-green-300: #52e09d;
+  --color-green-400: #1bcd76;
+  --color-green-500: #00bd6f;
+  --color-green-600: #00995a;
+  --color-green-700: #007a4a;
+  --color-green-800: #06603d;
+  --color-green-900: #084f34;
+  --color-green-950: #032d1e;
+
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--card-bg);
+  --color-card-foreground: var(--text-card);
+
+  /* v3 defaulted `border` to slate-200; v4 defaults to currentColor — restore it */
+  --default-border-color: #e2e8f0;
+
+  /* Custom animations referenced by the UI */
+  --animate-slideUp: slideUp 0.35s ease-out;
+  --animate-fadeInUp: fadeInUp 0.4s ease-out;
+  --animate-fadeIn: fadeIn 0.3s ease-out;
+  --animate-fadeInRight: fadeInRight 0.3s ease-out;
+  --animate-in: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@layer base {
+  /* v3 placeholder color (slate-400) so inputs keep their look */
+  ::placeholder {
+    color: #94a3b8;
+  }
+}

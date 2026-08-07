@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Star, Phone, MessageSquare, ChevronRight, HelpCircle, CheckCircle2, Percent, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Star, Phone, MessageSquare, ChevronRight, HelpCircle, CheckCircle2, Percent } from 'lucide-react';
 import { Order, Review } from "@/types";
-import { BASE_URL } from "@/api/fetcher";
-import { downloadInvoice } from "./components/OrderDetailsModal";
+import { post } from "@/api/fetcher";
+import { downloadInvoice } from "@/lib/invoice";
 
 interface RateOrderViewProps {
   order: Order;
@@ -24,15 +24,16 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alreadyRated, setAlreadyRated] = useState(order.isRated || false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [_errorMessage, setErrorMessage] = useState('');
 
-  // Simulating that 10 minutes have passed since delivery
-  const isPast10Mins = true;
+  // Support unlocks once the real delivery time is 10+ minutes old.
+  const deliveredAt = order.createdAt ? Date.parse(order.createdAt) : NaN;
+  const isPast10Mins = Number.isFinite(deliveredAt) && Date.now() - deliveredAt > 10 * 60 * 1000;
 
-  const deliveryPartnerName = "Ravikesh Kumar Verma";
-  const deliveryPartnerFirstName = "Ravikesh";
+  const deliveryPartnerName = order.deliveryPartner?.name || "Your Delivery Partner";
+  const deliveryPartnerFirstName = deliveryPartnerName.split(" ")[0] || "your delivery partner";
 
-  const foodItems = order.items.split(',').map(item => item.trim());
+  const foodItems = order.items.map((item) => item.name);
 
   const handleItemRate = (item: string, rating: number) => {
     if (alreadyRated) return;
@@ -55,11 +56,9 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
 
     try {
       const orderId = order.realOrderId || order.id;
-      const response = await fetch(`${BASE_URL}/consumer/profile/orders/${orderId}/rate`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const data = await post<{ success: boolean; message?: string }>(
+        `/consumer/profile/orders/${orderId}/rate`,
+        {
           restaurantRating,
           deliveryRating,
           itemRatings: itemsRating,
@@ -69,33 +68,30 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
             selectedDeliveryTags,
             itemsFeedback
           })
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok || !data.success) {
+        }
+      );
+      if (!data.success) {
         throw new Error(data.message || 'Failed to submit rating.');
       }
 
       setAlreadyRated(true);
       setShowSuccessMessage(true);
       
-      setTimeout(() => {
-        const reviewData: Review = {
-          itemsRating,
-          deliveryRating,
-          reviewText: JSON.stringify({ restaurantRating, selectedDeliveryTags }),
-          selectedTags: selectedDeliveryTags,
-          mediaFiles: [],
-          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        };
+      const reviewData: Review = {
+        itemsRating,
+        deliveryRating,
+        reviewText: JSON.stringify({ restaurantRating, selectedDeliveryTags }),
+        selectedTags: selectedDeliveryTags,
+        mediaFiles: [],
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      };
 
-        onSubmit(reviewData);
-      }, 1500);
+      onSubmit(reviewData);
 
-    } catch (err: any) {
-      console.error("Submit rating error:", err.message);
-      setErrorMessage(err.message || 'Failed to submit rating. Please try again.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      console.error("Submit rating error:", err);
+      setErrorMessage(message || 'Failed to submit rating. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +116,13 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-bold text-slate-800">Delivery Details</h2>
-            <span className="bg-green-50 text-green-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide">On-Time</span>
+            <span className="bg-slate-50 text-slate-600 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide">
+              {order.status === 'CANCELLED' || order.status === 'REJECTED'
+                ? 'Cancelled'
+                : order.status === 'COMPLETED' || order.status === 'DELIVERED'
+                  ? 'Delivered'
+                  : 'In Progress'}
+            </span>
           </div>
           
           <div className="relative pl-6 space-y-4 mb-4">
@@ -145,7 +147,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
             </div>
             <div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Order delivered on <span className="font-bold text-slate-800">March 10 at 10:30pm</span> by <span className="font-bold text-slate-800">{deliveryPartnerName}</span> in <span className="font-bold text-slate-800">35 mins</span>.
+                Order delivered on <span className="font-bold text-slate-800">{order.orderDate || "—"}</span> by <span className="font-bold text-slate-800">{deliveryPartnerName}</span> in <span className="font-bold text-slate-800">{order.timeEstimate || order.prepTime || "—"}</span>.
               </p>
             </div>
           </div>
@@ -157,7 +159,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                   <img 
+                   <img loading="lazy" 
                      src="https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150&h=150&fit=crop&q=80" 
                      alt="Delivery Partner" 
                      className="w-full h-full object-cover"
@@ -301,7 +303,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                 <img 
+                 <img loading="lazy" 
                    src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=150&h=150&fit=crop&q=80" 
                    alt="Restaurant" 
                    className="w-full h-full object-cover"
@@ -319,7 +321,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
 
           <div className="mb-5 border-b border-slate-100 pb-4">
             <p className="text-xs font-bold text-slate-500 mb-1">Order #{order.realOrderId || order.id}</p>
-            <p className="text-sm font-medium text-slate-800">{order.items}</p>
+            <p className="text-sm font-medium text-slate-800">{order.items.map((i) => i.name).join(", ")}</p>
           </div>
 
           <div className="flex flex-col items-center mb-5">
@@ -370,7 +372,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                       ))}
                     </div>
                   </div>
-                  {itemsRating[item] > 0 && (
+                  {(itemsRating[item] ?? 0) > 0 && (
                     <div className="animate-fadeInUp">
                       <input
                         type="text"
@@ -414,24 +416,30 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
           <h3 className="text-sm font-bold text-slate-800 mb-4">Order Details</h3>
           
           <div className="space-y-2 mb-4 text-sm">
-            <div className="flex justify-between text-slate-600">
-              <span>Item Total</span>
-              <span>₹{order.subtotal || (order.total > 40 ? order.total - 40 : order.total || order.price || 0)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Delivery Fee</span>
-              <span>₹{order.deliveryFee || 25}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>Taxes & Charges</span>
-              <span>₹{order.tax || 15}</span>
-            </div>
+            {order.subtotal != null && (
+              <div className="flex justify-between text-slate-600">
+                <span>Item Total</span>
+                <span>₹{order.subtotal}</span>
+              </div>
+            )}
+            {order.deliveryFee != null && (
+              <div className="flex justify-between text-slate-600">
+                <span>Delivery Fee</span>
+                <span>₹{order.deliveryFee}</span>
+              </div>
+            )}
+            {order.tax != null && (
+              <div className="flex justify-between text-slate-600">
+                <span>Taxes & Charges</span>
+                <span>₹{order.tax}</span>
+              </div>
+            )}
             <div className="flex justify-between font-bold text-slate-800 pt-2 border-t border-slate-100">
               <span>Total Paid</span>
               <span>₹{order.total || order.price || 0}</span>
             </div>
             <div className="flex justify-between text-slate-500 text-xs pt-1">
-              <span>Paid via {order.payment?.method || 'Online'}</span>
+              <span>{order.payment?.method ? `Paid via ${order.payment.method}` : 'Payment method not available'}</span>
             </div>
           </div>
 
@@ -474,7 +482,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
           <div className="mb-3">
             <h3 className="text-sm font-bold text-slate-800 mb-0.5">
-              {order.customerDetails?.name || (order as any).customer || 'Customer'}
+              {order.customerDetails?.name || order.customer || 'Customer'}
               {order.customerDetails?.phone ? `, ${order.customerDetails.phone}` : ''}
             </h3>
           </div>

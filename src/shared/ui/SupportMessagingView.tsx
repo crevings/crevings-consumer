@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Paperclip, MoreVertical, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MoreVertical, Phone } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface SupportMessagingViewProps {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, Plus, Minus, Leaf } from 'lucide-react';
+import { X, Plus, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MenuItem {
@@ -68,7 +68,7 @@ export const MenuItemDetailBottomSheet: React.FC<MenuItemDetailBottomSheetProps>
               {/* Image Header */}
               {item.image && (
                 <div className="relative w-full aspect-square max-h-[40vh]">
-                  <img 
+                  <img loading="lazy" 
                     src={item.image} 
                     alt={item.name} 
                     className="w-full h-full object-cover"

@@ -1,7 +1,7 @@
+import { BRAND } from "@/config/brand";
 import React from 'react';
 import { 
-  ArrowLeft, FileText, Shield, User, Clock, 
-  CheckCircle2, AlertTriangle, Scale, Lock, Phone, Mail, Globe, Info
+  ArrowLeft, FileText, Phone, Mail, Globe
 } from 'lucide-react';
 
 interface TermsAndConditionsViewProps {
@@ -37,7 +37,7 @@ export const TermsAndConditionsView: React.FC<TermsAndConditionsViewProps> = ({ 
             </div>
             <div>
               <h2 className="font-bold text-base text-slate-900">CREVINGS – CONSUMER TERMS & CONDITIONS</h2>
-              <p className="text-xs text-slate-500">Crevings Marketplace Private Limited</p>
+              <p className="text-xs text-slate-500">{BRAND.LEGAL_NAME}</p>
             </div>
           </div>
           <p className="text-slate-600 text-xs leading-relaxed">
@@ -284,14 +284,14 @@ export const TermsAndConditionsView: React.FC<TermsAndConditionsViewProps> = ({ 
               <Mail className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">Email Support</p>
-                <p className="text-xs font-bold text-slate-800">support@crevings.com</p>
+                <p className="text-xs font-bold text-slate-800">{BRAND.SUPPORT_EMAIL}</p>
               </div>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl flex items-center gap-3">
               <Phone className="w-4 h-4 text-emerald-600 shrink-0" />
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase">WhatsApp</p>
-                <p className="text-xs font-bold text-slate-800">+91 8780971385</p>
+                <p className="text-xs font-bold text-slate-800">{BRAND.SUPPORT_PHONE}</p>
               </div>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl flex items-center gap-3">

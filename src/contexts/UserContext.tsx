@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import useSWR from "swr";
-import { UserProfile, Review } from "@/types";
-import { fetcher } from "../api/fetcher";
-import { useVerifyToken, logout as apiLogout } from "../api/auth";
-import { useUserProfile } from "../api/user";
+import { UserProfile, Review, AuthUser } from "@/types";
+import { useVerifyToken, logout as apiLogout } from "@/api/auth/index";
+import { useUserProfile } from "@/api/user/index";
 
 interface UserContextType {
   userProfile: UserProfile;
@@ -15,21 +12,26 @@ interface UserContextType {
   setReviews: React.Dispatch<React.SetStateAction<Record<string, Review>>>;
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
-  onLoginSuccess: (user: any) => void;
+  onLoginSuccess: (user: AuthUser) => void;
   logout: () => Promise<void>;
-  mutateProfile: () => Promise<any>;
+  mutateProfile: () => Promise<unknown>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const navigate = useNavigate();
+interface UserProviderProps {
+  children: React.ReactNode;
+  /** Navigation is injected by the router so the provider stays pure. */
+  onNavigateHome: () => void;
+}
+
+export const UserProvider: React.FC<UserProviderProps> = ({ children, onNavigateHome }) => {
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
     email: "",
     phone: "",
     gender: "Male",
-    dob: "1999-09-15",
+    dob: "",
     image: null,
   });
   const [rawProfileImage, setRawProfileImage] = useState<string | null>(null);
@@ -41,12 +43,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { profile, mutate: mutateProfile } = useUserProfile();
 
   useEffect(() => {
-    if (typeof window !== "undefined" && (window as any).__BONEYARD_BUILD) {
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-      return;
-    }
-
     if (data && data.success && data.user) {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
@@ -64,13 +60,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, profile]);
 
-  const onLoginSuccess = (user: any) => {
+  const onLoginSuccess = (user: AuthUser) => {
     setUserProfile({
       name: user.name,
       email: user.email,
       phone: user.phone,
       gender: user.gender || "",
-      dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : "",
+      dob: user.dob ? (new Date(user.dob).toISOString().split('T')[0] ?? "") : "",
       image: user.profileImage || null,
     });
     setIsAuthenticated(true);
@@ -87,11 +83,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: "",
         phone: "",
         gender: "Male",
-        dob: "1999-09-15",
+        dob: "",
         image: null,
       });
-      mutate(null, false); // Clear SWR token verification cache
-      navigate("/");
+      mutate(undefined, false); // Clear SWR token verification cache
+      onNavigateHome();
     } catch (err) {
       console.error("Logout failed:", err);
     }

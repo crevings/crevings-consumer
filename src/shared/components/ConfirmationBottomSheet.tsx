@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { X, Heart, EyeOff, ChevronRight, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface ConfirmationBottomSheetProps {
   type: 'favourite' | 'hide' | 'clear_cart';

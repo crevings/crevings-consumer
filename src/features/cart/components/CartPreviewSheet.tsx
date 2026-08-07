@@ -1,8 +1,8 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, Trash2, X, Plus, Minus, ChevronRight } from 'lucide-react';
 import { CartItem } from '@/types';
-import { ConfirmationBottomSheet } from '../../../shared/components/ConfirmationBottomSheet';
+import { ConfirmationBottomSheet } from '@/shared/components/ConfirmationBottomSheet';
 
 interface CartPreviewSheetProps {
   showCartPreview: boolean;
@@ -85,7 +85,7 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
               {cart.map((cartItem) => (
                 <div key={cartItem.cartItemId} className="flex items-center gap-3 bg-slate-50/80 rounded-2xl p-3 border border-slate-100">
                   <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative bg-white">
-                    <img src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
+                    <img loading="lazy" src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
                     <div className="absolute top-0.5 right-0.5 bg-white/90 p-0.5 rounded">
                       <div className={`w-2 h-2 border flex items-center justify-center rounded-sm ${cartItem.item.isVeg ? 'border-green-500' : 'border-red-500'}`}>
                         <div className={`w-1 h-1 rounded-full ${cartItem.item.isVeg ? 'bg-green-500' : 'bg-red-500'}`} />

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Shield, FileText, Lock, RotateCcw } from 'lucide-react';
+import { ArrowLeft, FileText, Lock, RotateCcw } from 'lucide-react';
+import { BRAND } from "@/config/brand";
 
 interface PoliciesViewProps {
   onBack: () => void;
@@ -57,7 +58,7 @@ Prices include food cost, GST, packaging, delivery, and platform fees. Payments 
 7. GOVERNING LAW
 Governed by the laws of India under the exclusive jurisdiction of competent courts in Delhi, India.
 
-Contact Support: support@crevings.com | WhatsApp: +91 8780971385 | https://www.crevings.com`
+Contact Support: ${BRAND.SUPPORT_EMAIL} | WhatsApp: ${BRAND.SUPPORT_PHONE} | https://www.crevings.com`
     },
     {
       id: 3,

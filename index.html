@@ -1,55 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Food Delivery Orders</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['"Open Sans"', 'sans-serif'],
-            },
-            colors: {
-              blue: {
-                50: '#e6fcf1',
-                100: '#c6f7de',
-                200: '#91eec0',
-                300: '#52e09d',
-                400: '#1bcd76',
-                500: '#00bd6f',
-                600: '#00995a',
-                700: '#007a4a',
-                800: '#06603d',
-                900: '#084f34',
-                950: '#032d1e',
-              },
-              green: {
-                50: '#e6fcf1',
-                100: '#c6f7de',
-                200: '#91eec0',
-                300: '#52e09d',
-                400: '#1bcd76',
-                500: '#00bd6f',
-                600: '#00995a',
-                700: '#007a4a',
-                800: '#06603d',
-                900: '#084f34',
-                950: '#032d1e',
-              },
-              background: 'var(--bg-primary)',
-              foreground: 'var(--text-primary)',
-              card: 'var(--card-bg)',
-              'card-foreground': 'var(--text-card)',
-            }
-          }
-        }
-      }
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
@@ -95,18 +49,7 @@
         100% { transform: translateX(100%); }
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script>
@@ -117,6 +60,6 @@
         document.documentElement.classList.remove('dark');
       }
     </script>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

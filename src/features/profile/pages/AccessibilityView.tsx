@@ -9,7 +9,6 @@ interface AccessibilityViewProps {
 export const AccessibilityView: React.FC<AccessibilityViewProps> = ({ onBack }) => {
   const [hearing, setHearing] = useState('none');
   const [vision, setVision] = useState('none');
-  const [mobility, setMobility] = useState('none');
 
   const handleSave = () => {
     onBack();
@@ -59,7 +58,15 @@ export const AccessibilityView: React.FC<AccessibilityViewProps> = ({ onBack }) 
   );
 };
 
-const Section = ({ title, desc, icon, iconBg, children }: any) => (
+interface SectionProps {
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+  iconBg?: string;
+  children?: React.ReactNode;
+}
+
+const Section = ({ title, desc, icon, iconBg, children }: SectionProps) => (
     <div className="bg-white rounded-[24px] p-6 border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4 mb-6">
             <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center ${iconBg}`}>
@@ -74,7 +81,13 @@ const Section = ({ title, desc, icon, iconBg, children }: any) => (
     </div>
 );
 
-const SelectableOption = ({ label, selected, onClick }: any) => (
+interface SelectableOptionProps {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}
+
+const SelectableOption = ({ label, selected, onClick }: SelectableOptionProps) => (
     <button onClick={onClick} className={`w-full flex items-center justify-between p-4 rounded-[16px] border-2 transition-colors ${selected ? 'border-[#00bd6f] bg-[#00bd6f]/5' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
         <span className={`text-sm font-bold ${selected ? 'text-slate-900' : 'text-slate-700'}`}>{label}</span>
         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selected ? 'border-[#00bd6f]' : 'border-slate-300'}`}>

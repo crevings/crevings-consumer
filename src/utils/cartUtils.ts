@@ -22,8 +22,8 @@ export function consolidateCart(cartItems: CartItem[]): CartItem[] {
   const result: CartItem[] = [];
   for (const item of cartItems) {
     const existingIdx = result.findIndex((c) => isSameCartItem(c, item));
-    if (existingIdx !== -1) {
-      const existing = result[existingIdx];
+    const existing = existingIdx !== -1 ? result[existingIdx] : undefined;
+    if (existing) {
       const newQty = existing.quantity + item.quantity;
       const unitPrice = existing.totalPrice / (existing.quantity || 1);
       result[existingIdx] = {
@@ -40,4 +40,22 @@ export function consolidateCart(cartItems: CartItem[]): CartItem[] {
 
 export function addOrUpdateCartItem(prevCart: CartItem[], newItem: CartItem): CartItem[] {
   return consolidateCart([...prevCart, newItem]);
+}
+
+/**
+ * Price of one unit of a cart item: base item price + variant + addons + sides.
+ * All quantity-handling code must go through this so pricing stays consistent.
+ */
+export function calculateCartItemUnitPrice(item: CartItem): number {
+  return (
+    item.item.price +
+    (item.variant?.price || 0) +
+    (item.selectedAddons || []).reduce((sum, addon) => sum + addon.price * addon.quantity, 0) +
+    (item.selectedSides || []).reduce((sum, side) => sum + side.price * side.quantity, 0)
+  );
+}
+
+/** Returns the item with a new line quantity and a recomputed line total. */
+export function withQuantity(item: CartItem, quantity: number): CartItem {
+  return { ...item, quantity, totalPrice: calculateCartItemUnitPrice(item) * quantity };
 }

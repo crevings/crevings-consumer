@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Bike, Store, Phone, MessageSquare, HelpCircle, Map as MapIcon, Copy, AlertCircle, ChevronRight, Sparkles, X, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
+import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS } from "@/config/constants";
+import { DeliveryPartnerCard } from "./components/DeliveryPartnerCard";
+import { OrderStatusTimeline } from "./components/OrderStatusTimeline";
+import { OrderPriceSummary } from "./components/OrderPriceSummary";
 import { OrderChatBot } from "@/features/orders/OrderChatBot";
+import { useOrderLiveUpdates } from "@/features/orders/hooks/useOrderLiveUpdates";
 import { SupportMessagingView } from "@/shared/ui/SupportMessagingView";
 import { LiveTrackingMap } from "@/features/orders/components/LiveTrackingMap";
-import { BASE_URL } from "../../api/fetcher";
+import { post } from "@/api/fetcher";
 
 interface OrderTrackingViewProps {
+  onOrderComplete: () => void;
   order: Order;
   onBack: () => void;
-  onOrderComplete: () => void;
   onCancelOrder?: () => void;
 }
 
@@ -23,219 +28,61 @@ const CANCEL_REASONS = [
 ];
 
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onBack, onOrderComplete, onCancelOrder }) => {
-  const [progress, setProgress] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(60); // 60 seconds for demo
   const [showMap, setShowMap] = useState(false);
-  const [deliveryPin, setDeliveryPin] = useState(order.customerPin || order.pickupOtp || '');
   const [takeawayOtp, setTakeawayOtp] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const [cancelTimeLeft, setCancelTimeLeft] = useState(() => {
-    if (order.type !== 'Delivery') return 0;
-    if (!order.createdAt) return 60;
-    const createdTime = new Date(order.createdAt).getTime();
-    const now = new Date().getTime();
-    const secondsElapsed = Math.floor((now - createdTime) / 1000);
-    const timeLeft = 60 - secondsElapsed;
-    return timeLeft > 0 ? timeLeft : 0;
-  });
-  const [isCancelled, setIsCancelled] = useState(order.status === 'Cancelled');
-  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
-  const [showAcceptedBanner, setShowAcceptedBanner] = useState(false);
+  const {
+    progress,
+    deliveryPin,
+    cancelTimeLeft,
+    isCancelled,
+    isCancellingOrder,
+    rejectionReason,
+    showAcceptedBanner,
+    setShowAcceptedBanner,
+    orderStatus,
+    assignedPartner,
+    secondsElapsed,
+    prepTime,
+    driverLocation,
+    handleCancelOrderApi,
+  } = useOrderLiveUpdates(order, { onOrderComplete, onCancelOrder });
 
-  const [orderStatus, setOrderStatus] = useState<string>(order.status || 'NEW');
-  const [assignedPartner, setAssignedPartner] = useState<any>(order.deliveryPartner || null);
-  const [secondsElapsed, setSecondsElapsed] = useState(() => {
+  // Real remaining time until the estimated delivery moment (order placed +
+  // restaurant-set prep time). 0 when the data needed isn't available.
+  const estimatedTimeLeftSeconds = (() => {
     if (!order.createdAt) return 0;
-    const createdTime = new Date(order.createdAt).getTime();
-    const now = new Date().getTime();
-    return Math.max(0, Math.floor((now - createdTime) / 1000));
-  });
-  const [prepTime, setPrepTime] = useState<string>(order.prepTime || order.timeEstimate || '');
+    const prepMinutes = parseInt(prepTime || "", 10);
+    if (!Number.isFinite(prepMinutes) || prepMinutes <= 0) return 0;
+    const etaMs = new Date(order.createdAt).getTime() + prepMinutes * 60_000;
+    return Math.max(0, Math.floor((etaMs - Date.now()) / 1000));
+  })();
 
   // Restaurant-set preparation time is only meaningful once the order is accepted.
   // Only show a value the restaurant actually set (via accept) — no fabricated default.
-  const isOrderAccepted = ['PREPARING', 'ACCEPTED', 'READY', 'OUT FOR DELIVERY', 'DELIVERED', 'COMPLETED'].includes(orderStatus);
+  const isOrderAccepted = ACCEPTED_ORDER_STATUSES.includes(orderStatus);
   const estimatedTime = isOrderAccepted ? (prepTime || null) : null;
 
   const handlePickupComplete = async () => {
     if (takeawayOtp.length === 6) {
       try {
-        const response = await fetch(`${BASE_URL}/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/complete`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ pin: takeawayOtp }),
-        });
-        const result = await response.json();
+        const result = await post<{ success: boolean; message?: string }>(
+          `/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/complete`,
+          { pin: takeawayOtp }
+        );
         if (result.success) {
           onOrderComplete();
         } else {
           alert(result.message || "Failed to confirm pickup.");
         }
-      } catch (err: any) {
+      } catch {
         alert("Failed to confirm pickup due to network issue.");
       }
-    }
-  };
-
-  const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
-
-  useEffect(() => {
-    const restaurantId = order.restaurantId;
-    const orderId = order.realOrderId || order.id;
-
-    if (!orderId || !restaurantId) return;
-
-    const eventSource = new EventSource(
-      `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
-      { withCredentials: true }
-    );
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.customerPin) {
-          setDeliveryPin(data.customerPin);
-        }
-        if (data.deliveryPartner) {
-          setAssignedPartner(data.deliveryPartner);
-        }
-        if (data.lat && data.lng) {
-          setDriverLocation({ lat: Number(data.lat), lng: Number(data.lng) });
-        }
-        if (data.status) {
-          setOrderStatus(prev => {
-            if ((data.status === 'PREPARING' || data.status === 'ACCEPTED') && (prev === 'NEW' || prev === 'PENDING_ACCEPT')) {
-              setShowAcceptedBanner(true);
-            }
-            return data.status;
-          });
-          if (data.status !== 'NEW') {
-            setCancelTimeLeft(0);
-          }
-          if (data.status === 'CANCELLED') {
-            setIsCancelled(true);
-            if (data.reason) {
-              setRejectionReason(data.reason);
-            }
-          }
-          if (data.status === 'COMPLETED') {
-            onOrderComplete();
-          }
-        }
-        if (data.prepTime) {
-          setPrepTime(data.prepTime);
-        }
-      } catch (err) {
-        console.error("Error parsing SSE status message:", err);
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Connection Error:", err);
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [order.id, order.realOrderId, order.restaurantId]);
-
-  useEffect(() => {
-    let computedProgress = 0;
-    switch (orderStatus) {
-      case 'NEW':
-      case 'PENDING_ACCEPT':
-        computedProgress = 10;
-        break;
-      case 'PREPARING':
-        computedProgress = 30;
-        break;
-      case 'ACCEPTED':
-      case 'DRIVER_ASSIGNED':
-        computedProgress = 55;
-        break;
-      case 'READY':
-        computedProgress = 45;
-        break;
-      case 'OUT FOR DELIVERY':
-      case 'ORDER_PICKED_UP':
-        computedProgress = 75;
-        break;
-      case 'ARRIVING_SOON':
-        computedProgress = 90;
-        break;
-      case 'COMPLETED':
-      case 'DELIVERED':
-        computedProgress = 100;
-        break;
-      default:
-        computedProgress = 0;
-    }
-    setProgress(computedProgress);
-  }, [orderStatus]);
-
-  useEffect(() => {
-    if (isCancelled && onCancelOrder) {
-      onCancelOrder();
-    }
-  }, [isCancelled, onCancelOrder]);
-
-  useEffect(() => {
-    let timer: any;
-    if (cancelTimeLeft > 0 && !isCancelled) {
-      timer = setInterval(() => {
-        setCancelTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [cancelTimeLeft, isCancelled]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const handleCancelOrderApi = async () => {
-    if (isCancellingOrder) return;
-    setIsCancellingOrder(true);
-    try {
-      const response = await fetch(`${BASE_URL}/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({}),
-      });
-      const result = await response.json();
-      if (result.success) {
-        setIsCancelled(true);
-      } else {
-        alert(result.message || "Failed to cancel order.");
-      }
-    } catch (err: any) {
-      alert("Failed to cancel order due to network issue.");
-    } finally {
-      setIsCancellingOrder(false);
     }
   };
 
@@ -318,25 +165,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   </p>
                 </div>
 
-                {/* Delivery Partner Card */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-100 shrink-0 border-2 border-white shadow-sm">
-                    <img src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-bold text-slate-900">{assignedPartner?.name || 'Assigned Delivery Partner'}</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-0.5">Delivery Partner • {assignedPartner?.rating || '4.8'} ★</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <a href={`tel:${assignedPartner?.phone || '+91 98765 43210'}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
-                      <Phone className="w-4 h-4" />
-                    </a>
-                    <button className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
-                      <MessageSquare className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
+                <DeliveryPartnerCard partner={assignedPartner} />
                 {/* Restaurant Card */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
                   <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0 flex items-center justify-center border-2 border-white shadow-sm">
@@ -346,12 +175,14 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                     <h3 className="text-base font-bold text-slate-900">{order.restaurantName}</h3>
                     <p className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-1">{order.location}</p>
                   </div>
-                  <div className="shrink-0">
-                    <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 flex flex-col items-center">
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">OTP</span>
-                      <span className="text-sm tracking-widest">{order.pickupOtp || order.customerPin || '1234'}</span>
+                  {(order.pickupOtp || order.customerPin) && (
+                    <div className="shrink-0">
+                      <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 flex flex-col items-center">
+                        <span className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">OTP</span>
+                        <span className="text-sm tracking-widest">{order.pickupOtp || order.customerPin}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -402,7 +233,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 {isCancelled ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled') : (
                   orderStatus === 'NEW' ? (secondsElapsed >= 60 ? 'Waiting for restaurant to accept the order' : 'Placing Order') :
                   orderStatus === 'PENDING_ACCEPT' ? 'Awaiting Restaurant' :
-                  orderStatus === 'PREPARING' ? `Preparing (${prepTime || '30 mins'})` :
+                  orderStatus === 'PREPARING' ? (prepTime ? `Preparing (${prepTime})` : 'Preparing') :
                   (orderStatus === 'READY' || orderStatus === 'OUT FOR DELIVERY') ? 'Your order is on the way' :
                   orderStatus === 'COMPLETED' ? 'Delivered' : orderStatus
                 )}
@@ -425,7 +256,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-4 relative">
                 <div 
                   className="bg-green-500 h-full transition-all duration-1000 ease-linear rounded-full" 
-                  style={{ width: `${(cancelTimeLeft / 60) * 100}%` }}
+                  style={{ width: `${(cancelTimeLeft / CANCEL_WINDOW_SECONDS) * 100}%` }}
                 />
               </div>
 
@@ -546,111 +377,12 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </div>
           )}
 
-          {/* Order Status Card */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-900">
-                {order.type === 'Delivery' ? 'Delivery Status' : 'Order Status'}
-              </h2>
-              {order.type === 'Delivery' && (
-                <button 
-                  onClick={() => setShowMap(true)}
-                  className="text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors bg-blue-50 text-blue-600 active:scale-95"
-                >
-                  <MapIcon className="w-4 h-4" /> View Map
-                </button>
-              )}
-            </div>
-            
-            <div className="relative pl-3">
-              <div className="absolute left-[27px] top-3 bottom-3 w-0.5 bg-slate-100" />
-              <div className="absolute left-[27px] top-3 w-0.5 bg-[#00bd6f] transition-all duration-1000" style={{ height: `${progress}%` }} />
-              
-              <div className="space-y-6 relative">
-                <div className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-[#00bd6f] flex items-center justify-center shrink-0 shadow-sm z-10">
-                    <CheckCircle2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="pt-1">
-                    <h3 className="text-sm font-bold text-slate-900">Order Confirmed</h3>
-                    <p className="text-xs text-slate-500">Your order has been received</p>
-                  </div>
-                </div>
-                
-                <div className="flex gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 20 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                    {progress >= 20 && <CheckCircle2 className="w-5 h-5 text-white" />}
-                  </div>
-                  <div className="pt-1">
-                    <h3 className={`text-sm font-bold ${progress >= 20 ? 'text-slate-900' : 'text-slate-500'}`}>Preparing</h3>
-                    <p className="text-xs text-slate-500">The restaurant is preparing your food</p>
-                  </div>
-                </div>
-
-                {order.type === 'Delivery' && (
-                  <div className="flex gap-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 50 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                      {progress >= 50 && <CheckCircle2 className="w-5 h-5 text-white" />}
-                    </div>
-                    <div className="pt-1">
-                      <h3 className={`text-sm font-bold ${progress >= 50 ? 'text-slate-900' : 'text-slate-500'}`}>Driver Assigned</h3>
-                      <p className="text-xs text-slate-500">Driver is heading to restaurant</p>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex gap-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 75 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                    {progress >= 75 && <CheckCircle2 className="w-5 h-5 text-white" />}
-                  </div>
-                  <div className="pt-1">
-                    <h3 className={`text-sm font-bold ${progress >= 75 ? 'text-slate-900' : progress >= 45 ? (assignedPartner ? 'text-slate-900' : 'text-amber-600') : 'text-slate-500'}`}>
-                      {order.type === 'Delivery' 
-                        ? (progress >= 75 
-                            ? 'Order picked by driver' 
-                            : progress >= 45 
-                              ? (assignedPartner ? 'Food Ready • Driver Assigned' : 'Food Ready • Searching for Driver') 
-                              : 'Awaiting Driver') 
-                        : 'Ready for Pickup'}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      {order.type === 'Delivery' 
-                        ? (progress >= 75 
-                            ? 'Driver has collected your order' 
-                            : progress >= 45 
-                              ? (assignedPartner ? 'Driver is at the restaurant to pick up' : 'Kitchen has prepared your order') 
-                              : 'Assigning nearest driver') 
-                        : 'Your order is ready to be collected'}
-                    </p>
-                  </div>
-                </div>
-
-                {order.type === 'Delivery' && (
-                  <div className="flex gap-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 85 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                      {progress >= 85 && <CheckCircle2 className="w-5 h-5 text-white" />}
-                    </div>
-                    <div className="pt-1">
-                      <h3 className={`text-sm font-bold ${progress >= 85 ? 'text-slate-900' : 'text-slate-500'}`}>Driver is arriving soon</h3>
-                      <p className="text-xs text-slate-500">Driver is near your location</p>
-                    </div>
-                  </div>
-                )}
-                
-                {order.type === 'Delivery' && (
-                  <div className="flex gap-4">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm z-10 transition-colors ${progress >= 100 ? 'bg-[#00bd6f]' : 'bg-white border-2 border-slate-200'}`}>
-                      {progress >= 100 && <CheckCircle2 className="w-5 h-5 text-white" />}
-                    </div>
-                    <div className="pt-1">
-                      <h3 className={`text-sm font-bold ${progress >= 100 ? 'text-slate-900' : 'text-slate-500'}`}>Delivered</h3>
-                      <p className="text-xs text-slate-500">Enjoy your meal!</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <OrderStatusTimeline
+            orderType={order.type}
+            progress={progress}
+            assignedPartner={assignedPartner}
+            onViewMap={() => setShowMap(true)}
+          />
 
           {/* Restaurant / Delivery Partner Info */}
           {order.type === 'Delivery' && (
@@ -676,16 +408,22 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             {order.type === 'Delivery' ? (
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
-                  <img src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
+                  <img loading="lazy" src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-sm font-bold text-slate-900">{assignedPartner?.name || 'Assigned Delivery Partner'}</h3>
-                  <p className="text-xs text-slate-500">Delivery Partner • {assignedPartner?.rating || '4.8'} ★</p>
+                  <p className="text-xs text-slate-500">Delivery Partner • {assignedPartner?.rating ?? '—'} ★</p>
                 </div>
                 <div className="flex gap-2">
-                  <a href={`tel:${assignedPartner?.phone || '+91 98765 43210'}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                  {assignedPartner?.phone ? (
+                    <a href={`tel:${assignedPartner.phone}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                     <Phone className="w-4 h-4" />
                   </a>
+                  ) : (
+                  <span className="w-10 h-10 bg-green-50/50 text-green-600/50 rounded-full flex items-center justify-center">
+                    <Phone className="w-4 h-4" />
+                  </span>
+                  )}
                   <button className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
                     <MessageSquare className="w-4 h-4" />
                   </button>
@@ -712,70 +450,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             )}
           </div>
 
-          {/* Order Details Summary */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <h3 className="text-sm font-bold text-slate-900 mb-3">Order Details</h3>
-            <div className="space-y-2 mb-4">
-              {order.items.split(', ').map((item, i) => {
-                const match = item.match(/^(\d+)x\s+(.+)$/);
-                const qty = match ? match[1] : '1';
-                const name = match ? match[2] : item;
-                return (
-                  <div key={i} className="flex justify-between text-sm">
-                    <div className="flex gap-2">
-                      <span className="font-medium text-slate-700">{qty}x</span>
-                      <span className="text-slate-600">{name}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            <div className="pt-3 border-t border-slate-100 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Item Total</span>
-                <span className="font-medium text-slate-700">₹{order.total ? order.total - 49 : 0}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Taxes & Fees</span>
-                <span className="font-medium text-slate-700">₹49</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-100">
-                <span className="text-slate-900">Final Amount</span>
-                <span className="text-slate-900">₹{order.total || 0}</span>
-              </div>
-              <div className="flex justify-between text-xs pt-2">
-                <span className="text-slate-500">Payment Status</span>
-                {paymentStatus === 'PAID' ? (
-                  <span className="font-bold text-[#00bd6f] bg-[#00bd6f]/10 px-2 py-0.5 rounded">PAID</span>
-                ) : (
-                  <span className="font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">CASH ON DELIVERY</span>
-                )}
-              </div>
-              {paymentStatus === 'PENDING' && (
-                <div className="pt-4">
-                  <button 
-                    onClick={() => {
-                      setIsProcessingPayment(true);
-                      setTimeout(() => {
-                        setIsProcessingPayment(false);
-                        setPaymentStatus('PAID');
-                      }, 1500);
-                    }}
-                    disabled={isProcessingPayment}
-                    className="w-full bg-[#00bd6f] text-white py-3 rounded-xl font-bold text-sm active:scale-95 transition-transform disabled:opacity-70 flex items-center justify-center gap-2"
-                  >
-                    {isProcessingPayment ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      'Complete Payment Now'
-                    )}
-                  </button>
-                  <p className="text-center text-[10px] text-slate-400 mt-2">Pay in advance for contactless delivery</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <OrderPriceSummary order={order} paymentStatus={paymentStatus} />
 
           {/* Help & Support Section */}
           <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100">
@@ -810,7 +485,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 </button>
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20">
-                <img src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&h=400&fit=crop" alt="Burger" className="w-full h-full object-cover" />
+                <img loading="lazy" src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&h=400&fit=crop" alt="Burger" className="w-full h-full object-cover" />
               </div>
             </div>
 
@@ -823,7 +498,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 </button>
               </div>
               <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20">
-                <img src="https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=400&fit=crop" alt="Dessert" className="w-full h-full object-cover" />
+                <img loading="lazy" src="https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=400&fit=crop" alt="Dessert" className="w-full h-full object-cover" />
               </div>
             </div>
           </div>
@@ -837,13 +512,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </button>
           )}
 
-          {/* Demo Action */}
-          <button 
-            onClick={onOrderComplete}
-            className="w-full py-3 rounded-xl font-bold text-slate-500 bg-slate-200 active:scale-95 transition-transform mt-4"
-          >
-            [Demo] Complete Order
-          </button>
           
         </div>
       </div>
@@ -852,7 +520,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
         onClose={() => setIsChatOpen(false)} 
         order={order} 
         progress={progress} 
-        timeLeft={timeLeft} 
+        timeLeft={estimatedTimeLeftSeconds} 
       />
 
       <AnimatePresence>

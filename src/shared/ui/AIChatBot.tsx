@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, User, Sparkles, Paperclip, Image as ImageIcon } from 'lucide-react';
-import { ACTIVE_ORDERS, PAST_ORDERS } from "@/data/orders";;
+import { X, Send, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { sendMessageToAI } from "@/services/geminiService";
 import { ChatMessage } from "@/types";
 
@@ -48,8 +47,9 @@ export const AIChatBot: React.FC<AIChatBotProps> = ({ forceOpen = false, onClose
     setInput('');
     setLoading(true);
 
-    const allOrders = [...ACTIVE_ORDERS, ...PAST_ORDERS];
-    const responseText = await sendMessageToAI(userMsg.text, allOrders);
+    // Order history is not fetched here yet — pass an empty list so the AI
+    // never fabricates answers from demo data.
+    const responseText = await sendMessageToAI(userMsg.text, []);
 
     const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText };
     setMessages(prev => [...prev, aiMsg]);

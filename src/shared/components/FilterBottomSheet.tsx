@@ -41,7 +41,7 @@ export function FilterBottomSheet({
   initialFilters = { minRating: null, maxDistance: 3, dietary: "all", offersOnly: false, sortBy: "default", maxTime: 60, priceRange: null },
 }: FilterBottomSheetProps) {
   const [draftRating, setDraftRating] = useState<number | null>(initialFilters.minRating);
-  const [draftDistance, setDraftDistance] = useState(initialFilters.maxDistance);
+  const [draftDistance, setDraftDistance] = useState(initialFilters.maxDistance ?? 3);
   const [draftDietary, setDraftDietary] = useState(
     initialFilters.dietary === "all" ? [] : [initialFilters.dietary]
   );
@@ -56,7 +56,7 @@ export function FilterBottomSheet({
     setDraftSort("default");
   };
 
-  const toggleDietary = (val) => {
+  const toggleDietary = (val: "veg" | "non-veg" | "egg") => {
     setDraftDietary((prev) =>
       prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]
     );
@@ -66,7 +66,7 @@ export function FilterBottomSheet({
     onApply({
       minRating: draftRating || 1,
       maxDistance: draftDistance,
-      dietary: draftDietary.length ? draftDietary[0] : "all",
+      dietary: draftDietary[0] ?? "all",
       offersOnly: draftOffersOnly,
       sortBy: draftSort,
       maxTime: initialFilters.maxTime,

@@ -1,10 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Instagram, Twitter, Facebook } from "lucide-react";
-import { useLocation } from "../../contexts/LocationContext";
-import { useRestaurant } from "../../contexts/RestaurantContext";
-import { useApp } from "../../contexts/AppContext";
-import { HomeFeed } from "./HomeFeed";
+import { MapPin } from "lucide-react";
+import { useLocation } from "@/contexts/LocationContext";
+import { useRestaurant } from "@/contexts/RestaurantContext";
+import { HomeFeed } from "@/features/home/HomeFeed";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -15,11 +14,9 @@ export const HomePage: React.FC = () => {
     setSelectedRestaurant,
     setSelectedCollection,
     setSelectedCategory,
-    favouriteRestaurantIds,
     setFavouriteRestaurantIds,
     setConfirmModal,
   } = useRestaurant();
-  const { setIsLoadingView, setLoadingViewType } = useApp();
 
   const handleHideRestaurant = (id: string | number) => {
     setConfirmModal({ type: "hide", restaurantId: String(id) });
@@ -66,13 +63,8 @@ export const HomePage: React.FC = () => {
       onHide={handleHideRestaurant}
       onFavourite={handleFavouriteRestaurant}
       onRestaurantClick={(rest) => {
-        setIsLoadingView(true);
-        setLoadingViewType("restaurant");
-        setTimeout(() => {
-          setSelectedRestaurant(rest);
-          navigate(`/restaurant/${rest.id}`);
-          setIsLoadingView(false);
-        }, 2500);
+        setSelectedRestaurant(rest);
+        navigate(`/restaurant/${rest.id}`);
       }}
       onItemAdd={handleItemAdd}
       onCollectionClick={(collection) => {

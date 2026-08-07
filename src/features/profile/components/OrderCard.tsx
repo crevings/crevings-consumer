@@ -1,22 +1,16 @@
 import React from 'react';
 import { Order, Review, OrderType } from '@/types';
 import { 
-  Star, 
-  RotateCcw, 
-  MapPin, 
-  Clock, 
-  Navigation,
+  Clock,
   ShoppingBag,
   ChevronRight,
   Truck,
   Package,
   Utensils,
-  Zap,
   FileText,
   Activity,
   Timer,
-  CheckCircle2,
-  ChefHat
+  CheckCircle2
 } from 'lucide-react';
 
 interface OrderCardProps {
@@ -28,11 +22,10 @@ interface OrderCardProps {
   onReorderClick?: (order: Order) => void;
 }
 
-export const OrderCard: React.FC<OrderCardProps> = ({ 
+const OrderCardUnmemoized: React.FC<OrderCardProps> = ({ 
   order, 
   review, 
   onRateClick, 
-  onViewReviewClick, 
   onViewDetailsClick,
   onReorderClick
 }) => {
@@ -70,7 +63,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Estimated Arrival</span>
               </div>
               <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
-                {order.timeEstimate || '15 mins'}
+                {order.timeEstimate}
               </h2>
             </div>
             <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex flex-col items-center justify-center shadow-xl group-hover:scale-110 transition-transform">
@@ -90,7 +83,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
               </span>
             </div>
             <p className="text-xs font-bold text-slate-400 line-clamp-1 uppercase tracking-tight">
-              {order.items}
+              {order.items.map((i) => i.name).join(", ")}
             </p>
           </div>
 
@@ -148,7 +141,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
         </p>
         <div className="flex justify-between items-start">
           <p className="text-[14px] text-slate-700 font-medium line-clamp-2 pr-4 flex-1">
-            {order.items}
+            {order.items.map((i) => i.name).join(", ")}
           </p>
           <p className="text-[15px] font-bold text-slate-900 shrink-0">
             ₹{order.price || order.total || '0'}
@@ -201,3 +194,5 @@ export const OrderCard: React.FC<OrderCardProps> = ({
     </div>
   );
 };
+
+export const OrderCard = React.memo(OrderCardUnmemoized);

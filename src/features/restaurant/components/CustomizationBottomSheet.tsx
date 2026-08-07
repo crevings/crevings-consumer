@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Minus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, Plus, Minus, Trash2, AlertCircle } from 'lucide-react';
+import { motion } from 'motion/react';
+import { MenuItem, PricingOption, AddonGroupItem, CartItem } from "@/types";
 
 export interface CustomizationItem {
   id: string;
@@ -28,29 +29,28 @@ export interface ItemVariant {
   price: number;
 }
 
-interface CustomizationBottomSheetProps {
-  item: {
-    id: string;
-    name: string;
-    price: number;
-    image: string;
-    isVeg: boolean;
-    bestseller?: boolean;
-    allowedAddons?: any[];
-    allowedToppings?: any[];
-    allowedBeverages?: any[];
-  };
-  onClose: () => void;
-  onAddToCart: (cartItem: any) => void;
+interface CustomizationCartPayload {
+  item: MenuItem;
+  variant?: CartItem["variant"];
+  mainQuantity: number;
+  selectedAddons: NonNullable<CartItem["selectedAddons"]>;
+  selectedSides: NonNullable<CartItem["selectedSides"]>;
+  totalPrice: number;
 }
 
-// Helper to generate dynamic variants based on item name
-const getVariantsForItem = (item: any): ItemVariant[] => {
+interface CustomizationBottomSheetProps {
+  item: MenuItem;
+  onClose: () => void;
+  onAddToCart: (cartItem: CustomizationCartPayload) => void;
+}
+
+// Helper to generate dynamic variants from the item's pricing options
+const getVariantsForItem = (item: MenuItem): ItemVariant[] => {
   if (item.pricing_options && item.pricing_options.length > 0) {
-    return item.pricing_options.map((opt: any, index: number) => ({
-      id: opt._id || `v${index}`,
-      name: opt.label || 'Regular',
-      price: opt.price
+    return item.pricing_options.map((option: PricingOption, index: number) => ({
+      id: option._id || `v${index}`,
+      name: option.label || 'Regular',
+      price: option.price,
     }));
   }
 
@@ -59,11 +59,11 @@ const getVariantsForItem = (item: any): ItemVariant[] => {
   return [];
 };
 
-// Helper to generate dynamic addons based on item name
-const getAddonsForItem = (item: any): CustomizationSection[] => {
+// Helper to generate dynamic addons from the item's allowed addon groups
+const getAddonsForItem = (item: MenuItem): CustomizationSection[] => {
   const sectionMap = new Map<string, CustomizationSection>();
 
-  const processAddon = (addon: any, defaultTitle: string, type: 'addon' | 'beverage') => {
+  const processAddon = (addon: AddonGroupItem, defaultTitle: string, type: 'addon' | 'beverage') => {
     if (!addon) return;
     const title = addon.groupName || defaultTitle;
     const id = addon.groupId || title.toLowerCase().replace(/\s+/g, '-');
@@ -104,13 +104,13 @@ const getAddonsForItem = (item: any): CustomizationSection[] => {
   };
 
   if (Array.isArray(item.allowedAddons)) {
-    item.allowedAddons.forEach((a: any) => processAddon(a, 'Addons', 'addon'));
+    item.allowedAddons.forEach((addon) => processAddon(addon, 'Addons', 'addon'));
   }
   if (Array.isArray(item.allowedToppings)) {
-    item.allowedToppings.forEach((a: any) => processAddon(a, 'Toppings', 'addon'));
+    item.allowedToppings.forEach((addon) => processAddon(addon, 'Toppings', 'addon'));
   }
   if (Array.isArray(item.allowedBeverages)) {
-    item.allowedBeverages.forEach((a: any) => processAddon(a, 'Beverages', 'beverage'));
+    item.allowedBeverages.forEach((addon) => processAddon(addon, 'Beverages', 'beverage'));
   }
 
   return Array.from(sectionMap.values());
@@ -199,7 +199,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
     for (const section of sections) {
       if (section.isRequired) {
         const selectedCount = section.items.filter(
-          it => section.type === 'addon' ? selectedBeverages[it.id] : addonQuantities[it.id] > 0
+          it => section.type === 'addon' ? selectedBeverages[it.id] : (addonQuantities[it.id] ?? 0) > 0
         ).length;
         
         if (selectedCount === 0) {
@@ -218,8 +218,8 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
     const selectedBeveragesList = sections
       .filter(s => s.type === 'beverage')
       .flatMap(s => s.items)
-      .filter(it => addonQuantities[it.id] > 0)
-      .map(it => ({ id: it.id, name: it.name, price: it.price, quantity: addonQuantities[it.id] }));
+      .filter(it => (addonQuantities[it.id] ?? 0) > 0)
+      .map(it => ({ id: it.id, name: it.name, price: it.price, quantity: addonQuantities[it.id] ?? 0 }));
 
     onAddToCart({
       item,
@@ -261,7 +261,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
 
           <div className="flex gap-4 pr-10">
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              <img loading="lazy" src={item.image} alt={item.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex flex-col justify-center">
               <h2 className="text-[20px] font-bold text-gray-900 leading-tight mb-1">{item.name}</h2>
@@ -296,7 +296,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                         : 'border-gray-200 bg-white shadow-sm hover:border-gray-300'
                       }`}
                   >
-                    <span className={`text-[14px] font-bold mb-1 ${selectedVariant.id === variant.id ? 'text-[#00bd6f]' : 'text-gray-700'}`}>
+                    <span className={`text-[14px] font-bold mb-1 ${selectedVariant?.id === variant.id ? 'text-[#00bd6f]' : 'text-gray-700'}`}>
                       {variant.name}
                     </span>
                     <span className="text-[13px] font-bold text-gray-900">₹{variant.price}</span>
@@ -321,7 +321,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
 
               <div className="px-4 py-3 flex flex-col gap-3">
                 {section.items.map((addon) => {
-                  const isAddonSelected = addonQuantities[addon.id] > 0;
+                  const isAddonSelected = (addonQuantities[addon.id] ?? 0) > 0;
                   const isBeverageSelected = selectedBeverages[addon.id];
                   const isSelected = isAddonSelected || isBeverageSelected;
 
@@ -329,11 +329,11 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                   let isUnselectable = false;
                   if (section.type === 'addon') {
                     const sectionSelectedCount = section.items.filter(it => selectedBeverages[it.id]).length;
-                    const isLimitReached = section.selectionLimit && section.selectionLimit > 1 && sectionSelectedCount >= section.selectionLimit;
+                    const isLimitReached = !!section.selectionLimit && section.selectionLimit > 1 && sectionSelectedCount >= section.selectionLimit;
                     isUnselectable = isLimitReached && !isSelected;
                   } else if (section.type === 'beverage') {
                     const totalQty = section.items.reduce((sum, it) => sum + (addonQuantities[it.id] || 0), 0);
-                    const isLimitReached = section.selectionLimit && totalQty >= section.selectionLimit;
+                    const isLimitReached = !!section.selectionLimit && totalQty >= section.selectionLimit;
                     isUnselectable = isLimitReached && !isAddonSelected;
                   }
 
@@ -356,7 +356,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
                       {/* Left: image thumbnail (no veg badge) */}
                       {addon.image ? (
                         <div className="relative w-[70px] h-[70px] rounded-xl overflow-hidden shrink-0">
-                          <img src={addon.image} alt={addon.name} className="w-full h-full object-cover" />
+                          <img loading="lazy" src={addon.image} alt={addon.name} className="w-full h-full object-cover" />
                         </div>
                       ) : null}
 

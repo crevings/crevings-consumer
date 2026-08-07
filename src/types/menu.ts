@@ -1,3 +1,37 @@
+export interface PricingOption {
+  _id?: string;
+  label?: string;
+  price: number;
+}
+
+export interface AddonOption {
+  id: string;
+  name: string;
+  price: number;
+}
+
+/** Backend addon/group shape with grouping metadata used by customization sheets. */
+export interface AddonGroupItem {
+  groupName?: string;
+  groupId?: string;
+  groupLimit?: number | null;
+  groupOptional?: boolean;
+  id?: string;
+  _id?: string;
+  name: string;
+  price?: number;
+  isVeg?: boolean;
+  inStock?: boolean;
+  image?: string;
+}
+
+export interface ComboItem {
+  id?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -15,11 +49,11 @@ export interface MenuItem {
   hasOffer?: boolean;
   servingSize?: string;
   piecesInfo?: string;
-  pricing_options?: any[];
-  allowedAddons?: any[];
-  allowedToppings?: any[];
-  allowedBeverages?: any[];
-  comboItems?: any[];
+  pricing_options?: PricingOption[];
+  allowedAddons?: AddonGroupItem[];
+  allowedToppings?: AddonGroupItem[];
+  allowedBeverages?: AddonGroupItem[];
+  comboItems?: ComboItem[];
   gstCategory?: string;
   gstIncluded?: boolean;
 }

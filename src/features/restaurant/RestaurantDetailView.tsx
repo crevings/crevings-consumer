@@ -1,24 +1,24 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Search, Share2, Star, Clock, MapPin, Percent, Plus, Minus, ChevronRight, Bookmark, Mic, ChevronUp, ChevronDown, X, Trash2, Heart, EyeOff, Eye, Menu, SlidersHorizontal, CheckCircle2, Info, MoreVertical, Sparkles, ShoppingCart } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronUp, X, Menu } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Restaurant, MenuItem, CartItem, Offer } from "@/types";
 import { CustomizationBottomSheet } from "@/features/restaurant/components/CustomizationBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { MenuItemDetailBottomSheet } from "@/features/restaurant/components/MenuItemDetailBottomSheet";
 import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
-import { useRestaurantOffers, useRestaurantCustomMenus } from "../../api/restaurants";
-import { RestaurantHeader } from "./components/RestaurantHeader";
-import { RestaurantOffers } from "./components/RestaurantOffers";
-import { RestaurantFilters } from "./components/RestaurantFilters";
-import { RestaurantMenuList } from "./components/RestaurantMenuList";
-import { FloatingCartBar } from "./components/FloatingCartBar";
-import { CartPreviewSheet } from "../cart/components/CartPreviewSheet";
-import { RestaurantOutletsSheet } from "./components/RestaurantOutletsSheet";
-import { OfferDetailsSheet } from "./components/OfferDetailsSheet";
-import { useCart } from "../../contexts/CartContext";
-import { useRestaurant } from "../../contexts/RestaurantContext";
-import { Skeleton } from "boneyard-js/react";
-import { addOrUpdateCartItem } from "@/utils/cartUtils";
+import { useRestaurantOffers, useRestaurantCustomMenus } from "@/api/restaurant/index";
+import { RestaurantHeader } from "@/features/restaurant/components/RestaurantHeader";
+import { RestaurantOffers } from "@/features/restaurant/components/RestaurantOffers";
+import { RestaurantFilters } from "@/features/restaurant/components/RestaurantFilters";
+import { RestaurantMenuList } from "@/features/restaurant/components/RestaurantMenuList";
+import { FloatingCartBar } from "@/features/restaurant/components/FloatingCartBar";
+import { CartPreviewSheet } from "@/features/cart/components/CartPreviewSheet";
+import { RestaurantOutletsSheet } from "@/features/restaurant/components/RestaurantOutletsSheet";
+import { OfferDetailsSheet } from "@/features/restaurant/components/OfferDetailsSheet";
+import { useCart } from "@/contexts/CartContext";
+import { useRestaurant } from "@/contexts/RestaurantContext";
+import { addOrUpdateCartItem, withQuantity } from "@/utils/cartUtils";
+import { getRestaurantAddress } from "@/utils/restaurantUtils";
 
 interface RestaurantDetailViewProps {
   restaurant: Restaurant;
@@ -71,10 +71,9 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   const [selectedAddonItem, setSelectedAddonItem] = useState<MenuItem | null>(null);
   const [showMenuCategories, setShowMenuCategories] = useState(false);
   const [isOutletsOpen, setIsOutletsOpen] = useState(false);
-  const [selectedOutlet, setSelectedOutlet] = useState(restaurant.address || 'Koramangala');
+  const [selectedOutlet, setSelectedOutlet] = useState<string>(getRestaurantAddress(restaurant) || 'Koramangala');
   const [selectedMenuItemDetail, setSelectedMenuItemDetail] = useState<MenuItem | null>(null);
   const [isMenuItemDetailOpen, setIsMenuItemDetailOpen] = useState(false);
-  const [isBannerMenuOpen, setIsBannerMenuOpen] = useState(false);
   const [showCartPreview, setShowCartPreview] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     'Bestsellers': true,
@@ -166,17 +165,16 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     setCart(prev => {
       const newCart = [...prev];
       const index = newCart.findIndex(c => c.item.id === id);
-      if (index !== -1) {
-        if (newCart[index].quantity > 1) {
-          const unitPrice = newCart[index].totalPrice / newCart[index].quantity;
-          newCart[index] = { 
-            ...newCart[index], 
-            quantity: newCart[index].quantity - 1,
-            totalPrice: newCart[index].totalPrice - unitPrice
-          };
-        } else {
-          newCart.splice(index, 1);
-        }
+      const entry = index !== -1 ? newCart[index] : undefined;
+      if (entry && entry.quantity > 1) {
+        const unitPrice = entry.totalPrice / entry.quantity;
+        newCart[index] = { 
+          ...entry, 
+          quantity: entry.quantity - 1,
+          totalPrice: entry.totalPrice - unitPrice
+        };
+      } else if (entry) {
+        newCart.splice(index, 1);
       }
       return newCart;
     });
@@ -189,16 +187,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
           if (item.cartItemId === cartItemId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            const basePrice = item.item.price;
-            const variantPrice = item.variant ? item.variant.price : 0;
-            const addonsPrice = (item.selectedAddons || []).reduce((s, a) => s + a.price * a.quantity, 0);
-            const sidesPrice = (item.selectedSides || []).reduce((s, a) => s + a.price * a.quantity, 0);
-            const singlePrice = basePrice + variantPrice + addonsPrice + sidesPrice;
-            return {
-              ...item,
-              quantity: newQty,
-              totalPrice: singlePrice * newQty
-            };
+            return withQuantity(item, newQty);
           }
           return item;
         })
@@ -287,8 +276,16 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   };
 
 
+  if (isMenuLoading) {
+    return (
+      <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3" />
+        <p className="text-slate-500 font-bold text-sm">Loading menu...</p>
+      </div>
+    );
+  }
+
   return (
-    <Skeleton name="restaurant-detail" loading={isMenuLoading}>
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -311,8 +308,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       >
         <RestaurantOffers 
           offers={offers}
-          isLoadingMore={isOffersLoadingMore}
-          isReachingEnd={isOffersReachingEnd}
+          isLoadingMore={!!isOffersLoadingMore}
+          isReachingEnd={!!isOffersReachingEnd}
           onLoadMore={() => setOffersSize(offersSize + 1)}
           onSelectOffer={setSelectedOffer}
         />
@@ -540,6 +537,5 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       </AnimatePresence>
 
       </div>
-    </Skeleton>
   );
 };

@@ -1,49 +1,77 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Mic, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface VoiceSearchModalProps {
   onClose: () => void;
   onResult: (text: string) => void;
 }
 
+interface SpeechRecognitionResultEvent {
+  resultIndex: number;
+  results: { [index: number]: { [index: number]: { transcript: string } } };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error?: string;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  successTranscript?: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
 type VoiceStatus = 'listening' | 'error' | 'success' | 'idle';
 
 export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onResult }) => {
   const [status, setStatus] = useState<VoiceStatus>('idle');
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
     // Initialize Speech Recognition
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const w = window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-      recognitionRef.current.onstart = () => {
+      recognition.onstart = () => {
         setStatus('listening');
         setTranscript('');
       };
 
-      recognitionRef.current.onresult = (event: any) => {
+      recognition.onresult = (event: SpeechRecognitionResultEvent) => {
         const current = event.resultIndex;
-        const result = event.results[current][0].transcript;
+        const result = event.results[current]?.[0]?.transcript ?? "";
         setTranscript(result);
       };
 
-      recognitionRef.current.onerror = (event: any) => {
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error', event.error);
         setStatus('error');
       };
 
-      recognitionRef.current.onend = () => {
-        if (recognitionRef.current.successTranscript) {
+      recognition.onend = () => {
+        const success = recognition.successTranscript;
+        if (success) {
           setStatus('success');
           setTimeout(() => {
-            onResult(recognitionRef.current.successTranscript);
+            onResult(success);
             onClose();
           }, 1000);
         } else {
@@ -74,7 +102,7 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onR
     if (recognitionRef.current) {
       try {
         recognitionRef.current.start();
-      } catch (e) {
+      } catch {
         // Already started
       }
     }

@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { 
-  User, MapPin, Heart, 
+  User, MapPin, 
   ChevronRight, Camera,
-  ShoppingBag, EyeOff, Wallet,
-  RotateCcw, Gift, Phone, FileText,
+  RotateCcw, Phone, FileText,
   ChevronLeft,
   Cake,
   LogOut,
@@ -11,15 +10,13 @@ import {
   Trash2,
   X,
   Mail,
-  Info,
   Clock,
   Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
 import { UserProfile, Order, Review } from '@/types';
-import { updateUserProfile, requestAccountDeletionApi, getPastOrders } from '../../api/user';
-import { OrderCard } from './components/OrderCard';
+import { updateUserProfile, requestAccountDeletionApi, getPastOrders } from '@/api/user/index';
+import { OrderCard } from '@/features/profile/components/OrderCard';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
@@ -49,19 +46,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   userProfile,
   onUpdateProfileImage,
   onUpdateProfile,
-  onEditProfileClick,
   onLogout,
   onHelpClick,
-  onNotificationsClick,
   onRefundsClick,
   onPoliciesClick,
   onPrivacyClick,
-  onLicensesClick,
-  onGstClick,
-  onAccessibilityClick,
   onAddressBookClick,
-  onManageMembershipClick,
-  onFeedbackClick,
   onBack,
   reviews,
   onRateClick,
@@ -74,7 +64,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [editForm, setEditForm] = useState<UserProfile>(userProfile);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [showDeletionScheduledModal, setShowDeletionScheduledModal] = useState(false);
-  const navigate = useNavigate();
 
   const [pastOrders, setPastOrders] = useState<Order[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -121,7 +110,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetchingRef.current && hasMoreRef.current) {
+        if (entries[0]?.isIntersecting && !isFetchingRef.current && hasMoreRef.current) {
           fetchOrders(cursor);
         }
       },
@@ -157,9 +146,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     }
   };
 
-  const handleNavigate = (view: string) => {
-    navigate(`/${view}`);
-  };
 
   const saveProfile = async () => {
     try {
@@ -168,8 +154,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         onUpdateProfile(editForm);
       }
       setIsEditOpen(false);
-    } catch (error: any) {
-      alert(error.message || "Failed to update profile");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Failed to update profile");
     }
   };
 
@@ -202,7 +188,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 onClick={() => fileInputRef.current?.click()}
               >
                 {userProfile.image ? (
-                    <img src={userProfile.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
+                    <img loading="lazy" src={userProfile.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                     <User className="w-8 h-8 text-slate-400 flex-shrink-0" strokeWidth={2} />
                 )}
@@ -343,7 +329,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             ) : (
               !isLoadingOrders && (
                 <div className="pt-6 flex flex-col items-center justify-center text-center px-4 animate-fadeIn">
-                    <img src="/zero_orders.svg" alt="No orders yet" className="w-48 h-48 mb-2" />
+                    <img loading="lazy" src="/zero_orders.svg" alt="No orders yet" className="w-48 h-48 mb-2" />
                     <h3 className="text-base font-bold text-slate-800">No Orders Placed Yet</h3>
                     <p className="text-xs text-slate-500 max-w-[260px] mt-1">
                         Your past orders will appear here once you place them.
@@ -406,7 +392,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                      <div className="relative group">
                          <div className="w-24 h-24 rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-100 border-2 border-slate-100 shadow-sm">
                              {editForm.image ? (
-                                 <img src={editForm.image} alt="Profile" className="w-full h-full object-cover" />
+                                 <img loading="lazy" src={editForm.image} alt="Profile" className="w-full h-full object-cover" />
                              ) : (
                                  <User className="w-10 h-10 text-slate-400" />
                              )}
@@ -545,8 +531,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                           await requestAccountDeletionApi();
                           setShowDeleteAccount(false);
                           setShowDeletionScheduledModal(true);
-                        } catch (err: any) {
-                          alert(err.message || "Failed to schedule account deletion");
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : "Failed to schedule account deletion");
                         }
                       }}
                       className="flex-1 bg-red-600 text-white font-bold py-4 rounded-[16px] active:scale-95 transition-all text-[15px] shadow-lg shadow-red-600/20"

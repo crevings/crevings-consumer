@@ -1,6 +1,5 @@
 import React from 'react';
-import { Star, Plus, Minus, Flame, Store, Trophy, ChefHat } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Plus, Minus, Flame, Store, Trophy, ChefHat } from 'lucide-react';
 import { MenuItem } from '@/types';
 
 interface GridMenuItemCardProps {
@@ -12,7 +11,7 @@ interface GridMenuItemCardProps {
   restaurantName?: string;
 }
 
-export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quantity, onAdd, onRemove, onClick, restaurantName }) => {
+const GridMenuItemCardUnmemoized: React.FC<GridMenuItemCardProps> = ({ item, quantity, onAdd, onRemove, onClick, restaurantName }) => {
   return (
     <div 
       className={`flex flex-col w-full snap-center cursor-pointer group ${item.available === false ? 'opacity-50 grayscale' : ''}`}
@@ -21,7 +20,7 @@ export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quanti
         {/* Image Container */}
         <div className="relative rounded-[20px] overflow-hidden aspect-square mb-2.5 transform transition-all duration-300 bg-slate-50">
             {item.image ? (
-                <img src={item.image} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={item.name} />
+                <img loading="lazy" src={item.image} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt={item.name} />
             ) : (
                 <div className="absolute inset-0 bg-slate-100 flex items-center justify-center">
                     <ChefHat className="w-8 h-8 text-slate-300" />
@@ -118,3 +117,5 @@ export const GridMenuItemCard: React.FC<GridMenuItemCardProps> = ({ item, quanti
     </div>
   );
 };
+
+export const GridMenuItemCard = React.memo(GridMenuItemCardUnmemoized);

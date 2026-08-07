@@ -1,24 +1,26 @@
 import React, { createContext, useContext, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { CartItem } from "@/types";
-import { useApp } from "./AppContext";
+import { CartItem, MenuItem } from "@/types";
 import { consolidateCart } from "@/utils/cartUtils";
 
 interface CartContextType {
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
-  menuItems: any[];
-  setMenuItems: React.Dispatch<React.SetStateAction<any[]>>;
-  openCheckout: (newCart: any[], items: any[]) => void;
+  menuItems: MenuItem[];
+  setMenuItems: React.Dispatch<React.SetStateAction<MenuItem[]>>;
+  openCheckout: (newCart: CartItem[], items: MenuItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface CartProviderProps {
+  children: React.ReactNode;
+  /** Navigation is injected by the router so the provider stays pure. */
+  onNavigateToCheckout: () => void;
+}
+
+export const CartProvider: React.FC<CartProviderProps> = ({ children, onNavigateToCheckout }) => {
   const [rawCart, setRawCart] = useState<CartItem[]>([]);
-  const [menuItems, setMenuItems] = useState<any[]>([]);
-  const { setIsLoadingCheckout } = useApp();
-  const navigate = useNavigate();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
 
   const cart = useMemo(() => consolidateCart(rawCart), [rawCart]);
 
@@ -29,12 +31,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const openCheckout = (newCart: any[], items: any[]) => {
+  const openCheckout = (newCart: CartItem[], items: MenuItem[]) => {
     setCart(newCart);
     setMenuItems(items);
-    setIsLoadingCheckout(true);
-    navigate("/checkout");
-    setTimeout(() => setIsLoadingCheckout(false), 2500);
+    onNavigateToCheckout();
   };
 
   return (

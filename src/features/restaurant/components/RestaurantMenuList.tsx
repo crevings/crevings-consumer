@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { MenuItem } from '@/types';
-import { MenuItemCard } from './MenuItemCard';
+import { MenuItemCard } from '@/features/restaurant/components/MenuItemCard';
 
 export interface CustomMenuSection {
   menuId: string;
@@ -30,7 +30,6 @@ interface RestaurantMenuListProps {
 export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
   customMenus = [],
   filteredMenu,
-  categories,
   expandedCategories,
   toggleCategory,
   getItemQuantity,
@@ -49,9 +48,6 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
   }
 
   const filteredItemIds = new Set(filteredMenu.map((i) => i.id));
-  const customMenuItemIds = new Set(
-    customMenus.flatMap((menu) => (menu.items || []).map((item) => item.id))
-  );
 
   return (
     <div className="space-y-6">

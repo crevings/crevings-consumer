@@ -1,11 +1,20 @@
 import useSWR from "swr";
-import { fetcher, BASE_URL } from "../fetcher";
+import { fetcher, post } from "@/api/fetcher";
+import { SavedAddress } from "@/types";
 
 /**
  * Custom hook to verify the consumer's authentication token using SWR.
  */
 export const useVerifyToken = () => {
-  return useSWR("/consumer/auth/verify-token", fetcher, {
+  return useSWR<{
+    success: boolean;
+    user?: {
+      name?: string;
+      phone?: string;
+      email?: string;
+      addresses?: SavedAddress[];
+    };
+  }>("/consumer/auth/verify-token", fetcher, {
     shouldRetryOnError: false,
     revalidateOnFocus: false,
   });
@@ -14,18 +23,12 @@ export const useVerifyToken = () => {
 /**
  * Log in a consumer with email and password.
  */
-export const login = async (payload: any) => {
-  const response = await fetch(`${BASE_URL}/consumer/auth/login`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.success) {
+export const login = async (payload: Record<string, unknown>) => {
+  const data = await post<{ success: boolean; message?: string }>(
+    "/consumer/auth/login",
+    payload
+  );
+  if (!data.success) {
     throw new Error(data.message || "Something went wrong. Please try again.");
   }
   return data;
@@ -34,18 +37,12 @@ export const login = async (payload: any) => {
 /**
  * Register a new consumer.
  */
-export const register = async (payload: any) => {
-  const response = await fetch(`${BASE_URL}/consumer/auth/register`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.success) {
+export const register = async (payload: Record<string, unknown>) => {
+  const data = await post<{ success: boolean; message?: string }>(
+    "/consumer/auth/register",
+    payload
+  );
+  if (!data.success) {
     throw new Error(data.message || "Something went wrong. Please try again.");
   }
   return data;
@@ -55,19 +52,7 @@ export const register = async (payload: any) => {
  * Log out the authenticated consumer.
  */
 export const logout = async () => {
-  const response = await fetch(`${BASE_URL}/consumer/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Logout failed");
-  }
-  
-  // Try to parse JSON response if exists, otherwise return simple success
-  try {
-    return await response.json();
-  } catch {
-    return { success: true };
-  }
+  // Empty body or JSON — both are handled by the client.
+  const data = await post<{ success?: boolean } | undefined>("/consumer/auth/logout");
+  return data || { success: true };
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { usePromotions } from "../../api/restaurants";
+import { usePromotions } from "@/api/restaurant/index";
 import { CompanyPromotion, PromotionDesign } from "@/types";
 
 interface PromotionsCarouselProps {
@@ -84,7 +84,7 @@ const PromotionCard: React.FC<{ promo: CompanyPromotion; onClick: () => void }> 
           className="w-[115px] h-[115px] sm:w-[125px] sm:h-[125px] overflow-hidden shrink-0 shadow-sm border border-white/10 relative z-10 self-center"
           style={{ borderRadius: `${d.imageBorderRadius ?? 20}px` }}
         >
-          <img src={promo.image} alt={promo.title} className="w-full h-full object-cover" />
+          <img loading="lazy" src={promo.image} alt={promo.title} className="w-full h-full object-cover" />
         </div>
       )}
     </div>

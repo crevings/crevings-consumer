@@ -1,11 +1,25 @@
 export interface FilterOptions {
   maxTime: number;
   maxDistance: number;
-  minRating: number;
-  dietary: 'all' | 'veg' | 'non-veg' | 'egg';
+  minRating: number | null;
+  dietary: "all" | "veg" | "non-veg" | "egg";
   offersOnly: boolean;
-  sortBy?: 'default' | 'priceLow' | 'priceHigh' | 'ratingHigh' | 'ratingLow' | 'distanceNear' | 'distanceFar';
-  priceRange?: 'under49' | '49to99' | null;
+  sortBy?: "default" | "priceLow" | "priceHigh" | "ratingHigh" | "ratingLow" | "distanceNear" | "distanceFar";
+  priceRange?: "under49" | "49to99" | null;
+}
+
+/**
+ * The backend may serve `address` as either a display string or an object
+ * carrying a `coordinates` pair (GeoJSON [lng, lat] order).
+ */
+export interface DeliveryFeeSlab {
+  minKm: number;
+  maxKm: number;
+  fee: number;
+}
+
+export interface RestaurantAddress {
+  coordinates?: [number, number] | { coordinates: [number, number] };
 }
 
 export interface Restaurant {
@@ -22,7 +36,15 @@ export interface Restaurant {
   distanceValue: number;
   offer?: string;
   dietary: string[];
-  address?: string;
+  address?: string | RestaurantAddress;
+  phone?: string;
+  openingHours?: string;
+  facilities?: string[];
+  fssaiNo?: string;
+  gstin?: string;
+  registeredName?: string;
+  deliveryFee?: number;
+  deliveryFeeSlabs?: DeliveryFeeSlab[];
 }
 
 export interface Brand {
@@ -37,24 +59,23 @@ export interface Offer {
   restaurantId: string;
   name: string;
   description?: string;
-  offerType: 'percentage' | 'flat' | 'bogo' | 'free_item';
+  offerType: "percentage" | "flat" | "bogo" | "free_item";
   discountPercent?: number;
   maxCap?: number;
   discountAmount?: number;
   freeItemName?: string;
-  applicableScope: 'all' | 'category' | 'items';
+  applicableScope: "all" | "category" | "items";
   applicableIds: string[];
-  customerType: 'all' | 'new' | 'returning';
+  customerType: "all" | "new" | "returning";
   orderTypes: {
     delivery: boolean;
     takeaway: boolean;
     dineIn: boolean;
   };
-  paymentMode: 'all' | 'prepaid';
+  paymentMode: "all" | "prepaid";
   allowClubbing: boolean;
   minOrder?: number;
   startDate?: string;
   endDate?: string;
-  status: 'Active' | 'Paused' | 'Scheduled' | 'Expired';
+  status: "Active" | "Paused" | "Scheduled" | "Expired";
 }
-

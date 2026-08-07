@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Heart, Share2, Check, Star, ChevronRight, Info, CheckCircle2 } from 'lucide-react';
 import { Restaurant } from '@/types';
+import { getRestaurantAddress } from "@/utils/restaurantUtils";
 
 interface RestaurantHeaderProps {
   restaurant: Restaurant;
@@ -51,7 +52,7 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
       }
-    } catch (err) {
+    } catch {
       // User dismissed the share sheet (AbortError) — ignore silently
     }
   };
@@ -105,7 +106,7 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
               className="flex items-center gap-0.5 text-[11px] text-slate-700 font-bold active:scale-95 transition-transform text-left"
             >
               <span>
-                {selectedOutlet || restaurant.address} • {restaurant.distance} • {restaurant.time}
+                {selectedOutlet || getRestaurantAddress(restaurant)} • {restaurant.distance} • {restaurant.time}
               </span>
               <ChevronRight className="w-3 h-3 text-slate-400" />
             </button>

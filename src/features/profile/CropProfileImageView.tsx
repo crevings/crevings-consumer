@@ -20,15 +20,15 @@ export const CropProfileImageView: React.FC<CropProfileImageViewProps> = ({ imag
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const clientX = 'touches' in e ? (e.touches[0]?.clientX ?? 0) : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? (e.touches[0]?.clientY ?? 0) : (e as React.MouseEvent).clientY;
     setDragStart({ x: clientX - offset.x, y: clientY - offset.y });
   };
 
   const handleMouseMove = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDragging) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as MouseEvent).clientY;
+    const clientX = 'touches' in e ? (e.touches[0]?.clientX ?? 0) : (e as MouseEvent).clientX;
+    const clientY = 'touches' in e ? (e.touches[0]?.clientY ?? 0) : (e as MouseEvent).clientY;
     setOffset({ x: clientX - dragStart.x, y: clientY - dragStart.y });
   }, [isDragging, dragStart]);
 
@@ -85,7 +85,7 @@ export const CropProfileImageView: React.FC<CropProfileImageViewProps> = ({ imag
       </div>
       <div ref={containerRef} className="flex-1 relative flex items-center justify-center overflow-hidden touch-none" onMouseDown={handleMouseDown} onTouchStart={handleMouseDown}>
         <div className="absolute transition-transform duration-75" style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}>
-            <img ref={imgRef} src={imageUri} alt="Original" className="max-w-[120%] h-auto pointer-events-none" />
+            <img loading="lazy" ref={imgRef} src={imageUri} alt="Original" className="max-w-[120%] h-auto pointer-events-none" />
         </div>
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
             <div className="absolute inset-0 bg-black/60 shadow-[inset_0_0_100px_rgba(0,0,0,0.5)]"></div>

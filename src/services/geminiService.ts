@@ -1,16 +1,20 @@
 import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { Order } from "@/types";
 
+// Single client instance — never recreate the SDK client per message.
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY || "",
+});
+
 let chatSession: Chat | null = null;
 
 const initializeChat = (allOrders: Order[]) => {
   if (chatSession) return chatSession;
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const ordersContext = JSON.stringify(allOrders);
 
   chatSession = ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: "gemini-3-flash-preview",
     config: {
       systemInstruction: `You are a helpful, friendly AI customer support agent for a food delivery app called 'Crevings'. 
       You have access to the user's order history data provided here: ${ordersContext}.
@@ -30,6 +34,10 @@ const initializeChat = (allOrders: Order[]) => {
   return chatSession;
 };
 
+// Note: this history assistant intentionally returns a graceful canned string
+// on failure (unlike sendMessageToOrderAI, which rethrows so the order-chat UI
+// can reflect real connection health). Callers should not rely on rethrow
+// semantics from this function.
 export const sendMessageToAI = async (message: string, allOrders: Order[]): Promise<string> => {
   try {
     const chat = initializeChat(allOrders);
@@ -42,37 +50,46 @@ export const sendMessageToAI = async (message: string, allOrders: Order[]): Prom
 };
 
 export const sendMessageToOrderAI = async (message: string, order: Order, progress: number, timeLeft: number): Promise<string> => {
+  // Errors are deliberately rethrown so the caller can surface a real
+  // connection failure (the OrderChatBot drives its status indicator off it).
+  const orderContext = JSON.stringify({
+    ...order,
+    currentProgress: progress,
+    estimatedTimeLeftSeconds: timeLeft,
+  });
+
+  const chat = ai.chats.create({
+    model: "gemini-3.1-flash-preview",
+    config: {
+      systemInstruction: `You are a helpful, friendly AI customer support agent for a food delivery app called 'Crevings'. 
+      You are currently assisting a user with a specific active order.
+      Here is the real-time data for this order: ${orderContext}.
+      
+      Your goal is to assist the user with:
+      1. Checking the real-time status of this specific order.
+      2. Providing details about the delivery partner if applicable.
+      3. Answering any questions about the items in this order.
+
+      Keep responses concise (under 50 words unless detailed explanation is needed).
+      Use emojis occasionally to be friendly.
+      If the user asks about something not related to this order, politely guide them back to the order details.
+      `,
+    },
+  });
+  const result: GenerateContentResponse = await chat.sendMessage({ message });
+  return result.text || "I'm having trouble connecting to the kitchen right now. Please try again.";
+};
+
+/** Lightweight reachability probe for the order-support AI. */
+export const checkOrderAIService = async (): Promise<boolean> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const orderContext = JSON.stringify({
-      ...order,
-      currentProgress: progress,
-      estimatedTimeLeftSeconds: timeLeft,
-      deliveryPartner: order.type === 'Delivery' ? { name: 'Ramesh Kumar', rating: 4.8, phone: '+91 9876543210' } : null
-    });
-
     const chat = ai.chats.create({
-      model: 'gemini-3.1-flash-preview',
-      config: {
-        systemInstruction: `You are a helpful, friendly AI customer support agent for a food delivery app called 'Crevings'. 
-        You are currently assisting a user with a specific active order.
-        Here is the real-time data for this order: ${orderContext}.
-        
-        Your goal is to assist the user with:
-        1. Checking the real-time status of this specific order.
-        2. Providing details about the delivery partner if applicable.
-        3. Answering any questions about the items in this order.
-
-        Keep responses concise (under 50 words unless detailed explanation is needed).
-        Use emojis occasionally to be friendly.
-        If the user asks about something not related to this order, politely guide them back to the order details.
-        `,
-      },
+      model: "gemini-3.1-flash-preview",
+      config: { systemInstruction: "Reply with a single word: OK." },
     });
-    const result: GenerateContentResponse = await chat.sendMessage({ message });
-    return result.text || "I'm having trouble connecting to the kitchen right now. Please try again.";
-  } catch (error) {
-    console.error("Gemini Error:", error);
-    return "Sorry, I'm currently experiencing high traffic. Please try again later.";
+    const result: GenerateContentResponse = await chat.sendMessage({ message: "ping" });
+    return Boolean(result.text);
+  } catch {
+    return false;
   }
 };

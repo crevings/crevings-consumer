@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { AnimatePresence } from "framer-motion";
-import { SlidersHorizontal, UtensilsCrossed, Star, Store, ChevronRight, ChefHat } from "lucide-react";
-import { Restaurant, FilterOptions } from "@/types";
-import { useRestaurants, useItemsUnder99, useFilteredRestaurants } from "../../api/restaurants";
-import { CURATED_COLLECTIONS } from "../../data/collections";
-import { MIND_CATEGORIES } from "../../data/categories";
-import { Skeleton } from "boneyard-js/react";
-import { RestaurantCard } from "../restaurant/RestaurantCard";
-import { FilterBottomSheet } from "../../shared/components/FilterBottomSheet";
-import { SortBottomSheet } from "../../shared/components/SortBottomSheet";
-import { PromotionsCarousel } from "./PromotionsCarousel";
+import React, { useState, useMemo, useRef, useCallback } from "react";
+import { AnimatePresence } from "motion/react";
+import { SlidersHorizontal, UtensilsCrossed, Store, ChevronRight } from "lucide-react";
+import { Restaurant, FilterOptions, Collection } from "@/types";
+import { FILTER_DEFAULTS } from "@/config/constants";
+import { useRestaurants, useItemsUnder99, useFilteredRestaurants } from "@/api/restaurant/index";
+import { MIND_CATEGORIES } from "@/config/content";
+import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
+import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
+import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
+import { PromotionsCarousel } from "@/features/home/PromotionsCarousel";
 
 interface HomeFeedProps {
   onCategoryClick: (name: string) => void;
@@ -18,7 +17,7 @@ interface HomeFeedProps {
   onFavourite: (id: string | number) => void;
   onRestaurantClick: (restaurant: Restaurant) => void;
   onItemAdd: (restaurant: Restaurant, itemId: string) => void;
-  onCollectionClick: (collection: any) => void;
+  onCollectionClick: (collection: Collection) => void;
   onSeeAllUnder99: () => void;
 }
 
@@ -29,16 +28,14 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onFavourite,
   onRestaurantClick,
   onItemAdd,
-  onCollectionClick,
   onSeeAllUnder99,
 }) => {
   const { restaurants, isLoading: isApiLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurants();
   const {
     items: itemsUnder99,
-    isLoadingMore: isLoadingMore99,
-    isReachingEnd: isReachingEnd99,
-    size: size99,
-    setSize: setSize99
+    isLoadingMore: isLoadingMoreUnder99,
+    isReachingEnd: isReachingEndUnder99,
+    setSize: setUnder99Page
   } = useItemsUnder99(10);
 
   // Explore Categories rail: curated static list with correct icons (as before).
@@ -49,66 +46,52 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const handleUnder99Scroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     const scrollRight = target.scrollWidth - target.scrollLeft - target.clientWidth;
-    if (scrollRight < 100 && !isLoadingMore99 && !isReachingEnd99) {
-      setSize99(prev => prev + 1);
+    if (scrollRight < 100 && !isLoadingMoreUnder99 && !isReachingEndUnder99) {
+      setUnder99Page(prev => prev + 1);
     }
   };
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeFilters, setActiveFilters] = useState<FilterOptions>({
-    maxTime: 60,
-    maxDistance: 15,
-    minRating: 1,
-    dietary: "all",
-    offersOnly: false,
-    sortBy: "default",
-    priceRange: null,
-  });
+  const [activeFilters, setActiveFilters] = useState<FilterOptions>({ ...FILTER_DEFAULTS });
   const [sortMode, setSortMode] = useState<string>("default");
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
 
   // Server-side filtering: whenever any filter/sort is active, the feed comes
   // from the single /consumer/restaurants/filter API. UI is untouched — the
   // chips and the Filter/Sort sheets keep driving the same state as before.
-  const useServerFeed =
-    activeFilters.minRating > 1 ||
-    activeFilters.maxTime < 60 ||
-    activeFilters.maxDistance < 15 ||
-    activeFilters.dietary !== "all" ||
+  const usingServerFeed =
+    (activeFilters.minRating ?? 0) > FILTER_DEFAULTS.minRating ||
+    activeFilters.maxTime < FILTER_DEFAULTS.maxTime ||
+    activeFilters.maxDistance < FILTER_DEFAULTS.maxDistance ||
+    activeFilters.dietary !== FILTER_DEFAULTS.dietary ||
     activeFilters.offersOnly ||
     activeFilters.priceRange !== null ||
-    (activeFilters.sortBy && activeFilters.sortBy !== "default") ||
-    sortMode !== "default";
+    (activeFilters.sortBy && activeFilters.sortBy !== FILTER_DEFAULTS.sortBy) ||
+    sortMode !== FILTER_DEFAULTS.sortBy;
 
   const filteredFeed = useFilteredRestaurants({
     ...activeFilters,
     sortBy: (activeFilters.sortBy && activeFilters.sortBy !== "default" ? activeFilters.sortBy : sortMode) as FilterOptions["sortBy"],
   });
 
-  const feedRestaurants = useServerFeed ? filteredFeed.restaurants : restaurants;
-  const feedIsLoadingMore = useServerFeed ? filteredFeed.isLoadingMore : isLoadingMore;
-  const feedIsReachingEnd = useServerFeed ? filteredFeed.isReachingEnd : isReachingEnd;
-  const feedSize = useServerFeed ? filteredFeed.size : size;
-  const feedSetSize = useServerFeed ? filteredFeed.setSize : setSize;
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const feedRestaurants = usingServerFeed ? filteredFeed.restaurants : restaurants;
+  const feedIsLoadingMore = usingServerFeed ? filteredFeed.isLoadingMore : isLoadingMore;
+  const feedIsReachingEnd = usingServerFeed ? filteredFeed.isReachingEnd : isReachingEnd;
+  const activePage = usingServerFeed ? filteredFeed.size : size;
+  const setActivePage = usingServerFeed ? filteredFeed.setSize : setSize;
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback((node: HTMLDivElement) => {
     if (feedIsLoadingMore) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !feedIsReachingEnd) {
-        feedSetSize(feedSize + 1);
+      if (entries[0]?.isIntersecting && !feedIsReachingEnd) {
+        setActivePage(activePage + 1);
       }
     });
     if (node) observer.current.observe(node);
-  }, [feedIsLoadingMore, feedIsReachingEnd, feedSetSize, feedSize]);
+  }, [feedIsLoadingMore, feedIsReachingEnd, setActivePage, activePage]);
 
   // The backend already applies filters + sort when the server feed is active;
   // here we only drop hidden restaurants and the brand keyword client-side.
@@ -126,10 +109,10 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
   const hasAppliedFilters = useMemo(() => {
     return (
-      activeFilters.minRating > 1 ||
-      activeFilters.maxTime < 60 ||
-      activeFilters.maxDistance < 15 ||
-      activeFilters.dietary !== "all" ||
+      (activeFilters.minRating ?? 0) > FILTER_DEFAULTS.minRating ||
+      activeFilters.maxTime < FILTER_DEFAULTS.maxTime ||
+      activeFilters.maxDistance < FILTER_DEFAULTS.maxDistance ||
+      activeFilters.dietary !== FILTER_DEFAULTS.dietary ||
       activeFilters.offersOnly === true ||
       activeFilters.priceRange !== null ||
       selectedBrand !== null
@@ -140,7 +123,13 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   const remaining = visibleRestaurants.slice(5);
 
   return (
-    <Skeleton name="home-feed" loading={isLoading || isApiLoading || (useServerFeed && filteredFeed.isLoading)}>
+    <>
+      {isApiLoading || (usingServerFeed && filteredFeed.isLoading) ? (
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="w-10 h-10 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3" />
+        <p className="text-slate-500 font-bold text-sm">Loading restaurants...</p>
+      </div>
+    ) : (
       <div className="pb-8 animate-fadeInUp">
         <PromotionsCarousel />
 
@@ -160,7 +149,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               >
                 <div className="w-[80px] h-[72px] flex items-center justify-center">
                   <img
-                    src={cat.image}
+loading="lazy"                     src={cat.image}
                     alt={cat.name}
                     className="w-full h-full object-contain transform group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
                   />
@@ -196,43 +185,18 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 snap-x -mt-1"
           >
             {itemsUnder99.map((item) => {
+              // Only render items whose restaurant is known — never fabricate
+              // a fake restaurant object just to make the card clickable.
+              const rest = restaurants.find((r) => r.id === item.restaurantId);
+              if (!rest) return null;
+
               const handleAddClick = (e: React.MouseEvent) => {
                 e.stopPropagation();
-                const restObj = restaurants.find(r => r.id === item.restaurantId) || {
-                  id: item.restaurantId,
-                  name: item.restaurant,
-                  cuisine: "Multicuisine",
-                  rating: 4.5,
-                  time: "30 min",
-                  timeValue: 30,
-                  price: "₹450 for two",
-                  images: [item.image],
-                  distance: "1.2 km",
-                  distanceValue: 1.2,
-                  offer: "60% OFF",
-                  dietary: ["veg", "non-veg"],
-                  menuItems: []
-                } as Restaurant;
-                onItemAdd(restObj, item.id);
+                onItemAdd(rest, item.id);
               };
 
               const handleCardClick = () => {
-                const restObj = restaurants.find(r => r.id === item.restaurantId) || {
-                  id: item.restaurantId,
-                  name: item.restaurant,
-                  cuisine: "Multicuisine",
-                  rating: 4.5,
-                  time: "30 min",
-                  timeValue: 30,
-                  price: "₹450 for two",
-                  images: [item.image],
-                  distance: "1.2 km",
-                  distanceValue: 1.2,
-                  offer: "60% OFF",
-                  dietary: ["veg", "non-veg"],
-                  menuItems: []
-                } as Restaurant;
-                onRestaurantClick(restObj);
+                onRestaurantClick(rest);
               };
 
               return (
@@ -245,7 +209,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                   <div className="relative rounded-[20px] overflow-hidden aspect-square border border-slate-100/50 mb-2.5 transform transition-all duration-300 group-active:scale-95 bg-slate-100">
                     {item.image && (
                       <img
-                        src={item.image}
+loading="lazy"                         src={item.image}
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                         alt={item.name}
                       />
@@ -281,7 +245,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                 </div>
               );
             })}
-            {isLoadingMore99 && (
+            {isLoadingMoreUnder99 && (
               <div className="min-w-[80px] flex items-center justify-center shrink-0">
                 <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
               </div>
@@ -416,7 +380,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           </div>
           {(restaurants.length === 0 || (!hasAppliedFilters && visibleRestaurants.length === 0)) ? (
             <div className="py-16 flex flex-col items-center text-center px-4 animate-fadeIn">
-              <img src="/no_restaurants_open.svg" alt="No restaurants open" className="w-72 h-auto max-h-48 object-contain mb-2" />
+              <img loading="lazy" src="/no_restaurants_open.svg" alt="No restaurants open" className="w-72 h-auto max-h-48 object-contain mb-2" />
               <p className="font-bold text-base text-slate-800">
                 No Restaurants Open
               </p>
@@ -458,7 +422,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
                 <div className="mt-8 mb-6 flex flex-col items-center text-center px-2">
                   {/* Home Page Bottom Art SVG */}
                   <div className="w-[calc(100%+2rem)] -mx-4 mb-6 overflow-hidden bg-white flex items-center justify-center">
-                    <img 
+                    <img loading="lazy" 
                       src="/home-page-bottom-art.svg" 
                       alt="Crevings Bottom Art" 
                       className="w-full h-[260px] sm:h-[320px] object-contain bg-white" 
@@ -488,16 +452,8 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
               </div>
               <button
                 onClick={() => {
-                  setActiveFilters({
-                    maxTime: 60,
-                    maxDistance: 15,
-                    minRating: 1,
-                    dietary: "all",
-                    offersOnly: false,
-                    sortBy: "default",
-                    priceRange: null,
-                  });
-                  setSortMode("default");
+                  setActiveFilters({ ...FILTER_DEFAULTS });
+                  setSortMode(FILTER_DEFAULTS.sortBy);
                   setSelectedBrand(null);
                 }}
                 className="mt-5 px-5 py-2 bg-emerald-50 text-[#00bd6f] text-xs font-bold rounded-xl active:scale-95 transition-transform"
@@ -507,6 +463,7 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
             </div>
           )}</div>
       </div>
-    </Skeleton>
+      )}
+    </>
   );
 };

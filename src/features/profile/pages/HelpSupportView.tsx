@@ -178,7 +178,7 @@ const TopicFaqsScreen: React.FC<{topicId: string, onBack: () => void}> = ({ topi
 
 const SupportChatScreen = ({ onBack }: { onBack: () => void }) => {
   const [messages, setMessages] = useState([
-    { id: 1, text: "Hi! I'm Sarah from Support. How can I assist you today?", sender: 'agent', time: '10:30 AM' },
+    { id: 1, text: "Hi! You're chatting with our support assistant. How can we help you today?", sender: 'agent', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
   ]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -192,14 +192,12 @@ const SupportChatScreen = ({ onBack }: { onBack: () => void }) => {
     const newMsg = { id: Date.now(), text: input, sender: 'user', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
     setMessages([...messages, newMsg]);
     setInput('');
-    setTimeout(() => {
-        setMessages(prev => [...prev, {
-            id: Date.now() + 1,
-            text: "I'm looking into this right now. Please stay on the line.",
-            sender: 'agent',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }]);
-    }, 1500);
+    setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        text: "Thanks for reaching out! Your message has been recorded and routed to our support team.",
+        sender: 'agent',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }]);
   };
 
   return (
@@ -213,12 +211,12 @@ const SupportChatScreen = ({ onBack }: { onBack: () => void }) => {
                 <div className="flex items-center gap-3 flex-1">
                     <div className="relative">
                         <div className="w-10 h-10 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                            <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80" alt="Sarah" className="w-full h-full object-cover" />
+                            <img loading="lazy" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80" alt="Support" className="w-full h-full object-cover" />
                         </div>
                         <div className="absolute -bottom-0.5 -right-0.5 w-[14px] h-[14px] bg-[#00BD6F] border-2 border-white rounded-full"></div>
                     </div>
                     <div>
-                        <h3 className="font-bold text-[15px] text-slate-900 leading-none mb-1">Sarah Support</h3>
+                        <h3 className="font-bold text-[15px] text-slate-900 leading-none mb-1">Crevings Support</h3>
                         <p className="text-[#00BD6F] text-[12px] font-bold">Online</p>
                     </div>
                 </div>

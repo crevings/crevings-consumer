@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Home, MapPin, Briefcase, Map, MoreVertical, Plus, ArrowLeft, Navigation, ChevronRight, ChevronDown, ChevronUp, Edit2, Trash2, Landmark, Building, Castle, Building2, Church, HandMetal, X, Loader2 } from 'lucide-react';
+import { Search, Home, MapPin, Briefcase, MoreVertical, ArrowLeft, Navigation, ChevronRight, ChevronDown, ChevronUp, Edit2, Trash2, X, Loader2 } from 'lucide-react';
 import { MapLocationPickerView } from "@/features/location/MapLocationPickerView";
 import { EditAddressView } from '@/features/location/EditAddressView';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { SavedAddress } from '@/types';
+import { get } from "@/api/fetcher";
 
 interface SearchResultItem {
   id: string;
@@ -22,8 +23,8 @@ function uuidv7(): string {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     const randomBytes = new Uint8Array(10);
     crypto.getRandomValues(randomBytes);
-    randomBytes[0] = (randomBytes[0] & 0x0f) | 0x70;
-    randomBytes[2] = (randomBytes[2] & 0x3f) | 0x80;
+    randomBytes[0] = ((randomBytes[0] ?? 0) & 0x0f) | 0x70;
+    randomBytes[2] = ((randomBytes[2] ?? 0) & 0x3f) | 0x80;
     hexRandom = Array.from(randomBytes)
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
@@ -83,6 +84,25 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
     );
   }, [searchQuery, addresses]);
 
+  interface AutocompleteSuggestionResponse {
+    suggestions?: Array<{
+      placePrediction?: {
+        placeId?: string;
+        mainText?: { text?: string };
+        secondaryText?: { text?: string };
+        text?: { text?: string };
+      };
+    }>;
+  }
+
+  interface NominatimResult {
+    display_name?: string;
+    place_id?: string;
+    osm_id?: string;
+    lat?: string;
+    lon?: string;
+  }
+
   // Dynamic location search effect (Google Places / Nominatim API)
   useEffect(() => {
     const q = searchQuery.trim();
@@ -95,9 +115,14 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
     setIsSearchingLocations(true);
     const timer = setTimeout(async () => {
       // 1. Modern Google Places API v2: AutocompleteSuggestion (replaces deprecated AutocompleteService)
-      if (typeof window !== 'undefined' && window.google?.maps?.places && (window.google.maps.places as any).AutocompleteSuggestion) {
+      const placesApi = window.google?.maps?.places as unknown as {
+        AutocompleteSuggestion?: {
+          fetchAutocompleteSuggestions: (options: { input: string; componentRestrictions: { country: string } }) => Promise<AutocompleteSuggestionResponse>;
+        };
+      } | undefined;
+      if (placesApi?.AutocompleteSuggestion) {
         try {
-          const { AutocompleteSuggestion } = (window.google.maps.places as any);
+          const { AutocompleteSuggestion } = placesApi;
           const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
             input: q,
             componentRestrictions: { country: 'in' },
@@ -105,13 +130,13 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
 
           if (response && response.suggestions && response.suggestions.length > 0) {
             setIsSearchingLocations(false);
-            const results: SearchResultItem[] = response.suggestions.map((s: any, idx: number) => {
+            const results: SearchResultItem[] = response.suggestions.map((s, idx: number) => {
               const p = s.placePrediction;
               return {
-                id: p.placeId || String(idx),
-                title: p.mainText?.text || p.text?.text || q,
-                subtitle: p.secondaryText?.text || '',
-                placeId: p.placeId,
+                id: p?.placeId || String(idx),
+                title: p?.mainText?.text || p?.text?.text || q,
+                subtitle: p?.secondaryText?.text || '',
+                placeId: p?.placeId,
               };
             });
             setSearchResults(results);
@@ -124,19 +149,20 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
 
       // 2. OpenStreetMap Nominatim real-time search API
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=8`);
-        const data = await res.json();
+        const data = await get<NominatimResult[]>(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=in&limit=8`
+        );
         setIsSearchingLocations(false);
         if (Array.isArray(data)) {
-          const results: SearchResultItem[] = data.map((item: any) => {
+          const results: SearchResultItem[] = data.map((item) => {
             const parts = (item.display_name || '').split(',');
-            const title = parts[0] ? parts[0].trim() : item.display_name;
+            const title = parts[0] ? parts[0].trim() : (item.display_name || q);
             const subtitle = parts.slice(1).join(',').trim();
             return {
               id: String(item.place_id || item.osm_id || Math.random()),
               title,
               subtitle,
-              coords: [parseFloat(item.lat), parseFloat(item.lon)] as [number, number],
+              coords: [parseFloat(item.lat || "0"), parseFloat(item.lon || "0")] as [number, number],
             };
           });
           setSearchResults(results);
@@ -385,7 +411,7 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
               
               <div className="flex flex-col gap-3">
                 <AnimatePresence initial={false}>
-                  {(showAllAddresses ? addresses : addresses.slice(0, 3)).map((addr, idx) => {
+                  {(showAllAddresses ? addresses : addresses.slice(0, 3)).map((addr) => {
                     const Icon = addr.icon || MapPin;
                     return (
                       <motion.div 
@@ -414,10 +440,7 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
                           <p className="text-[13px] text-slate-500 leading-[1.4] line-clamp-2 pr-4 break-words whitespace-normal block mt-0.5">
                             {addr.address}
                           </p>
-                          <div className="text-[12px] font-bold text-[#00BD6F] mt-1.5 flex items-center gap-1">
-                            <Navigation className="w-3 h-3" />
-                            {idx === 0 ? '1.2 km' : idx === 1 ? '3.5 km' : '5.1 km'}
-                          </div>
+
                         </div>
                         
                         <div className="shrink-0 flex items-center relative z-10 self-start">

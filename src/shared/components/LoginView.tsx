@@ -1,10 +1,11 @@
 import React, { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { MessageSquare, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { BASE_URL } from "../../api/fetcher";
+import { MessageSquare, Loader2, ShieldCheck } from "lucide-react";
+import { post, put } from "@/api/fetcher";
+import { AuthUser } from "@/types";
 
 interface LoginViewProps {
-  onLoginSuccess?: (user: any) => void;
+  onLoginSuccess?: (user: AuthUser) => void;
   onNavigateToOnboarding?: () => void;
 }
 
@@ -21,14 +22,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [view, setViewState] = useState<LoginStep>("input");
 
   React.useEffect(() => {
-    const step = (location.state as any)?.loginStep;
+    const step = (location.state as { loginStep?: LoginStep } | null)?.loginStep;
     setViewState(step === "otp" || step === "name" ? step : "input");
   }, [location.state]);
 
   const setView = (next: LoginStep) => {
     setViewState(next);
     navigate(location.pathname + location.search, {
-      state: { ...((location.state as any) || {}), loginStep: next },
+      state: { ...((location.state as Record<string, unknown>) || {}), loginStep: next },
     });
   };
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -38,7 +39,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [authenticatedUser, setAuthenticatedUser] = useState<any>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<AuthUser | null>(null);
   const [showRestoredModal, setShowRestoredModal] = useState(false);
   const [isNewUserLogin, setIsNewUserLogin] = useState(false);
 
@@ -130,23 +131,24 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setApiError(null);
 
     try {
-      const response = await fetch(`${BASE_URL}/consumer/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          phone: phoneNumber,
-          otp: enteredOtp
-        })
+      const data = await post<{
+        success: boolean;
+        message?: string;
+        user?: AuthUser;
+        isNewUser?: boolean;
+        deletionCancelled?: boolean;
+      }>("/consumer/auth/verify-otp", {
+        phone: phoneNumber,
+        otp: enteredOtp,
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.message || "Invalid or expired OTP");
       }
 
-      setAuthenticatedUser(data.user);
+      if (data.user) {
+        setAuthenticatedUser(data.user);
+      }
 
       const isNew = Boolean(data.isNewUser || !data.user?.name || data.user.name === "New User" || data.user.name === "Valued Customer");
       setIsNewUserLogin(isNew);
@@ -157,15 +159,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         if (isNew) {
           setView("name");
         } else {
-          if (onLoginSuccess) {
+          if (data.user && onLoginSuccess) {
             onLoginSuccess(data.user);
           }
           navigate("/");
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       setOtpError(true);
-      setApiError(err.message || "OTP verification failed. Please try again.");
+      setApiError(err instanceof Error ? err.message : "OTP verification failed. Please try again.");
     } finally {
       setIsVerifying(false);
     }
@@ -178,26 +180,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setApiError(null);
 
     try {
-      const res = await fetch(`${BASE_URL}/consumer/profile`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: nameInput.trim() })
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await put<{ success: boolean; message?: string }>(
+        "/consumer/profile",
+        { name: nameInput.trim() }
+      );
+      if (!data.success) {
         throw new Error(data.message || "Failed to update profile name");
       }
 
+      if (!authenticatedUser) return;
       const updatedUser = { ...authenticatedUser, name: nameInput.trim() };
       if (onLoginSuccess) {
         onLoginSuccess(updatedUser);
       }
       // Mandatory redirect to location picker page after name entry
       navigate("/location");
-    } catch (err: any) {
-      setApiError(err.message || "Could not save name. Please try again.");
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : "Could not save name. Please try again.");
     } finally {
       setIsSavingName(false);
     }
@@ -205,12 +204,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
   const triggerSendWhatsappOtp = async (targetPhone: string) => {
     try {
-      const res = await fetch(`${BASE_URL}/consumer/auth/request-whatsapp-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: targetPhone })
+      const data = await post<unknown>("/consumer/auth/request-whatsapp-otp", {
+        phone: targetPhone,
       });
-      const data = await res.json();
       console.log("📱 MSG91 WhatsApp OTP response:", data);
     } catch (err) {
       console.error("Failed to trigger MSG91 WhatsApp OTP:", err);
@@ -243,7 +239,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
             <div className="flex items-center h-14 border border-slate-200 rounded-xl overflow-hidden focus-within:border-[#00bd6f] focus-within:ring-1 focus-within:ring-[#00bd6f] bg-white transition-all">
               <div className="flex items-center gap-2 px-4 border-r border-slate-200 bg-white h-full shrink-0">
-                <img src="https://flagcdn.com/w20/in.png" alt="India" className="w-5 h-3.5 object-cover rounded-sm shadow-sm" />
+                <img loading="lazy" src="https://flagcdn.com/w20/in.png" alt="India" className="w-5 h-3.5 object-cover rounded-sm shadow-sm" />
                 <span className="text-[15px] font-medium text-slate-700">+91</span>
               </div>
               <input
@@ -317,7 +313,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 onClick={() => {
                   // Pop the pushed "otp" history entry; the location-state
                   // effect above lands the view back on the phone input step.
-                  if ((location.state as any)?.loginStep) {
+                  if ((location.state as { loginStep?: LoginStep } | null)?.loginStep) {
                     navigate(-1);
                   } else {
                     setViewState("input");
@@ -413,7 +409,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                 if (isNewUserLogin) {
                   setView("name");
                 } else {
-                  if (onLoginSuccess) {
+                  if (authenticatedUser && onLoginSuccess) {
                     onLoginSuccess(authenticatedUser);
                   }
                   navigate("/");

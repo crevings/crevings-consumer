@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, Truck, ShoppingBag, Utensils, Package, HelpCircle, Check, Info, Sparkles } from 'lucide-react';
+import { X, ChevronRight, Truck, ShoppingBag, Utensils, Package, HelpCircle, Check, Sparkles } from 'lucide-react';
 
 interface GoldMembershipViewProps {
   onClose: () => void;

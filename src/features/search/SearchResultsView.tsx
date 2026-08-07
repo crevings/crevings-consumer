@@ -1,33 +1,45 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import Fuse from 'fuse.js';
+import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { 
   ArrowLeft, 
   Search, 
-  Star, 
-  Clock, 
   MapPin, 
-  Plus, 
-  Utensils, 
-  ChevronRight, 
   SlidersHorizontal,
   History,
   TrendingUp,
-  Flame,
   X,
-  ShoppingBag,
-  Store,
-  Mic,
-  Bookmark
+  Mic
 } from 'lucide-react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
-import { useRestaurants, useSearch, useSearchSuggestions } from "@/api/restaurants";
+import { useSearch, useSearchSuggestions } from "@/api/restaurant";
 import { useLocation as useAppLocation } from "@/contexts/LocationContext";
-import { MOCK_MENU } from "@/data/menu";
-import { Restaurant, MenuItem, FilterOptions } from "@/types";
+import { Restaurant, FilterOptions } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { GridMenuItemCard } from "@/features/collection/GridMenuItemCard";
 import { useDebounce } from "@/shared/hooks/useDebounce";
+
+interface SearchRestaurantDto {
+  branchId: string;
+  name: string;
+  cuisineType?: string;
+  rating?: number;
+  estimatedDeliveryMinutes?: number;
+  logo?: string;
+  distanceKm?: number;
+  isDeliverable?: boolean;
+  address?: { city?: string };
+}
+
+interface SearchDishDto {
+  itemId: string;
+  name: string;
+  category?: string;
+  description?: string;
+  price?: number;
+  dietaryType?: string;
+  images?: string[];
+  restaurant?: { branchId?: string; name?: string; distanceKm?: number; isDeliverable?: boolean };
+}
 
 interface SearchResultsViewProps {
   onBack: () => void;
@@ -64,59 +76,63 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
   // Call real-time H3 powered search API with debounced query & pagination limits
   // Always pass the selected delivery-area coordinates so out-of-area (other
   // city/state) restaurants are excluded by the backend's area access check.
-  const { data: searchApiResult, isLoading: isSearchLoading } = useSearch({
+  const { data: searchApiResult } = useSearch({
     query: debouncedQuery,
     lat: currentLocation?.coordinates?.lat,
     lng: currentLocation?.coordinates?.lng,
     vegOnly: activeFilters.dietary === 'veg',
-    minRating: activeFilters.minRating,
+    minRating: activeFilters.minRating ?? undefined,
     limit: 20,
   });
 
-  const { suggestions } = useSearchSuggestions(debouncedQuery);
+  useSearchSuggestions(debouncedQuery);
 
   const apiRestaurants = useMemo(() => {
-    if (!searchApiResult?.restaurants) return [];
-    return searchApiResult.restaurants.map((b: any) => ({
-      id: b.branchId,
-      name: b.name,
-      cuisine: b.cuisineType,
-      rating: b.rating || 4.2,
-      time: `${b.estimatedDeliveryMinutes || 25} min`,
-      timeValue: b.estimatedDeliveryMinutes || 25,
-      price: '₹350 for two',
-      images: b.logo ? [b.logo] : [],
-      distance: `${b.distanceKm || 1.5} km`,
-      distanceValue: b.distanceKm || 1.5,
-      isDeliverable: b.isDeliverable,
-      area: b.address?.city || 'Local',
-      dietary: ['veg', 'non-veg'],
+    const branches: SearchRestaurantDto[] = searchApiResult?.restaurants ?? [];
+    if (branches.length === 0) return [];
+    return branches.map((branch) => ({
+      id: branch.branchId,
+      name: branch.name,
+      cuisine: branch.cuisineType || '',
+      rating: branch.rating ?? 0,
+      time: branch.estimatedDeliveryMinutes != null ? `${branch.estimatedDeliveryMinutes} min` : '',
+      timeValue: branch.estimatedDeliveryMinutes ?? 0,
+      price: '',
+      images: branch.logo ? [branch.logo] : [],
+      distance: branch.distanceKm != null ? `${branch.distanceKm} km` : '',
+      distanceValue: branch.distanceKm ?? 0,
+      isDeliverable: branch.isDeliverable,
+      area: branch.address?.city || 'Local',
+      dietary: [],
     }));
   }, [searchApiResult]);
 
   const apiDishes = useMemo(() => {
-    if (!searchApiResult?.dishes) return [];
-    return searchApiResult.dishes.map((d: any) => ({
-      id: d.itemId,
-      name: d.name,
-      category: d.category || 'Special',
-      description: d.description || '',
-      price: d.price || 199,
-      isVeg: d.dietaryType === 'Veg',
-      images: d.images?.length > 0 ? d.images : ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c'],
-      rating: 4.5,
+    const dishes: SearchDishDto[] = searchApiResult?.dishes ?? [];
+    if (dishes.length === 0) return [];
+    return dishes.map((dish) => ({
+      id: dish.itemId,
+      name: dish.name,
+      category: dish.category || 'Special',
+      description: dish.description || '',
+      price: dish.price ?? 0,
+      isVeg: dish.dietaryType === 'Veg',
+      image: dish.images && dish.images.length > 0 ? (dish.images[0] ?? '') : '',
+      images: dish.images && dish.images.length > 0 ? dish.images : [],
+      rating: 0,
+      ratingCount: '0',
       restaurant: {
-        id: d.restaurant?.branchId || 'temp',
-        name: d.restaurant?.name || 'Restaurant',
+        id: dish.restaurant?.branchId || '',
+        name: dish.restaurant?.name || 'Restaurant',
         cuisine: 'Multi',
-        rating: 4.5,
-        time: '25 min',
-        timeValue: 25,
-        price: '₹350 for two',
+        rating: 0,
+        time: '',
+        timeValue: 0,
+        price: '',
         images: [],
-        distance: `${d.restaurant?.distanceKm || 2} km`,
-        distanceValue: d.restaurant?.distanceKm || 2,
-        isDeliverable: d.restaurant?.isDeliverable,
+        distance: dish.restaurant?.distanceKm != null ? `${dish.restaurant.distanceKm} km` : '',
+        distanceValue: dish.restaurant?.distanceKm ?? 0,
+        isDeliverable: dish.restaurant?.isDeliverable,
         dietary: [],
       },
     }));
@@ -271,7 +287,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
             {currentResultsLength > 0 ? (
               searchType === 'restaurant' ? (
                  <div className="space-y-4">
-                   {apiRestaurants.map((item: any) => (
+                   {apiRestaurants.map((item) => (
                       <div key={item.id} className="relative">
                         {!item.isDeliverable && (
                           <div className="mb-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1">
@@ -288,7 +304,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 pb-6">
-                  {apiDishes.map((item: any) => (
+                  {apiDishes.map((item) => (
                     <div key={`${item.restaurant.id}-${item.id}`} className="relative">
                       {!item.restaurant.isDeliverable && (
                         <div className="mb-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">

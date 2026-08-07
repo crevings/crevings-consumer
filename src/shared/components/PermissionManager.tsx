@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, MapPin, Bell } from 'lucide-react';
 import { requestLocationAndGetPosition } from '@/services/geolocation';
 
@@ -33,6 +33,7 @@ export const PermissionManager = () => {
 
   const handleAction = async (allowed: boolean) => {
     const currentPerm = permissions[step];
+    if (!currentPerm) return;
     
     if (allowed) {
         try {
@@ -65,6 +66,7 @@ export const PermissionManager = () => {
   if (isCompleted) return null;
 
   const current = permissions[step];
+  if (!current) return null;
 
   return (
     <div className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>

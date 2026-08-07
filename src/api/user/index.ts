@@ -1,6 +1,43 @@
 import useSWR from "swr";
-import { UserProfile } from "@/types";
-import { fetcher, BASE_URL } from "../fetcher";
+import { UserProfile, OrderItem, Order, OrderPayment, OrderRatingData, OrderCustomer, SavedAddress } from "@/types";
+import { fetcher, get, put, post } from "@/api/fetcher";
+
+interface PastOrderItem {
+  name?: string;
+  quantity?: number;
+}
+
+interface BranchProfile {
+  restaurantInfo?: { name?: string; address?: string; legalName?: string };
+}
+
+interface BranchDetails {
+  name?: string;
+  address?: string | { street?: string; city?: string };
+  profile?: BranchProfile;
+}
+
+/** Raw past-order shape returned by the backend list endpoint. */
+interface PastOrderDto {
+  orderId?: string;
+  items?: PastOrderItem[];
+  createdAt?: string;
+  restaurantName?: string;
+  branchDetails?: BranchDetails;
+  branchName?: string;
+  restaurantAddress?: string;
+  type?: string;
+  status?: string;
+  total?: number;
+  subtotal?: number;
+  tax?: number;
+  deliveryFee?: number;
+  discount?: number;
+  isRated?: boolean;
+  ratingData?: OrderRatingData | null;
+  customerDetails?: OrderCustomer | null;
+  payment?: OrderPayment | null;
+}
 
 const emptyProfile: UserProfile = {
   name: "",
@@ -12,7 +49,18 @@ const emptyProfile: UserProfile = {
 };
 
 const profileFetcher = async (url: string): Promise<UserProfile> => {
-  const data = await fetcher(url);
+  const data = await fetcher<{
+    success: boolean;
+    user?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      gender?: string;
+      dob?: string;
+      profileImage?: string | null;
+      addresses?: SavedAddress[];
+    };
+  }>(url);
   if (data && data.success && data.user) {
     const u = data.user;
     return {
@@ -20,7 +68,7 @@ const profileFetcher = async (url: string): Promise<UserProfile> => {
       email: u.email || "",
       phone: u.phone || "",
       gender: u.gender || "Male",
-      dob: u.dob ? new Date(u.dob).toISOString().split('T')[0] : "1999-09-15",
+      dob: u.dob ? (new Date(u.dob).toISOString().split("T")[0] ?? "") : "",
       image: u.profileImage || null,
     };
   }
@@ -61,17 +109,11 @@ export const updateUserProfile = async (payload: Partial<UserProfile>) => {
     profileImage: payload.image,
   };
 
-  const response = await fetch(`${BASE_URL}/consumer/profile`, {
-    method: "PUT",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(backendPayload),
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.success) {
+  const data = await put<{ success: boolean; message?: string }>(
+    "/consumer/profile",
+    backendPayload
+  );
+  if (!data.success) {
     throw new Error(data.message || "Failed to update profile.");
   }
   return data;
@@ -81,56 +123,60 @@ export const updateUserProfile = async (payload: Partial<UserProfile>) => {
  * Fetch past orders with cursor-based pagination.
  */
 export const getPastOrders = async (limit: number = 10, cursor?: string) => {
-  let url = `${BASE_URL}/consumer/profile/orders/past?limit=${limit}`;
+  let url = `/consumer/profile/orders/past?limit=${limit}`;
   if (cursor) {
     url += `&cursor=${encodeURIComponent(cursor)}`;
   }
 
-  const response = await fetch(url, {
-    method: "GET",
-    credentials: "include",
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.success) {
+  const data = await get<{
+    success: boolean;
+    message?: string;
+    orders?: PastOrderDto[];
+    nextCursor?: string | null;
+    hasMore?: boolean;
+  }>(url);
+  if (!data.success) {
     throw new Error(data.message || "Failed to fetch past orders.");
   }
   
-  const formattedOrders = (data.orders || []).map((o: any) => {
-    const itemsList = (o.items || []).map((item: any) => `${item.name} x${item.quantity}`).join(", ");
-    const formattedDate = o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-US', {
+  const formattedOrders: Order[] = (data.orders || []).map((order: PastOrderDto): Order => {
+    const lineItems: OrderItem[] = (order.items || []).map((item: PastOrderItem) => ({
+      name: item.name ?? "",
+      quantity: item.quantity || 1,
+    }));
+    const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',
       year: 'numeric'
     }) : "";
 
     return {
-      id: o.orderId,
-      restaurantName: o.restaurantName || o.branchDetails?.profile?.restaurantInfo?.name || o.branchDetails?.name || o.branchDetails?.profile?.restaurantInfo?.legalName || o.branchName || "",
-      location: o.restaurantAddress || o.branchDetails?.profile?.restaurantInfo?.address || (typeof o.branchDetails?.address === 'string' ? o.branchDetails.address : [o.branchDetails?.address?.street, o.branchDetails?.address?.city].filter(Boolean).join(', ')) || "",
+      id: order.orderId || "", 
+      restaurantName: order.restaurantName || order.branchDetails?.profile?.restaurantInfo?.name || order.branchDetails?.name || order.branchDetails?.profile?.restaurantInfo?.legalName || order.branchName || "",
+      location: order.restaurantAddress || order.branchDetails?.profile?.restaurantInfo?.address || (typeof order.branchDetails?.address === 'string' ? order.branchDetails.address : [order.branchDetails?.address?.street, order.branchDetails?.address?.city].filter(Boolean).join(', ')) || "",
       rating: 0,
-      items: itemsList || "1 item",
+      items: lineItems,
       orderDate: formattedDate,
-      type: o.type || "Delivery",
-      status: o.status === "COMPLETED" || o.status === "DELIVERED" ? "Completed" : "Cancelled",
-      price: o.total || 0,
-      total: o.total || 0,
-      subtotal: o.subtotal || o.total || 0,
-      tax: o.tax || 0,
-      deliveryFee: o.deliveryFee || 0,
-      discount: o.discount || 0,
-      createdAt: o.createdAt,
-      isRated: o.isRated || false,
-      ratingData: o.ratingData || null,
-      rawItems: o.items || [],
-      customerDetails: o.customerDetails || null,
-      payment: o.payment || null,
+      type: (order.type as Order["type"]) || "Delivery",
+      status: (order.status === "COMPLETED" || order.status === "DELIVERED" ? "COMPLETED" : "CANCELLED") as Order["status"],
+      price: order.total || 0,
+      total: order.total || 0,
+      subtotal: order.subtotal || order.total || 0,
+      tax: order.tax || 0,
+      deliveryFee: order.deliveryFee || 0,
+      discount: order.discount || 0,
+      createdAt: order.createdAt,
+      isRated: order.isRated || false,
+      ratingData: order.ratingData ?? undefined,
+      rawItems: (order.items || []) as OrderItem[],
+      customerDetails: order.customerDetails ?? undefined,
+      payment: order.payment ?? undefined,
     };
   });
 
   return {
     orders: formattedOrders,
-    nextCursor: data.nextCursor,
+    nextCursor: data.nextCursor ?? undefined,
     hasMore: data.hasMore,
   };
 };
@@ -139,16 +185,10 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
  * Request account deletion (48-hour grace period).
  */
 export const requestAccountDeletionApi = async () => {
-  const response = await fetch(`${BASE_URL}/consumer/profile/request-deletion`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.success) {
+  const data = await post<{ success: boolean; message?: string }>(
+    "/consumer/profile/request-deletion"
+  );
+  if (!data.success) {
     throw new Error(data.message || "Failed to request account deletion.");
   }
   return data;

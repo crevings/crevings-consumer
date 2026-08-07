@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, CheckCircle2 } from 'lucide-react';
 
 interface RestaurantOutletsSheetProps {
@@ -53,8 +53,7 @@ export const RestaurantOutletsSheet: React.FC<RestaurantOutletsSheetProps> = ({
                 >
                   <div className="flex flex-col items-start">
                     <span className={`text-base font-bold ${selectedOutlet === outlet ? 'text-blue-600' : 'text-slate-900'}`}>{outlet}</span>
-                    <span className="text-xs text-slate-500 mt-1">{Math.floor(Math.random() * 5 + 1)}.{Math.floor(Math.random() * 9)} km away</span>
-                  </div>
+                                      </div>
                   {selectedOutlet === outlet && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
                 </button>
               ))}

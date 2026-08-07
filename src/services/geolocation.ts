@@ -8,16 +8,20 @@ export interface GeoPosition {
   lng: number;
 }
 
+interface CapacitorGlobal {
+  isNativePlatform?: () => boolean;
+}
+
 export const isCapacitorNative = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const cap = (window as any).Capacitor;
+  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
   return !!cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform();
 };
 
 const getBrowserPosition = (): Promise<GeoPosition> =>
   new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      const err: any = new Error('Geolocation is not supported on this device');
+      const err = new Error('Geolocation is not supported on this device') as Error & { code: number };
       err.code = 2; // POSITION_UNAVAILABLE
       reject(err);
       return;
@@ -40,14 +44,14 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
       const { Geolocation } = await import('@capacitor/geolocation');
       const perm = await Geolocation.requestPermissions();
       if (perm.location !== 'granted') {
-        const err: any = new Error('Location permission denied');
+        const err = new Error('Location permission denied') as Error & { code: number };
         err.code = 1; // PERMISSION_DENIED
         throw err;
       }
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
       return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-    } catch (e: any) {
-      if (e?.code === 1) throw e; // user denied — surface as-is
+    } catch (e) {
+      if ((e as { code?: number } | null)?.code === 1) throw e; // user denied — surface as-is
       // Plugin unavailable / runtime failure — try the webview's browser API
       return getBrowserPosition();
     }
@@ -62,7 +66,7 @@ export const openLocationSettings = async (): Promise<void> => {
     const { App } = await import('@capacitor/app');
     // Capacitor 8 removed App.openUrl from the public API — call it via the
     // runtime plugin registry (works on Capacitor 5-7 native builds).
-    await (App as any).openUrl?.({ url: 'app-settings:' });
+    await (App as unknown as { openUrl?: (options: { url: string }) => Promise<void> }).openUrl?.({ url: 'app-settings:' });
   } catch {
     // best effort — ignore
   }

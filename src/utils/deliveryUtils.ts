@@ -1,8 +1,6 @@
-export interface IDeliveryFeeSlab {
-  minKm: number;
-  maxKm: number;
-  fee: number;
-}
+import type { DeliveryFeeSlab } from "@/types";
+
+export type IDeliveryFeeSlab = DeliveryFeeSlab;
 
 /**
  * Calculates delivery fee dynamically ONLY from array of fee slabs fetched from MongoDB

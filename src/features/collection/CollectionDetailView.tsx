@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { ArrowLeft, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'motion/react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
-import { Restaurant, FilterOptions } from "@/types";
+import { Restaurant, FilterOptions, Collection } from "@/types";
 
 interface CollectionDetailViewProps {
-  collection: any;
+  collection: Collection;
   restaurants: Restaurant[];
   hiddenIds: string[];
   favouriteIds: string[];
@@ -22,7 +22,6 @@ export const CollectionDetailView: React.FC<CollectionDetailViewProps> = ({
   collection,
   restaurants,
   hiddenIds,
-  favouriteIds,
   onBack,
   onHide,
   onFavourite,
@@ -46,7 +45,7 @@ export const CollectionDetailView: React.FC<CollectionDetailViewProps> = ({
     let list = restaurants.filter(r => !hiddenIds.includes(String(r.id)));
     
     list = list.filter(r => {
-      const matchRating = r.rating >= activeFilters.minRating;
+      const matchRating = r.rating >= (activeFilters.minRating ?? 0);
       const matchTime = r.timeValue <= activeFilters.maxTime;
       const matchDistance = r.distanceValue <= activeFilters.maxDistance;
       const matchOffers = !activeFilters.offersOnly || !!r.offer;
@@ -141,7 +140,7 @@ export const CollectionDetailView: React.FC<CollectionDetailViewProps> = ({
       {/* Collection Banner */}
       <div className="px-4 py-4">
         <div className="w-full h-[180px] rounded-[24px] overflow-hidden relative shadow-sm">
-          <img src={collection.image} alt={collection.title} className="w-full h-full object-cover" />
+          <img loading="lazy" src={collection.image} alt={collection.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
           <div className="absolute bottom-4 left-4 right-4">
             <h2 className="text-white font-black text-2xl leading-tight mb-1">{collection.title}</h2>

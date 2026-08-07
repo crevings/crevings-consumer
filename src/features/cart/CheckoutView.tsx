@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "motion/react";
 import {
   MapPin,
   Plus,
   Minus,
-  Tag,
   Info,
   ChevronRight,
   ChevronLeft,
@@ -24,33 +23,53 @@ import {
   Heart,
   Banknote,
   Check,
-  Search,
 } from "lucide-react";
-import { useCart } from "../../contexts/CartContext";
-import { UpiLogo } from "../../shared/components/UpiLogo";
-import { useLocation as useAppLocation } from "../../contexts/LocationContext";
-import { useRestaurant } from "../../contexts/RestaurantContext";
-import { useApp } from "../../contexts/AppContext";
-import { CartItem, Order } from "@/types";
-import { CartPreviewSheet } from "./components/CartPreviewSheet";
-import { ConfirmationBottomSheet } from "../../shared/components/ConfirmationBottomSheet";
-import { useRestaurantOffers } from "../../api/restaurants";
-import { BASE_URL } from "../../api/fetcher";
-import { addOrUpdateCartItem } from "@/utils/cartUtils";
+import { useCart } from "@/contexts/CartContext";
+import { UpiLogo } from "@/shared/components/UpiLogo";
+import { useLocation as useAppLocation } from "@/contexts/LocationContext";
+import { useRestaurant } from "@/contexts/RestaurantContext";
+import { CartItem, OrderItem, OrderCustomer, OrderType, MenuItem, Order } from "@/types";
+import { FEES } from "@/config/constants";
+import { CartPreviewSheet } from "@/features/cart/components/CartPreviewSheet";
+import { PriceBreakdown } from "@/features/cart/components/PriceBreakdown";
+import { CouponRow } from "@/features/cart/components/CouponRow";
+import { CouponSheet } from "@/features/cart/components/CouponSheet";
+import { useCoupon } from "@/features/cart/hooks/useCoupon";
+import { ConfirmationBottomSheet } from "@/shared/components/ConfirmationBottomSheet";
+import { useRestaurantOffers } from "@/api/restaurant/index";
+import { get, post } from "@/api/fetcher";
+import { addOrUpdateCartItem, withQuantity } from "@/utils/cartUtils";
 import { calculateFeeFromSlabs } from "@/utils/deliveryUtils";
+import { formatAmount } from "@/utils/currency";
+
+interface PlaceOrderResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    items: OrderItem[];
+    orderId: string;
+    displayOrderId?: string;
+    branchId?: string;
+    type?: string;
+    total?: number;
+    createdAt?: string;
+    pickupOtp?: string;
+    customerDetails?: OrderCustomer;
+    payment?: { method?: string };
+  };
+}
 
 export const CheckoutView: React.FC = () => {
   const navigate = useNavigate();
   const { cart, setCart, menuItems } = useCart();
   const { currentLocation, isServiceable } = useAppLocation();
   const { setActiveOrder, selectedRestaurant } = useRestaurant();
-  const { setIsLoadingView, setLoadingViewType } = useApp();
 
   // Filter suggestions purely from the restaurant's menuItems (no mock data fallback for production)
   const displaySuggestions = (menuItems || [])
     .filter((m) => !cart.some((c) => c.item.id === m.id));
 
-  const handleAddMealItem = (item: any) => {
+  const handleAddMealItem = (item: MenuItem) => {
     const newCartItem: CartItem = {
       cartItemId: `addon-${item.id}-${Date.now()}`,
       item: {
@@ -71,7 +90,15 @@ export const CheckoutView: React.FC = () => {
   };
 
   const { offers } = useRestaurantOffers(selectedRestaurant?.id, 20);
-  const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const { subtotal, totalItems, totalPrice } = useMemo(() => {
+    let sub = 0;
+    let items = 0;
+    for (const item of cart) {
+      sub += item.totalPrice;
+      items += item.quantity;
+    }
+    return { subtotal: sub, totalItems: items, totalPrice: sub };
+  }, [cart]);
 
   const [orderType, setOrderType] = useState<"Delivery" | "Takeaway">("Delivery");
   const [showPaymentSheet, setShowPaymentSheet] = useState(false);
@@ -80,89 +107,40 @@ export const CheckoutView: React.FC = () => {
   const [showNoteSheet, setShowNoteSheet] = useState(false);
   const [showTaxesSheet, setShowTaxesSheet] = useState(false);
   const [tempNote, setTempNote] = useState("");
-  const [showCouponSheet, setShowCouponSheet] = useState(false);
   const [showCartPreview, setShowCartPreview] = useState(false);
-
-  const totalItems = cart.reduce((sum, c) => sum + c.quantity, 0);
-  const totalPrice = cart.reduce((sum, c) => sum + c.totalPrice, 0);
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    discount: number;
-  } | null>(null);
-  const [selectedCouponDetails, setSelectedCouponDetails] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"UPI" | "COD" | null>(null);
   const [showProcessing, setShowProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<"processing" | "buffer" | "success" | "cancelling" | "cancelled">("processing");
   const [timeLeft, setTimeLeft] = useState(30);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [tipAmount, setTipAmount] = useState<number>(0);
   const [showCustomTip, setShowCustomTip] = useState(false);
   const [customTipInput, setCustomTipInput] = useState("");
   const [customTipError, setCustomTipError] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
 
-  const [couponError, setCouponError] = useState("");
-  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState<any>(null);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [orderError, setOrderError] = useState("");
+  const [_isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [_orderError, setOrderError] = useState("");
 
-  const applyCoupon = async (code: string) => {
-    setCouponError("");
-    setIsValidatingCoupon(true);
-    try {
-      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant?.id}/offers/validate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          code,
-          items: cart.map(c => ({
-            id: c.item.id,
-            price: c.item.price,
-            quantity: c.quantity,
-            category: c.item.category
-          })),
-          subtotal,
-          orderType: orderType.toLowerCase()
-        }),
-      });
-
-      const result = await response.json();
-      if (!result.success || !result.isValid) {
-        setCouponError(result.message || "Failed to apply coupon");
-      } else {
-        setAppliedCoupon({
-          code,
-          discount: result.discountAmount || 0,
-        });
-        setShowCouponSheet(false);
-      }
-    } catch (err: any) {
-      setCouponError("Failed to validate coupon on backend");
-    } finally {
-      setIsValidatingCoupon(false);
-    }
-  };
+  const {
+    showCouponSheet,
+    setShowCouponSheet,
+    appliedCoupon,
+    selectedCouponDetails,
+    setSelectedCouponDetails,
+    couponError,
+    isValidatingCoupon,
+    applyCoupon,
+    clearCoupon,
+  } = useCoupon({
+    restaurantId: selectedRestaurant?.id,
+    cart,
+    subtotal,
+    orderType,
+    offers,
+  });
 
   useEffect(() => {
-    if (appliedCoupon && selectedRestaurant && offers) {
-      const activeOffer = offers.find(o => o.offerId === appliedCoupon.code);
-      if (activeOffer) {
-        const typeKey = orderType.toLowerCase() === 'dinein' ? 'dineIn' : orderType.toLowerCase();
-        const isSupported = (activeOffer.orderTypes as any)?.[typeKey];
-        if (isSupported === false) {
-          setAppliedCoupon(null);
-          alert(`Coupon ${appliedCoupon.code} is not applicable for ${orderType}.`);
-        }
-      }
-    }
-  }, [orderType, offers, appliedCoupon, selectedRestaurant]);
-
-  useEffect(() => {
-    let timer: any;
+    let timer: ReturnType<typeof setInterval> | undefined;
     if (showProcessing && processingStep === "buffer" && timeLeft > 0) {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
@@ -180,55 +158,28 @@ export const CheckoutView: React.FC = () => {
     };
   }, [showProcessing, processingStep, timeLeft]);
 
-  const handleCancelOrder = async () => {
-    if (!createdOrder || !selectedRestaurant) return;
-    setIsCancelling(true);
-    setProcessingStep("cancelling");
-    try {
-      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant.id}/orders/${createdOrder.orderId}/cancel`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-      });
-      const result = await response.json();
-      if (result.success) {
-        setProcessingStep("cancelled");
-      } else {
-        alert(result.message || "Failed to cancel order.");
-        setProcessingStep("buffer");
-      }
-    } catch (err: any) {
-      alert("Failed to cancel order due to network issue.");
-      setProcessingStep("buffer");
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
 
 
   const distanceKm = (() => {
-    if (!selectedRestaurant) return 1.2;
-    if (typeof (selectedRestaurant as any).distanceValue === "number") {
-      return (selectedRestaurant as any).distanceValue;
+    if (!selectedRestaurant) return 0;
+    if (typeof selectedRestaurant.distanceValue === "number") {
+      return selectedRestaurant.distanceValue;
     }
     if (typeof selectedRestaurant.distance === "string") {
       const parsed = parseFloat(selectedRestaurant.distance);
       if (!isNaN(parsed)) return parsed;
     }
-    return 1.2;
+    return 0;
   })();
 
   const deliveryFee = (cart.length === 0 || orderType !== "Delivery")
     ? 0
-    : (typeof (selectedRestaurant as any)?.deliveryFee === "number" && (selectedRestaurant as any).deliveryFee > 0)
-      ? (selectedRestaurant as any).deliveryFee
-      : calculateFeeFromSlabs(distanceKm, (selectedRestaurant as any)?.deliveryFeeSlabs);
+    : (typeof selectedRestaurant?.deliveryFee === "number" && selectedRestaurant.deliveryFee > 0)
+      ? selectedRestaurant.deliveryFee
+      : calculateFeeFromSlabs(distanceKm, selectedRestaurant?.deliveryFeeSlabs);
 
   const discountAmount = appliedCoupon ? Math.min(appliedCoupon.discount, subtotal) : 0;
-  const platformFee = cart.length === 0 ? 0 : 5;
+  const platformFee = cart.length === 0 ? 0 : FEES.platformFee;
 
   // Calculate taxable subtotal: ONLY items where gstCategory !== 'MRP Based Item' AND gstIncluded === false
   const taxableSubtotal = cart.reduce((sum, cartItem) => {
@@ -244,17 +195,18 @@ export const CheckoutView: React.FC = () => {
 
   const discountRatio = subtotal > 0 ? (subtotal - discountAmount) / subtotal : 1;
   const netTaxableAmount = taxableSubtotal * discountRatio;
-  const rawTaxes = cart.length === 0 ? 0 : netTaxableAmount * 0.05;
+  const rawTaxes = cart.length === 0 ? 0 : netTaxableAmount * FEES.taxRate;
   const taxes = Number(rawTaxes.toFixed(2)); // Exact float up to 2 decimal places (no Integer rounding errors)
   const rawTotal = cart.length === 0 ? 0 : Math.max(0, subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount);
   const total = Number(rawTotal.toFixed(2));
 
-  const formatAmount = (num: number): string => {
-    if (Number.isInteger(num)) {
-      return num.toString();
-    }
-    const fixed = num.toFixed(2);
-    return fixed.endsWith('.00') ? Math.round(num).toString() : fixed;
+  /** Extracts the restaurant's GeoJSON coordinates ([lng, lat]) from its address. */
+  const getRestaurantCoordinates = (): { lat: number; lng: number } | null => {
+    const address = selectedRestaurant?.address;
+    if (typeof address !== "object" || !address?.coordinates) return null;
+    const coords = Array.isArray(address.coordinates) ? address.coordinates : address.coordinates.coordinates;
+    if (!Array.isArray(coords) || coords.length < 2) return null;
+    return { lat: coords[1], lng: coords[0] };
   };
 
   const handleConfirmOrder = async () => {
@@ -267,13 +219,9 @@ export const CheckoutView: React.FC = () => {
     setProcessingStep("processing");
 
     try {
-      const response = await fetch(`${BASE_URL}/consumer/restaurants/${selectedRestaurant.id}/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
+      const result = await post<PlaceOrderResponse>(
+        `/consumer/restaurants/${selectedRestaurant.id}/orders`,
+        {
           items: cart.map(c => {
             const allAddons = [
               ...(c.selectedAddons || []),
@@ -300,26 +248,21 @@ export const CheckoutView: React.FC = () => {
           appliedOffer: appliedCoupon ? appliedCoupon.code : undefined,
           tipAmount: tipAmount,
           notes: deliveryNote
-        }),
-      });
-
-      const result = await response.json();
+        }
+      );
       if (!result.success) {
         setOrderError(result.message || "Failed to place order");
         setShowProcessing(false);
         alert(result.message || "Failed to place order. Please try again.");
       } else {
         // Fetch the fully populated active order from the server to get restaurant/delivery coordinates
-        let orderPayload = null;
+        let orderPayload: Order | null = null;
         try {
-          const activeRes = await fetch(`${BASE_URL}/consumer/profile/orders/active`, {
-            credentials: "include"
-          });
-          if (activeRes.ok) {
-            const activeData = await activeRes.json();
-            if (activeData.success && activeData.order) {
-              orderPayload = activeData.order;
-            }
+          const activeData = await get<{ success: boolean; order?: Order }>(
+            "/consumer/profile/orders/active"
+          );
+          if (activeData.success && activeData.order) {
+            orderPayload = activeData.order;
           }
         } catch (fetchErr) {
           console.error("Error pre-fetching active order details:", fetchErr);
@@ -327,42 +270,32 @@ export const CheckoutView: React.FC = () => {
 
         if (!orderPayload) {
           // Fallback to client constructed order if fetch fails
-          const itemsStr = result.data.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
-          let restaurantCoordinates = null;
-          const rawCoords = (selectedRestaurant as any)?.address?.coordinates;
-          if (rawCoords) {
-            const arr = Array.isArray(rawCoords) ? rawCoords : rawCoords.coordinates;
-            if (Array.isArray(arr) && arr.length >= 2) {
-              restaurantCoordinates = {
-                lat: arr[1],
-                lng: arr[0]
-              };
-            }
-          }
-          let deliveryCoordinates = null;
-          if ((currentLocation as any)?.coordinates) {
-            deliveryCoordinates = {
-              lat: (currentLocation as any).coordinates.lat,
-              lng: (currentLocation as any).coordinates.lng
-            };
-          }
+          const restaurantCoordinates = getRestaurantCoordinates();
+          const deliveryCoordinates = currentLocation?.coordinates
+            ? { lat: currentLocation.coordinates.lat, lng: currentLocation.coordinates.lng }
+            : null;
           orderPayload = {
             id: result.data.displayOrderId || result.data.orderId,
             realOrderId: result.data.orderId,
             restaurantId: selectedRestaurant?.id || result.data.branchId,
             restaurantName: selectedRestaurant?.name || "Restaurant",
-            location: result.data.customerDetails.address,
-            rating: selectedRestaurant?.rating || 4.5,
-            items: itemsStr,
-            orderDate: new Date(result.data.createdAt).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            }),
-            type: result.data.type,
-            status: "Active",
-            timeEstimate: result.data.type === "Delivery" ? "30 mins" : "15 mins",
-            paymentMethod: result.data.payment.method,
+            location: result.data.customerDetails?.address || "",
+            rating: selectedRestaurant?.rating ?? 0,
+            items: result.data.items.map((item) => ({
+              name: item.name,
+              quantity: item.quantity || 1,
+              price: item.price,
+            })),
+            orderDate: result.data.createdAt
+              ? new Date(result.data.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "",
+            type: (result.data.type as OrderType) || "Delivery",
+            status: "NEW",
+            paymentMethod: result.data.payment?.method || "",
             total: result.data.total,
             createdAt: result.data.createdAt,
             pickupOtp: result.data.pickupOtp,
@@ -380,7 +313,7 @@ export const CheckoutView: React.FC = () => {
           navigate("/order-tracking");
         }
       }
-    } catch (err: any) {
+    } catch {
       setOrderError("An error occurred while connecting to the server.");
       setShowProcessing(false);
       alert("Failed to place order due to network issue. Please try again.");
@@ -389,60 +322,6 @@ export const CheckoutView: React.FC = () => {
     }
   };
 
-  const handleTrackOrder = () => {
-    if (!createdOrder) {
-      navigate("/");
-      return;
-    }
-    const itemsStr = createdOrder.items.map((i: any) => `${i.quantity}x ${i.name}`).join(", ");
-    let restaurantCoordinates = null;
-    const rawCoords = (selectedRestaurant as any)?.address?.coordinates;
-    if (rawCoords) {
-      const arr = Array.isArray(rawCoords) ? rawCoords : rawCoords.coordinates;
-      if (Array.isArray(arr) && arr.length >= 2) {
-        restaurantCoordinates = {
-          lat: arr[1],
-          lng: arr[0]
-        };
-      }
-    }
-    let deliveryCoordinates = null;
-    if ((currentLocation as any)?.coordinates) {
-      deliveryCoordinates = {
-        lat: (currentLocation as any).coordinates.lat,
-        lng: (currentLocation as any).coordinates.lng
-      };
-    }
-
-    const newOrder: Order = {
-      id: createdOrder.displayOrderId || createdOrder.orderId,
-      restaurantName: selectedRestaurant?.name || "Restaurant",
-      location: createdOrder.customerDetails.address,
-      rating: selectedRestaurant?.rating || 4.5,
-      items: itemsStr,
-      orderDate: new Date(createdOrder.createdAt).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-      type: createdOrder.type,
-      status: "Active",
-      timeEstimate: createdOrder.type === "Delivery" ? "30 mins" : "15 mins",
-      paymentMethod: createdOrder.payment.method,
-      createdAt: createdOrder.createdAt,
-      pickupOtp: createdOrder.pickupOtp,
-      restaurantCoordinates,
-      deliveryCoordinates
-    };
-    setActiveOrder(newOrder);
-    setCart([]);
-    setShowProcessing(false);
-    if (newOrder.type === "Delivery") {
-      navigate("/");
-    } else {
-      navigate("/order-tracking");
-    }
-  };
 
   const handleQuantityChange = (cartItemId: string, delta: number) => {
     setCart((prev) => {
@@ -451,16 +330,7 @@ export const CheckoutView: React.FC = () => {
           if (item.cartItemId === cartItemId) {
             const newQty = item.quantity + delta;
             if (newQty <= 0) return null;
-            const basePrice = item.item.price;
-            const variantPrice = item.variant ? item.variant.price : 0;
-            const addonsPrice = (item.selectedAddons || []).reduce((s, a) => s + a.price * a.quantity, 0);
-            const sidesPrice = (item.selectedSides || []).reduce((s, a) => s + a.price * a.quantity, 0);
-            const singlePrice = basePrice + variantPrice + addonsPrice + sidesPrice;
-            return {
-              ...item,
-              quantity: newQty,
-              totalPrice: singlePrice * newQty,
-            };
+            return withQuantity(item, newQty);
           }
           return item;
         })
@@ -615,7 +485,7 @@ export const CheckoutView: React.FC = () => {
                   <div className="flex items-start gap-3 flex-1">
                     <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative bg-slate-50">
                       <img
-                        src={cartItem.item.image}
+loading="lazy"                         src={cartItem.item.image}
                         alt={cartItem.item.name}
                         className="w-full h-full object-cover"
                       />
@@ -708,7 +578,7 @@ export const CheckoutView: React.FC = () => {
                   <div key={item.id} className="min-w-[80px] w-[80px] flex flex-col gap-1.5">
                     <div className="w-full aspect-square rounded-[16px] overflow-hidden relative bg-slate-50">
                       <img
-                        src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop"}
+loading="lazy"                         src={item.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop"}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />
@@ -848,107 +718,24 @@ export const CheckoutView: React.FC = () => {
           </div>
         )}
 
-        {/* Offers & Coupons */}
-        <button
+        <CouponRow
+          appliedCoupon={appliedCoupon}
+          discountAmount={discountAmount}
           onClick={() => setShowCouponSheet(true)}
-          className="w-full bg-white rounded-[20px] p-4 border border-slate-100 shadow-sm flex items-center justify-between text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-              <Tag size={20} />
-            </div>
-            <div>
-              <h4 className="text-[14px] font-bold text-slate-900">
-                {appliedCoupon ? `Coupon Applied: ${appliedCoupon.code}` : "Apply Coupon"}
-              </h4>
-              <p
-                className={`text-[12px] ${appliedCoupon ? "text-emerald-600 font-medium" : "text-slate-500"}`}
-              >
-                {appliedCoupon ? `Saved ₹${discountAmount}` : "View available offers"}
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={20} className="text-slate-400" />
-        </button>
+        />
 
-        {/* Price Breakdown */}
-        <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden mb-6">
-          <div className="p-4 flex items-start justify-between border-b border-slate-100">
-            <div className="flex items-start gap-3">
-              <div className="text-left">
-                <h3 className="text-[17px] font-bold text-slate-800 flex items-center gap-2">
-                  To Pay{" "}
-                  {discountAmount > 0 && (
-                    <span className="text-slate-400 line-through font-medium">
-                      ₹{formatAmount(total + discountAmount)}
-                    </span>
-                  )}{" "}
-                  ₹{formatAmount(total)}
-                </h3>
-                {discountAmount > 0 && (
-                  <p className="text-[14px] font-medium text-green-600 mt-0.5">
-                    ₹{formatAmount(discountAmount)} saved on the total!
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="p-5 space-y-4">
-            <div className="flex justify-between items-center text-[15px]">
-              <span className="text-slate-500">Item Total</span>
-              <span className="text-slate-700 font-medium">₹{formatAmount(subtotal)}</span>
-            </div>
-
-            {orderType === "Delivery" ? (
-              <div className="flex justify-between items-start text-[15px]">
-                <div className="flex flex-col text-left">
-                  <span className="text-slate-500">
-                    Delivery Fee{distanceKm > 0 ? <span className="text-green-600 font-medium"> | {distanceKm} km</span> : ""}
-                  </span>
-                  <span className="text-[13px] text-slate-400 mt-2 max-w-[220px] leading-snug">
-                    This amount goes directly to our local rider to ensure safe and timely delivery.
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-green-600 font-medium">₹{formatAmount(deliveryFee)}</span>
-                </div>
-              </div>
-            ) : null}
-
-            {discountAmount > 0 && (
-              <div className="flex justify-between items-center text-[15px]">
-                <span className="text-slate-500">Extra discount for you</span>
-                <span className="text-green-600 font-medium">- ₹{formatAmount(discountAmount)}</span>
-              </div>
-            )}
-
-            <div className="border-b border-dashed border-slate-200 my-2" />
-
-            <div className="flex justify-between items-center text-[15px]">
-              <span className="text-slate-500">Delivery Tip</span>
-              <span className="text-green-600 font-medium">₹{formatAmount(tipAmount)}</span>
-            </div>
-
-            <div className="flex justify-between items-center text-[15px]">
-              <div 
-                className="flex items-center gap-1.5 cursor-pointer group"
-                onClick={() => setShowTaxesSheet(true)}
-              >
-                <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST & Other Charges</span>
-                <Info size={14} className="text-slate-400" />
-              </div>
-              <span className="text-slate-700 font-medium">₹{formatAmount(taxes + platformFee)}</span>
-            </div>
-
-            <div className="border-b border-dashed border-slate-200 my-2" />
-
-            <div className="flex justify-between items-center pt-1 pb-1">
-              <span className="font-bold text-slate-800 text-[17px]">To Pay</span>
-              <span className="font-bold text-slate-800 text-[17px]">₹{formatAmount(total)}</span>
-            </div>
-          </div>
-        </div>
+        <PriceBreakdown
+          subtotal={subtotal}
+          deliveryFee={deliveryFee}
+          distanceKm={distanceKm}
+          discountAmount={discountAmount}
+          tipAmount={tipAmount}
+          taxes={taxes}
+          platformFee={platformFee}
+          total={total}
+          orderType={orderType}
+          onShowTaxesSheet={() => setShowTaxesSheet(true)}
+        />
 
         {/* Cancellation Policy */}
         <div className="bg-slate-50 rounded-[16px] p-4 flex items-start gap-3">
@@ -1065,185 +852,22 @@ export const CheckoutView: React.FC = () => {
       )}
 
       {/* Coupon Bottom Sheet */}
-      {showCouponSheet && (
-        <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 transition-opacity"
-          onClick={() => {
-            setShowCouponSheet(false);
-            setSelectedCouponDetails(null);
-          }}
-        >
-          <div
-            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300 max-h-[85vh] overflow-y-auto no-scrollbar flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-10 pb-2">
-              <h3 className="text-[18px] font-bold text-slate-900">
-                Available Offers
-              </h3>
-              <button
-                onClick={() => {
-                  setShowCouponSheet(false);
-                  setSelectedCouponDetails(null);
-                }}
-                className="w-8 h-8 flex items-center justify-center text-slate-400 bg-slate-100 rounded-full"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="relative mb-5">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search offers..."
-                className="w-full h-[44px] bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-[14px] focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all"
-              />
-            </div>
-
-            <div className="space-y-4 flex-1">
-              {couponError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[13px] font-medium">
-                  {couponError}
-                </div>
-              )}
-              
-              {!offers || offers.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 text-sm font-medium">
-                  No coupons available for this restaurant.
-                </div>
-              ) : (
-                offers.map((offer) => {
-                  const isApplied = appliedCoupon?.code === offer.offerId;
-                  let title = offer.name;
-                  let desc = offer.description || "";
-                  let terms = "";
-                  
-                  if (offer.offerType === 'percentage') {
-                    title = `${offer.discountPercent}% OFF`;
-                    desc = offer.maxCap ? `Get ${offer.discountPercent}% off up to ₹${offer.maxCap}` : `Get ${offer.discountPercent}% off on your order`;
-                    terms = `Minimum order value must be ₹${offer.minOrder || 0}. Maximum discount is ₹${offer.maxCap || 'unlimited'}.`;
-                  } else if (offer.offerType === 'flat') {
-                    title = `Flat ₹${offer.discountAmount} OFF`;
-                    desc = `Flat ₹${offer.discountAmount} off on orders above ₹${offer.minOrder || 0}`;
-                    terms = `Minimum order value must be ₹${offer.minOrder || 0}.`;
-                  } else if (offer.offerType === 'bogo') {
-                    title = "BUY 1 GET 1";
-                    desc = "Buy 1 get 1 free on selected items";
-                    terms = "Applicable on selected BOGO items.";
-                  } else if (offer.offerType === 'free_item') {
-                    title = `FREE ${offer.freeItemName}`;
-                    desc = `Get a free ${offer.freeItemName} on orders above ₹${offer.minOrder || 0}`;
-                    terms = `Minimum order value must be ₹${offer.minOrder || 0}.`;
-                  }
-
-                  const typeKey = orderType.toLowerCase() === 'dinein' ? 'dineIn' : orderType.toLowerCase();
-                  const isTypeSupported = (offer.orderTypes as any)?.[typeKey] !== false;
-
-                  return (
-                    <div
-                      key={offer.offerId}
-                      className={`border-2 border-dashed rounded-2xl p-4 relative overflow-hidden transition-all duration-300 ${
-                        isApplied
-                          ? "border-green-500 bg-green-50"
-                          : !isTypeSupported
-                          ? "border-slate-200 bg-slate-50 opacity-70"
-                          : "border-slate-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="flex items-center flex-wrap gap-2 mb-2">
-                            <span className={`inline-block px-2.5 py-1 text-[11px] font-black uppercase tracking-wider rounded border ${
-                              isApplied
-                                ? "bg-green-100 text-green-700 border-green-200"
-                                : "bg-slate-100 text-slate-700 border-slate-200"
-                            }`}>
-                              {offer.offerId}
-                            </span>
-                            {!isTypeSupported && (
-                              <span className="inline-block px-2 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-200 rounded">
-                                Not applicable for {orderType}
-                              </span>
-                            )}
-                          </div>
-                          <h4 className={`text-[15px] font-bold ${!isTypeSupported ? "text-slate-500" : "text-slate-900"}`}>
-                            {title}
-                          </h4>
-                        </div>
-                        {isApplied ? (
-                          <button
-                            onClick={() => setAppliedCoupon(null)}
-                            className="text-[13px] font-bold text-rose-600 bg-rose-50 px-3 py-1.5 rounded-lg active:scale-95 transition-transform"
-                          >
-                            Remove
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => applyCoupon(offer.offerId)}
-                            disabled={isValidatingCoupon || !isTypeSupported}
-                            className={`text-[13px] font-bold px-3 py-1.5 rounded-lg active:scale-95 transition-transform flex items-center gap-1 ${
-                              !isTypeSupported
-                                ? "text-slate-400 bg-slate-200 cursor-not-allowed"
-                                : "text-green-600 bg-green-100"
-                            }`}
-                          >
-                            {isValidatingCoupon ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : null}
-                            Apply
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[13px] text-slate-600 mb-3 leading-relaxed">
-                        {desc}
-                      </p>
-
-                      <div className={`border-t pt-3 mt-3 ${isApplied ? "border-green-200" : "border-slate-100"}`}>
-                        <button
-                          onClick={() =>
-                            setSelectedCouponDetails(
-                              selectedCouponDetails === offer.offerId ? null : offer.offerId
-                            )
-                          }
-                          className="text-[12px] font-semibold text-green-600 flex items-center gap-1 active:scale-95 transition-transform"
-                        >
-                          View Details{" "}
-                          <ChevronRight
-                            size={14}
-                            className={`transition-transform ${selectedCouponDetails === offer.offerId ? "rotate-90" : ""}`}
-                          />
-                        </button>
-
-                        <AnimatePresence initial={false}>
-                          {selectedCouponDetails === offer.offerId && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.25, ease: "easeInOut" }}
-                              className="overflow-hidden"
-                            >
-                              <div className={`mt-3 p-3 bg-white rounded-xl text-[12px] text-slate-600 leading-relaxed border ${
-                                isApplied ? "border-green-200" : "border-slate-100"
-                              }`}>
-                                <span className="font-semibold block mb-1 text-slate-900">
-                                  Terms & Conditions:
-                                </span>
-                                {terms}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <CouponSheet
+        open={showCouponSheet}
+        onClose={() => {
+          setShowCouponSheet(false);
+          setSelectedCouponDetails(null);
+        }}
+        offers={offers}
+        orderType={orderType}
+        appliedCoupon={appliedCoupon}
+        onApply={(code) => applyCoupon(code)}
+        onRemove={clearCoupon}
+        couponError={couponError}
+        isValidating={isValidatingCoupon}
+        selectedDetails={selectedCouponDetails}
+        onToggleDetails={(offerId) => setSelectedCouponDetails(offerId)}
+      />
 
       {/* Taxes & Charges Bottom Sheet */}
       {showTaxesSheet && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Building2, Receipt, CheckCircle2, ShieldCheck, Briefcase, AlertCircle, Percent, FileText, BarChart3, Sparkles } from 'lucide-react';
+import { ArrowLeft, Building2, CheckCircle2, ShieldCheck, Briefcase, AlertCircle, Percent, FileText, BarChart3, Sparkles } from 'lucide-react';
 
 interface GstDetailsViewProps {
   onBack: () => void;
@@ -7,7 +7,6 @@ interface GstDetailsViewProps {
 
 export const GstDetailsView: React.FC<GstDetailsViewProps> = ({ onBack }) => {
   const [gstin, setGstin] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -37,15 +36,13 @@ export const GstDetailsView: React.FC<GstDetailsViewProps> = ({ onBack }) => {
 
   const handleVerify = () => {
     setError(null);
+    // TODO: persist GSTIN via a real profile field once the backend exposes
+    // one. For now this only validates the format client-side.
     if (!gstRegex.test(gstin)) {
         setError('Invalid GSTIN format. Please enter a valid 15-character GST number.');
         return;
     }
-    setIsVerifying(true);
-    setTimeout(() => {
-        setIsVerifying(false);
-        onBack();
-    }, 1500);
+    onBack();
   };
 
   const benefits = [
@@ -151,10 +148,10 @@ export const GstDetailsView: React.FC<GstDetailsViewProps> = ({ onBack }) => {
 
           <button 
             onClick={handleVerify}
-            disabled={isVerifying || gstin.length < 15}
+            disabled={gstin.length < 15}
             className="w-full bg-[#00bd6f] text-white font-bold py-4 rounded-[16px] active:scale-95 transition-transform disabled:opacity-50 flex items-center justify-center gap-2 mb-8"
           >
-              {isVerifying ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Verify & Save GSTIN'}
+              Verify & Save GSTIN
           </button>
       </div>
     </div>

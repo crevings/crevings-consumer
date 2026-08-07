@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Sparkles } from 'lucide-react';
-import { sendMessageToOrderAI } from "@/services/geminiService";
+import { sendMessageToOrderAI, checkOrderAIService } from "@/services/geminiService";
 import { ChatMessage, Order } from "@/types";
 
 interface OrderChatBotProps {
@@ -17,7 +17,20 @@ export const OrderChatBot: React.FC<OrderChatBotProps> = ({ isOpen, onClose, ord
     { id: '1', role: 'model', text: 'Hi! I can help you with questions about your current order. What do you need?' }
   ]);
   const [loading, setLoading] = useState(false);
+  const [serviceStatus, setServiceStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Tie the header status indicator to real API health instead of assuming
+  // "live" — probe on open and after every failed exchange.
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    setServiceStatus('checking');
+    checkOrderAIService().then((ok) => {
+      if (active) setServiceStatus(ok ? 'online' : 'offline');
+    });
+    return () => { active = false; };
+  }, [isOpen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,11 +48,21 @@ export const OrderChatBot: React.FC<OrderChatBotProps> = ({ isOpen, onClose, ord
     setInput('');
     setLoading(true);
 
-    const responseText = await sendMessageToOrderAI(userMsg.text, order, progress, timeLeft);
-
-    const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText };
-    setMessages(prev => [...prev, aiMsg]);
-    setLoading(false);
+    try {
+      const responseText = await sendMessageToOrderAI(userMsg.text, order, progress, timeLeft);
+      setServiceStatus('online');
+      const aiMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: responseText };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch {
+      setServiceStatus('offline');
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: "Sorry, I couldn't reach the support assistant right now. Please try again in a moment.",
+      }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -55,10 +78,22 @@ export const OrderChatBot: React.FC<OrderChatBotProps> = ({ isOpen, onClose, ord
                 </div>
                 <div>
                     <h3 className="text-white font-bold text-base">Order Support AI</h3>
-                    <p className="text-blue-100 text-xs flex items-center gap-1.5 opacity-80">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                        Live assistance
-                    </p>
+                    {serviceStatus === 'online' ? (
+                        <p className="text-blue-100 text-xs flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                            Live assistance
+                        </p>
+                    ) : serviceStatus === 'checking' ? (
+                        <p className="text-blue-100 text-xs flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse"></span>
+                            Connecting&hellip;
+                        </p>
+                    ) : (
+                        <p className="text-blue-100 text-xs flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                            Unavailable — retrying on next message
+                        </p>
+                    )}
                 </div>
             </div>
             <button onClick={onClose} className="p-2 bg-white/10 rounded-full text-white hover:bg-white/20 transition-colors">

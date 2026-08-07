@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, User, Mail, Phone, Calendar, Save, Camera, RotateCcw } from 'lucide-react';
+import { ArrowLeft, User, Mail, Phone, Calendar, Save, Camera } from 'lucide-react';
 import { UserProfile } from "@/types";
 
 interface EditProfileViewProps {
@@ -45,7 +45,7 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ initialData, o
                 <div className="relative group">
                     <div className="w-28 h-28 rounded-full overflow-hidden flex items-center justify-center bg-slate-100">
                         {formData.image ? (
-                            <img src={formData.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
+                            <img loading="lazy" src={formData.image || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop'} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
                             <User className="w-12 h-12 text-slate-400" />
                         )}

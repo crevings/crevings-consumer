@@ -1,24 +1,98 @@
-export type OrderStatus = 'Active' | 'Completed' | 'Cancelled';
-export type OrderType = 'Delivery' | 'Takeaway' | 'Dine-in' | 'Booking' | 'Booking with Pre-order';
+/**
+ * Order domain types.
+ *
+ * `OrderStatus` intentionally mirrors the backend lifecycle values
+ * (NEW → PENDING_ACCEPT → ACCEPTED → PREPARING → READY → OUT FOR DELIVERY → DELIVERED)
+ * plus the display-mapped variants the UI produces when formatting history.
+ */
+
+export type OrderStatus =
+  | "NEW"
+  | "PENDING_ACCEPT"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "OUT FOR DELIVERY"
+  | "DELIVERED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REJECTED"
+  // Display-mapped statuses used by the profile/order history UI
+  | "Active"
+  | "Completed"
+  | "Cancelled";
+
+export type OrderType = "Delivery" | "Takeaway" | "Dine-in" | "Booking" | "Booking with Pre-order";
+
+export interface OrderItem {
+  name: string;
+  quantity: number;
+  price?: number;
+  id?: string;
+}
+
+export interface DeliveryPartner {
+  name?: string;
+  photo?: string;
+  rating?: number | string;
+  phone?: string;
+}
+
+export interface OrderRatingData {
+  deliveryRating?: number;
+  restaurantRating?: number;
+  itemRatings?: Record<string, number>;
+  reviewText?: string;
+  selectedTags?: string[];
+  mediaFiles?: { url: string; type: "image" | "video" }[];
+  date?: string;
+}
+
+export interface OrderCustomer {
+  name?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface OrderPayment {
+  method?: string;
+  status?: string;
+}
 
 export interface Review {
   itemsRating: Record<string, number>;
   deliveryRating: number;
   reviewText: string;
   selectedTags: string[];
-  mediaFiles: { url: string; type: 'image' | 'video' }[];
+  mediaFiles: { url: string; type: "image" | "video" }[];
   date: string;
+}
+
+/** The order object returned by the place-order API. */
+export interface CreatedOrder {
+  orderId: string;
+  displayOrderId?: string;
+  items: OrderItem[];
+  type?: string;
+  status?: string;
+  total?: number;
+  createdAt?: string;
+  pickupOtp?: string;
+  customerDetails?: OrderCustomer;
+  payment?: OrderPayment;
+  restaurantCoordinates?: { lat: number; lng: number } | null;
+  deliveryCoordinates?: { lat: number; lng: number } | null;
 }
 
 export interface Order {
   customerPin?: string;
-  deliveryPartner?: any;
+  deliveryPartner?: DeliveryPartner | null;
   id: string;
   restaurantName: string;
   location: string;
   rating: number;
   timeEstimate?: string;
-  items: string;
+  items: OrderItem[];
   orderDate: string;
   type: OrderType;
   status: OrderStatus;
@@ -34,12 +108,13 @@ export interface Order {
   restaurantCoordinates?: { lat: number; lng: number } | null;
   deliveryCoordinates?: { lat: number; lng: number } | null;
   isRated?: boolean;
-  ratingData?: any;
+  ratingData?: OrderRatingData | null;
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
   discount?: number;
-  rawItems?: any[];
-  customerDetails?: any;
-  payment?: any;
+  rawItems?: OrderItem[];
+  customerDetails?: OrderCustomer;
+  customer?: string;
+  payment?: OrderPayment;
 }

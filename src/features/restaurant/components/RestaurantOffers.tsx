@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Offer } from "@/types";
+import { formatINR } from "@/utils/currency";
 
 interface RestaurantOffersProps {
   offers: Offer[];
@@ -49,17 +50,17 @@ export const RestaurantOffers: React.FC<RestaurantOffersProps> = ({
         let subtitle = offer.description || "";
         
         if (offer.offerType === 'percentage') {
-          title = `Get ${offer.discountPercent}% off${offer.maxCap ? ` upto ₹${offer.maxCap}` : ''}`;
-          subtitle = offer.description || (offer.minOrder ? `On orders above ₹${offer.minOrder}` : `On selected items`);
+          title = `Get ${offer.discountPercent}% off${offer.maxCap ? ` upto ${formatINR(offer.maxCap)}` : ''}`;
+          subtitle = offer.description || (offer.minOrder ? `On orders above ${formatINR(offer.minOrder)}` : `On selected items`);
         } else if (offer.offerType === 'flat') {
-          title = `Flat ₹${offer.discountAmount} OFF`;
-          subtitle = offer.description || `On orders above ₹${offer.minOrder || 0}`;
+          title = `Flat ${formatINR(offer.discountAmount)} OFF`;
+          subtitle = offer.description || `On orders above ${formatINR(offer.minOrder || 0)}`;
         } else if (offer.offerType === 'bogo') {
           title = "BUY 1 GET 1";
           subtitle = offer.description || "BOGO on selected items";
         } else if (offer.offerType === 'free_item') {
           title = `FREE ${offer.freeItemName}`;
-          subtitle = offer.description || `On orders above ₹${offer.minOrder || 0}`;
+          subtitle = offer.description || `On orders above ${formatINR(offer.minOrder || 0)}`;
         }
 
         return (

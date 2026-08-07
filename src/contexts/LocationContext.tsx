@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { SavedAddress } from "@/types";
+import { SavedAddress, Zone } from "@/types";
+import { deepEqual } from "@/utils/deepEqual";
 import { useVerifyToken } from "@/api/auth";
-import { BASE_URL } from "@/api/fetcher";
+import { get, put } from "@/api/fetcher";
 
 // Helper to assign icons based on type
 import { Home, Briefcase, MapPin } from "lucide-react";
@@ -18,7 +19,7 @@ interface LocationContextType {
   setAddresses: (value: React.SetStateAction<SavedAddress[]>) => void;
   isServiceable: boolean;
   checkingServiceability: boolean;
-  activeZone: any;
+  activeZone: Zone | null;
 }
 
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
@@ -29,28 +30,34 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [addresses, setAddressesState] = useState<SavedAddress[]>([]);
   const [isServiceable, setIsServiceable] = useState<boolean>(true);
   const [checkingServiceability, setCheckingServiceability] = useState<boolean>(false);
-  const [activeZone, setActiveZone] = useState<any>(null);
-  const lastSavedJson = useRef("");
+  const [activeZone, setActiveZone] = useState<Zone | null>(null);
+  const lastSavedRef = useRef<SavedAddress[] | null>(null);
 
-  // Check serviceability whenever currentLocation updates
+  // Check serviceability whenever currentLocation updates. The request is
+  // aborted on unmount/location change so stale responses can't race.
   useEffect(() => {
     if (!currentLocation) return;
     const coords = currentLocation.coordinates;
     if (coords && coords.lat && coords.lng) {
+      const controller = new AbortController();
       setCheckingServiceability(true);
-      fetch(`${BASE_URL}/zones/check?lat=${coords.lat}&lng=${coords.lng}`)
-        .then((res) => res.json())
+      get<{ success: boolean; serviceable?: boolean; zone?: Zone | null }>(
+        `/zones/check?lat=${coords.lat}&lng=${coords.lng}`,
+        { signal: controller.signal }
+      )
         .then((resData) => {
           setCheckingServiceability(false);
           if (resData.success) {
-            setIsServiceable(resData.serviceable);
+            setIsServiceable(resData.serviceable ?? false);
             setActiveZone(resData.zone || null);
           }
         })
         .catch((err) => {
+          if (controller.signal.aborted) return;
           console.error("Failed to check zone serviceability:", err);
           setCheckingServiceability(false);
         });
+      return () => controller.abort();
     } else {
       // Default to true if coordinates are not attached
       setIsServiceable(true);
@@ -60,20 +67,20 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Sync addresses from backend on load/verify
   useEffect(() => {
     if (data && data.success && data.user && data.user.addresses) {
-      const apiAddresses = data.user.addresses.map((addr: any) => ({
+      const apiAddresses = data.user.addresses.map((addr: SavedAddress) => ({
         ...addr,
         icon: getIcon(addr.type),
       }));
       setAddressesState(apiAddresses);
 
-      // Initialize lastSavedJson to avoid re-saving initial data
-      const stripped = apiAddresses.map(({ id, type, address, isDefault, building, street, coordinates }: any) => ({
+      // Remember the initial snapshot so we don't re-save unchanged data
+      const stripped = apiAddresses.map(({ id, type, address, isDefault, building, street, coordinates }: SavedAddress) => ({
         id, type, address, isDefault, building, street, coordinates
       }));
-      lastSavedJson.current = JSON.stringify(stripped);
+      lastSavedRef.current = stripped;
 
       // By default show user their primary location (isDefault: true) or first address
-      const defaultAddr = apiAddresses.find((a: any) => a.isDefault) || apiAddresses[0];
+      const defaultAddr = apiAddresses.find((a: SavedAddress) => a.isDefault) || apiAddresses[0];
       if (defaultAddr) {
         setCurrentLocation({ type: defaultAddr.type, address: defaultAddr.address });
       } else {
@@ -97,21 +104,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         street,
         coordinates,
       }));
-      const jsonStr = JSON.stringify(strippedAddresses);
-      if (jsonStr === lastSavedJson.current) {
+      if (lastSavedRef.current && deepEqual(strippedAddresses, lastSavedRef.current)) {
         return; // Deduplicate duplicate updates
       }
-      lastSavedJson.current = jsonStr;
+      lastSavedRef.current = strippedAddresses;
 
-      const res = await fetch(`${BASE_URL}/consumer/profile/addresses`, {
-        method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ addresses: strippedAddresses }),
+      const resData = await put<{ success: boolean }>("/consumer/profile/addresses", {
+        addresses: strippedAddresses,
       });
-      const resData = await res.json();
       if (resData.success) {
         // If a default is set, update currentLocation
         const defaultAddr = newAddresses.find((a) => a.isDefault);

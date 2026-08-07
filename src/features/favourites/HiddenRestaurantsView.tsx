@@ -258,7 +258,7 @@ const SwipeableRestaurantCard: React.FC<{
         drag="x"
         dragConstraints={{ left: -100, right: 0 }}
         dragElastic={0.1}
-        onDragEnd={(e, { offset, velocity }) => {
+        onDragEnd={(_e, { offset, velocity }) => {
           if (offset.x < -80 || velocity.x < -500) {
             onUnhide();
           }
@@ -268,7 +268,7 @@ const SwipeableRestaurantCard: React.FC<{
       >
         {/* Restaurant Image */}
         <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 relative">
-          <img src={restaurant.images && restaurant.images.length > 0 && restaurant.images[0] ? restaurant.images[0] : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=400&fit=crop&q=80'} alt={restaurant.name} className="w-full h-full object-cover" />
+          <img loading="lazy" src={restaurant.images && restaurant.images.length > 0 && restaurant.images[0] ? restaurant.images[0] : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=400&fit=crop&q=80'} alt={restaurant.name} className="w-full h-full object-cover" />
           <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
             <EyeOff className="w-3 h-3" />
             HIDDEN

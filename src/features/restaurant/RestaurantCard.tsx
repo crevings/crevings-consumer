@@ -1,7 +1,7 @@
 import React from 'react';
 import { Star, Plus } from 'lucide-react';
-import { MOCK_MENU } from "@/data/menu";
-import { MenuItem } from '@/types';
+import { MenuItem, RestaurantAddress } from '@/types';
+import { formatINR } from "@/utils/currency";
 
 interface RestaurantCardProps {
   id?: string | number;
@@ -14,7 +14,7 @@ interface RestaurantCardProps {
   images?: string[];
   distance: string;
   offer?: string;
-  address?: string;
+  address?: string | RestaurantAddress;
   dietary?: string[];
   onClick?: () => void;
   onHide?: (id: string | number) => void;
@@ -23,43 +23,30 @@ interface RestaurantCardProps {
   menuItems?: MenuItem[];
 }
 
-export const RestaurantCard: React.FC<RestaurantCardProps> = ({
-  id,
+const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   name,
   cuisine,
   rating,
   time,
-  price,
   image,
   images = [],
   distance,
-  offer,
   address,
   dietary = [],
   onClick,
   onItemAdd,
   menuItems: propMenuItems = [],
 }) => {
-  // Use provided images for menu items if available, otherwise use mock
   const displayImages = images.length > 0 ? images : (image ? [image] : []);
-  
-  const menuItems = (propMenuItems && propMenuItems.length > 0)
-    ? propMenuItems.slice(0, 3).map((item) => ({
-        ...item,
-        price: `₹${item.price}`,
-        isPopular: item.bestseller || false,
-        image: item.image
-      }))
-    : MOCK_MENU.filter(item => item.available !== false).slice(0, 3).map((item, index) => ({
-        ...item,
-        price: `₹${item.price}`,
-        isPopular: item.bestseller || false,
-        image: displayImages[index % displayImages.length] || item.image
-      }));
+
+  const menuItems = (propMenuItems || []).slice(0, 3).map((item, index) => ({
+    ...item,
+    price: `${formatINR(item.price)}`,
+    isPopular: item.bestseller || false,
+    image: item.image || (displayImages.length > 0 ? displayImages[index % displayImages.length] : undefined),
+  }));
 
   const isPureVeg = dietary.length === 1 && dietary[0] === 'veg';
-  const isAd = React.useMemo(() => Math.random() > 0.7, []); // Randomly show Ad tag for demo
-  const bestIn = cuisine.split(',')[0];
 
   return (
     <div 
@@ -79,7 +66,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
               {name}
             </h3>
             <div className="text-[13px] text-slate-600 font-medium mb-0.5">
-              {address || 'Koramangala'} • {distance} • {time}
+              {typeof address === 'string' ? address : 'Koramangala'} • {distance} • {time}
             </div>
             <div className="text-[13px] text-slate-500 truncate max-w-[220px]">
               {cuisine}
@@ -99,7 +86,7 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
         {menuItems.map((item, idx) => (
           <div key={idx} className="shrink-0 w-[140px] bg-slate-50 rounded-[16px] p-2 border border-slate-100/50">
             <div className="relative w-full aspect-[4/3] rounded-[12px] overflow-hidden mb-2">
-              <img 
+              <img loading="lazy" 
                 src={item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop'} 
                 alt={item.name} 
                 className="w-full h-full object-cover"
@@ -161,3 +148,5 @@ export const RestaurantCard: React.FC<RestaurantCardProps> = ({
     </div>
   );
 };
+
+export const RestaurantCard = React.memo(RestaurantCardUnmemoized);

@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
+import { AddressDetailsFields } from './components/AddressDetailsFields';
+import { LocationMapCanvas, DropPin } from './components/LocationMapCanvas';
 import { ArrowLeft, Search, MapPin, Home, Briefcase, X, Loader2, ChevronRight } from 'lucide-react';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { useJsApiLoader } from '@react-google-maps/api';
 import {
   isCapacitorNative,
   openLocationSettings,
@@ -9,12 +11,48 @@ import {
 
 const libraries: ("places" | "marker" | "geometry")[] = ["places", "marker", "geometry"];
 
+interface GooglePlaceLike {
+  location?: { lat: () => number; lng: () => number };
+  displayName?: string;
+  formattedAddress?: string;
+  fetchFields: (options: { fields: string[] }) => Promise<void>;
+}
+
+interface GooglePlacesWithPlace {
+  Place?: new (options: { id: string }) => GooglePlaceLike;
+}
+
+interface AutocompleteSuggestionResponse {
+  suggestions?: Array<{
+    placePrediction?: {
+      placeId?: string;
+      mainText?: { text?: string };
+      secondaryText?: { text?: string };
+      text?: { text?: string };
+    };
+  }>;
+}
+
+interface GooglePlacesWithAutocomplete {
+  AutocompleteSuggestion?: {
+    fetchAutocompleteSuggestions: (options: { input: string; componentRestrictions: { country: string } }) => Promise<AutocompleteSuggestionResponse>;
+  };
+}
+
 interface PredictionItem {
   id: string;
   mainText: string;
   secondaryText: string;
   fullText: string;
-  suggestionObj?: any;
+  suggestionObj?: {
+    placePrediction?: {
+      placeId?: string;
+      mainText?: { text?: string };
+      secondaryText?: { text?: string };
+      text?: { text?: string };
+      toPlace?: () => GooglePlaceLike;
+    };
+  };
 }
 
 interface MapLocationPickerViewProps {
@@ -33,30 +71,16 @@ interface MapLocationPickerViewProps {
   }) => void;
 }
 
-/** Classic Google-Maps style teardrop pin (brand green body + white centre dot) */
-const DropPin = ({ className = "w-11 h-[52px]" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
-    <path
-      d="M12 2C8.13 2 5 5.13 5 8.5c0 5.25 7 13.5 7 13.5s7-8.25 7-13.5C19 5.13 15.87 2 12 2z"
-      fill="#00bd6f"
-      stroke="#ffffff"
-      strokeWidth="1.4"
-    />
-    <circle cx="12" cy="8.6" r="3" fill="#ffffff" />
-  </svg>
-);
-
 export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({ 
   initialLocation, 
   initialBuilding = '',
   initialStreet = '',
   initialAddressType = 'Home',
-  isEditing = false,
   onClose, 
   onConfirm 
 }) => {
   const [isMoving, setIsMoving] = useState(false);
-  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [_permissionGranted, setPermissionGranted] = useState(false);
   const [useAccountDetails, setUseAccountDetails] = useState(true);
   const [addressType, setAddressType] = useState(initialAddressType);
   const [customAddressType, setCustomAddressType] = useState('');
@@ -80,7 +104,6 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
     subtitle: initialLocation?.subtitle || 'Selected Address Area'
   });
 
-  const isDragging = useRef(false);
   const mapRef = useRef<google.maps.Map | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -138,21 +161,22 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
 
     // 1. Modern Places API v2: AutocompleteSuggestion
     try {
-      if (google.maps.places && (google.maps.places as any).AutocompleteSuggestion) {
-        const { AutocompleteSuggestion } = (google.maps.places as any);
+      const placesApi = google.maps.places as unknown as GooglePlacesWithAutocomplete;
+      if (google.maps.places && placesApi.AutocompleteSuggestion) {
+        const { AutocompleteSuggestion } = placesApi;
         const response = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: q,
           componentRestrictions: { country: "in" },
         });
 
         if (response && response.suggestions && response.suggestions.length > 0) {
-          const mapped: PredictionItem[] = response.suggestions.map((s: any) => {
+          const mapped: PredictionItem[] = response.suggestions.map((s) => {
             const p = s.placePrediction;
             return {
-              id: p.placeId || Math.random().toString(),
-              mainText: p.mainText?.text || p.text?.text || q,
-              secondaryText: p.secondaryText?.text || "",
-              fullText: p.text?.text || q,
+              id: p?.placeId || Math.random().toString(),
+              mainText: p?.mainText?.text || p?.text?.text || q,
+              secondaryText: p?.secondaryText?.text || "",
+              fullText: p?.text?.text || q,
               suggestionObj: s,
             };
           });
@@ -177,7 +201,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
             );
             return {
               id: res.place_id,
-              mainText: titleComponent ? titleComponent.long_name : res.formatted_address.split(',')[0],
+              mainText: titleComponent ? titleComponent.long_name : (res.formatted_address.split(',')[0] ?? res.formatted_address),
               secondaryText: res.formatted_address,
               fullText: res.formatted_address,
             };
@@ -187,7 +211,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
           setPredictions([]);
         }
       });
-    } catch (e) {
+    } catch {
       setPredictions([]);
     }
   };
@@ -220,9 +244,10 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
     }
 
     // 2. Modern google.maps.places.Place class
-    if (window.google && google.maps.places && (google.maps.places as any).Place) {
+    const placesApi = google.maps.places as unknown as GooglePlacesWithPlace;
+    if (window.google && placesApi.Place) {
       try {
-        const PlaceClass = (google.maps.places as any).Place;
+        const PlaceClass = placesApi.Place;
         const place = new PlaceClass({ id: item.id });
         await place.fetchFields({ fields: ["location", "displayName", "formattedAddress"] });
         if (place.location) {
@@ -261,19 +286,6 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
     }
   };
 
-  const handleCameraIdle = () => {
-    if (mapRef.current && isDragging.current) {
-      const center = mapRef.current.getCenter();
-      if (center) {
-        const lat = center.lat();
-        const lng = center.lng();
-        setMapCenter({ lat, lng });
-        updateAddressFromLatLng(lat, lng);
-      }
-      isDragging.current = false;
-    }
-  };
-
   // User tapped "Use current location" → directly request browser / Android system location permissions
   const handleLocateMe = async () => {
     setLocationError(null);
@@ -287,11 +299,12 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       setPermissionGranted(true);
       setShowLocationModal(false);
       setLocationError(null);
-    } catch (error: any) {
-      if (error?.code !== 1) console.error("Error getting location", error);
+    } catch (error) {
+      const err = error as { code?: number } | null;
+      if (err?.code !== 1) console.error("Error getting location", error);
       setPermissionGranted(false);
       setLocationError(
-        error?.code === 1
+        err?.code === 1
           ? 'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
           : 'Could not access your location. Please check your location settings and try again.'
       );
@@ -406,68 +419,17 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       </div>
 
       {/* Map Area */}
-      <div className="flex-1 relative overflow-hidden z-0">
-        <GoogleMap
-          mapContainerStyle={{ width: '100%', height: '100%' }}
-          center={mapCenter}
-          zoom={15}
-          onLoad={(map) => {
-            mapRef.current = map;
-            // Auto-populate the address from the pin's initial position
-            const center = map.getCenter();
-            if (center) {
-              updateAddressFromLatLng(center.lat(), center.lng());
-            }
-          }}
-          onDragStart={() => { isDragging.current = true; }}
-          onIdle={handleCameraIdle}
-          options={{
-            disableDefaultUI: true,
-            zoomControl: false,
-            gestureHandling: "greedy"
-          }}
-        />
-
-        {/* Center overlay: precision circle + teardrop pin + tooltip */}
-        <div className="absolute left-1/2 top-1/2 z-10 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
-          {/* Translucent precision circle around the drop point */}
-          <div className="absolute left-0 top-0 w-[46vw] h-[46vw] max-w-[250px] max-h-[250px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-sky-400/40 bg-sky-400/10" />
-
-          {/* Teardrop pin with tip anchored to the exact map center */}
-          <div
-            className={`absolute left-1/2 -translate-x-1/2 -bottom-1 transition-transform duration-200 ${isMoving ? '-translate-y-1 scale-110' : 'scale-100'}`}
-            style={{ filter: 'drop-shadow(0 6px 5px rgba(0,0,0,0.28))' }}
-          >
-            <DropPin />
-          </div>
-
-          {/* Tooltip bubble above pin */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-[74px]">
-            <div className="relative bg-slate-900/95 text-white text-[11px] font-semibold px-4 py-2 rounded-xl shadow-xl whitespace-nowrap flex items-center gap-1.5">
-              {isMoving ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-300" />
-                  <span>Locating...</span>
-                </>
-              ) : (
-                <span>Move pin to your exact delivery location</span>
-              )}
-              {/* Caret pointing down at the pin */}
-              <div className="absolute -bottom-[5px] left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-slate-900/95 rotate-45" />
-            </div>
-          </div>
-        </div>
-
-        {/* Use current location pill (below the pin) */}
-        <button
-          onClick={handleLocateMe}
-          disabled={isLocating}
-          className="absolute left-1/2 -translate-x-1/2 top-[calc(50%+108px)] z-20 bg-white text-[#00bd6f] rounded-full px-5 py-2.5 shadow-xl border border-slate-100 text-[13px] font-bold hover:bg-slate-50 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-75"
-        >
-          {isLocating && <Loader2 className="w-4 h-4 animate-spin text-[#00bd6f]" />}
-          <span>{isLocating ? 'Getting location...' : 'Use current location'}</span>
-        </button>
-      </div>
+      <LocationMapCanvas
+        center={mapCenter}
+        isMoving={isMoving}
+        isLocating={isLocating}
+        onLocateMe={handleLocateMe}
+        onCenterChange={(lat, lng) => {
+          setMapCenter({ lat, lng });
+          updateAddressFromLatLng(lat, lng);
+        }}
+        mapRef={mapRef}
+      />
 
       {/* Bottom Sheet: Delivery details */}
       <div className="bg-white rounded-t-3xl shadow-2xl z-30 border-t border-slate-100 animate-[slideUp_0.3s_ease-out]">
@@ -493,28 +455,12 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
             <ChevronRight className="w-5 h-5 text-slate-400 shrink-0" />
           </button>
 
-          {/* Address details (flat / floor / house no) */}
-          <div>
-            <input
-              type="text"
-              placeholder="Address details*"
-              value={building}
-              onChange={(e) => setBuilding(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:border-[#00bd6f] focus:bg-white transition-all"
-            />
-            <p className="text-[11px] text-slate-400 mt-1.5 px-1">E.g. Floor, House no.</p>
-          </div>
-
-          {/* Apartment / Street / Area */}
-          <div>
-            <input
-              type="text"
-              placeholder="Apartment / Road / Area Name"
-              value={street}
-              onChange={(e) => setStreet(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:border-[#00bd6f] focus:bg-white transition-all"
-            />
-          </div>
+          <AddressDetailsFields
+            building={building}
+            onBuildingChange={setBuilding}
+            street={street}
+            onStreetChange={setStreet}
+          />
 
           {/* Address Type Selector */}
           <div>

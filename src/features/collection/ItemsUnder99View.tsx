@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { ChevronLeft } from "lucide-react";
-import { GridMenuItemCard } from "./GridMenuItemCard";
-import { useItemsUnder99 } from "@/api/restaurants";
+import { GridMenuItemCard } from "@/features/collection/GridMenuItemCard";
+import { useItemsUnder99 } from "@/api/restaurant";
 import { MenuItem, Restaurant } from "@/types";
 
 interface ItemsUnder99ViewProps {
@@ -62,16 +62,16 @@ const toMenuItem = (raw: Under99Item): MenuItem => {
 const toRestaurant = (raw: Under99Item): Restaurant => ({
   id: raw.restaurantId ?? "",
   name: raw.restaurant,
-  cuisine: "Multicuisine",
-  rating: raw.rating ?? 4.5,
-  time: "30 min",
-  timeValue: 30,
-  price: "₹450 for two",
+  cuisine: "",
+  rating: raw.rating ?? 0,
+  time: "",
+  timeValue: 0,
+  price: "",
   images: raw.image ? [raw.image] : [],
-  distance: "1.2 km",
-  distanceValue: 1.2,
+  distance: "",
+  distanceValue: 0,
   offer: "",
-  dietary: ["veg", "non-veg"],
+  dietary: [],
 });
 
 export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
@@ -84,7 +84,6 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
     isLoading,
     isLoadingMore,
     isReachingEnd,
-    size,
     setSize,
   } = useItemsUnder99(12);
 

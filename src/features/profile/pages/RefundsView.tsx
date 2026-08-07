@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronLeft, Clock, CheckCircle2, AlertCircle, Receipt } from 'lucide-react';
+import { ChevronLeft, Clock, CheckCircle2 } from 'lucide-react';
 
 interface RefundsViewProps {
   onBack: () => void;

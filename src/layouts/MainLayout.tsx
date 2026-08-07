@@ -1,38 +1,44 @@
-import React, { useState } from "react";
-import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
-import { ChevronUp, Trash2 } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { ChevronUp } from "lucide-react";
 
-import { useApp } from "../contexts/AppContext";
-import { useCart } from "../contexts/CartContext";
-import { useLocation as useAppLocation } from "../contexts/LocationContext";
-import { useRestaurant } from "../contexts/RestaurantContext";
+import { useApp } from "@/contexts/AppContext";
+import { useCart } from "@/contexts/CartContext";
+import { withQuantity } from "@/utils/cartUtils";
+import { useLocation as useAppLocation } from "@/contexts/LocationContext";
+import { useRestaurant } from "@/contexts/RestaurantContext";
 
-import { useScrollBehavior } from "../shared/hooks/useScrollBehavior";
-import { usePullToRefresh } from "../shared/hooks/usePullToRefresh";
+import { useScrollBehavior } from "@/shared/hooks/useScrollBehavior";
+import { usePullToRefresh } from "@/shared/hooks/usePullToRefresh";
 
-import { Header } from "../shared/components/Header";
-import { BottomNav } from "../shared/components/BottomNav";
-import { ActiveOrderSnackbar } from "../features/orders/components/ActiveOrderSnackbar";
-import { AIChatBot } from "../shared/ui/AIChatBot";
-import { VoiceSearchModal } from "../features/search/VoiceSearchModal";
-import { ConfirmationBottomSheet } from "../shared/components/ConfirmationBottomSheet";
-import { FloatingCartBar } from "../features/restaurant/components/FloatingCartBar";
-import { CartPreviewSheet } from "../features/cart/components/CartPreviewSheet";
+import { Header } from "@/shared/components/Header";
+import { ActiveOrderSnackbar } from "@/features/orders/components/ActiveOrderSnackbar";
+import { AIChatBot } from "@/shared/ui/AIChatBot";
+import { VoiceSearchModal } from "@/features/search/VoiceSearchModal";
+import { ConfirmationBottomSheet } from "@/shared/components/ConfirmationBottomSheet";
+import { FloatingCartBar } from "@/features/restaurant/components/FloatingCartBar";
+import { CartPreviewSheet } from "@/features/cart/components/CartPreviewSheet";
 
-import { useRestaurants } from "../api/restaurants";
+import { useRestaurants } from "@/api/restaurant/index";
 
 export const MainLayout: React.FC = () => {
-  const { restaurants } = useRestaurants();
+  const { restaurants, mutate } = useRestaurants();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { isVoiceSearchOpen, setIsVoiceSearchOpen, setSearchQuery, setIsLoadingView, setLoadingViewType } = useApp();
+  const { isVoiceSearchOpen, setIsVoiceSearchOpen, setSearchQuery } = useApp();
   const { cart, setCart } = useCart();
   const [showCartPreview, setShowCartPreview] = useState(false);
   
-  const totalItems = cart.reduce((sum, c) => sum + c.quantity, 0);
-  const totalPrice = cart.reduce((sum, c) => sum + c.totalPrice, 0);
+  const { totalItems, totalPrice } = useMemo(() => {
+    let items = 0;
+    let price = 0;
+    for (const item of cart) {
+      items += item.quantity;
+      price += item.totalPrice;
+    }
+    return { totalItems: items, totalPrice: price };
+  }, [cart]);
 
   const handleCartQuantityChange = (cartItemId: string, delta: number) => {
     setCart((prev) => {
@@ -45,40 +51,31 @@ export const MainLayout: React.FC = () => {
 
       return prev.map((item) => {
         if (item.cartItemId === cartItemId) {
-          const newQuantity = item.quantity + delta;
-          const unitPrice = item.totalPrice / item.quantity;
-          return {
-            ...item,
-            quantity: newQuantity,
-            totalPrice: unitPrice * newQuantity,
-          };
+          return withQuantity(item, item.quantity + delta);
         }
         return item;
       });
     });
   };
 
-  const { currentLocation, addresses, isServiceable } = useAppLocation();
+  const { currentLocation, isServiceable } = useAppLocation();
   const {
     activeOrder,
-    setActiveOrder,
     confirmModal,
     setConfirmModal,
-    favouriteRestaurantIds,
     setFavouriteRestaurantIds,
-    hiddenRestaurantIds,
     setHiddenRestaurantIds,
     selectedRestaurant,
   } = useRestaurant();
 
-  const { showBackToTop, isNavVisible, scrollToTop } = useScrollBehavior();
+  const { showBackToTop, scrollToTop } = useScrollBehavior();
   const {
     isPullLoading,
     pullDistance,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
-  } = usePullToRefresh();
+  } = usePullToRefresh(mutate);
 
   const currentPath = location.pathname;
   const isTabRoute = ["/", "/local", "/dine-in", "/deals"].includes(currentPath);
@@ -138,7 +135,7 @@ export const MainLayout: React.FC = () => {
       {/* Header (Only on main tab pages) */}
       {isTabRoute && (
         <Header
-          currentLocation={currentLocation}
+          currentLocation={currentLocation ?? undefined}
           onSearchClick={() => {
             setSearchQuery('');
             navigate("/search-results");
@@ -198,14 +195,7 @@ export const MainLayout: React.FC = () => {
           totalItems={totalItems}
           totalPrice={totalPrice}
           onPreviewClick={() => setShowCartPreview(true)}
-          onCheckoutClick={() => {
-            setIsLoadingView(true);
-            setLoadingViewType("checkout");
-            setTimeout(() => {
-              navigate("/checkout");
-              setIsLoadingView(false);
-            }, 2500);
-          }}
+          onCheckoutClick={() => navigate("/checkout")}
         />
       )}
 
@@ -218,14 +208,7 @@ export const MainLayout: React.FC = () => {
         totalItems={totalItems}
         totalPrice={totalPrice}
         handleQuantityChange={handleCartQuantityChange}
-        onCheckoutClick={() => {
-          setIsLoadingView(true);
-          setLoadingViewType("checkout");
-          setTimeout(() => {
-            navigate("/checkout");
-            setIsLoadingView(false);
-          }, 2500);
-        }}
+        onCheckoutClick={() => navigate("/checkout")}
       />
 
       {/* AI Chatbot */}
@@ -259,7 +242,6 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Bottom Navigation Tabs */}
-      <BottomNav isVisible={isNavVisible} />
     </div>
   );
 };

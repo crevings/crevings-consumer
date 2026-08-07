@@ -3,15 +3,9 @@ import React from 'react';
 import { 
   ArrowLeft, 
   Star, 
-  MapPin, 
-  Quote, 
-  Bike, 
   Utensils, 
   Calendar,
   CheckCircle2,
-  Image as ImageIcon,
-  MessageSquare,
-  Sparkles,
   Award
 } from 'lucide-react';
 import { Order, Review } from "@/types";
@@ -23,7 +17,7 @@ interface ViewReviewDetailsViewProps {
 }
 
 export const ViewReviewDetailsView: React.FC<ViewReviewDetailsViewProps> = ({ order, review, onBack }) => {
-  const foodItems = order.items.split(',').map(item => item.trim());
+  const foodItems = order.items.map((item) => item.name);
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans animate-fadeInUp">
@@ -36,7 +30,7 @@ export const ViewReviewDetailsView: React.FC<ViewReviewDetailsViewProps> = ({ or
         </button>
         <div className="text-right">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none mb-1">Feedback Log</p>
-          <h1 className="font-black text-xs text-slate-900 uppercase tracking-widest">{order.id}92-REF</h1>
+          <h1 className="font-black text-xs text-slate-900 uppercase tracking-widest">{order.id}</h1>
         </div>
       </div>
 
@@ -65,13 +59,15 @@ export const ViewReviewDetailsView: React.FC<ViewReviewDetailsViewProps> = ({ or
                 <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                 <div className="relative z-10 flex flex-col items-center text-center">
                     <div className="w-24 h-24 rounded-[2rem] border-4 border-blue-500/30 overflow-hidden mb-6 bg-slate-800">
-                        <img 
-                            src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&q=80" 
-                            alt="Driver" 
-                            className="w-full h-full object-cover" 
-                        />
+                        {order.deliveryPartner?.photo && (
+                            <img loading="lazy" 
+                                src={order.deliveryPartner.photo} 
+                                alt="Driver" 
+                                className="w-full h-full object-cover" 
+                            />
+                        )}
                     </div>
-                    <h3 className="text-xl font-black tracking-tight mb-1">Ramesh Kumar</h3>
+                    <h3 className="text-xl font-black tracking-tight mb-1">{order.deliveryPartner?.name || "Delivery Partner"}</h3>
                     <div className="flex gap-2 mb-8">
                         {[1, 2, 3, 4, 5].map(star => (
                             <Star 

@@ -1,7 +1,8 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { X, Percent, CheckCircle2, Info } from 'lucide-react';
 import { Offer } from "@/types";
+import { formatINR } from "@/utils/currency";
 
 interface OfferDetailsSheetProps {
   selectedOffer: Offer | null;
@@ -26,26 +27,26 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
   if (selectedOffer.offerType === 'percentage') {
     title = `${selectedOffer.discountPercent}% OFF`;
     subtitle = selectedOffer.maxCap 
-      ? `Upto ₹${selectedOffer.maxCap} | Min order ₹${minOrder}` 
-      : `On all orders | Min order ₹${minOrder}`;
+      ? `Upto ${formatINR(selectedOffer.maxCap)} | Min order ${formatINR(minOrder)}` 
+      : `On all orders | Min order ${formatINR(minOrder)}`;
   } else if (selectedOffer.offerType === 'flat') {
-    title = `Flat ₹${selectedOffer.discountAmount} OFF`;
-    subtitle = `On orders above ₹${minOrder}`;
+    title = `Flat ${formatINR(selectedOffer.discountAmount)} OFF`;
+    subtitle = `On orders above ${formatINR(minOrder)}`;
   } else if (selectedOffer.offerType === 'bogo') {
     title = "BUY 1 GET 1";
     subtitle = "BOGO on selected items";
   } else if (selectedOffer.offerType === 'free_item') {
     title = `FREE ${selectedOffer.freeItemName}`;
-    subtitle = `On orders above ₹${minOrder}`;
+    subtitle = `On orders above ${formatINR(minOrder)}`;
   }
 
   // Generate dynamic terms and conditions
   const terms: string[] = [];
   if (minOrder > 0) {
-    terms.push(`Minimum order value to qualify is ₹${minOrder}.`);
+    terms.push(`Minimum order value to qualify is ${formatINR(minOrder)}.`);
   }
   if (selectedOffer.offerType === 'percentage' && selectedOffer.maxCap) {
-    terms.push(`Maximum discount is capped at ₹${selectedOffer.maxCap}.`);
+    terms.push(`Maximum discount is capped at ${formatINR(selectedOffer.maxCap)}.`);
   }
   if (selectedOffer.applicableScope === 'category') {
     terms.push(`Applicable only on items from categories: ${selectedOffer.applicableIds.join(', ')}.`);

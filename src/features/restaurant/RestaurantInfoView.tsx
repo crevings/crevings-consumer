@@ -1,6 +1,7 @@
 import React from 'react';
-import { ArrowLeft, MapPin, Phone, Clock, FileText, Info, Shield, Navigation } from 'lucide-react';
+import { ArrowLeft, MapPin, Phone, Clock, Info, Shield, Navigation } from 'lucide-react';
 import { Restaurant } from "@/types";
+import { getRestaurantAddress } from "@/utils/restaurantUtils";
 
 interface RestaurantInfoViewProps {
   restaurant: Restaurant;
@@ -36,7 +37,7 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
             <div className="flex-1">
               <h3 className="text-sm font-bold text-slate-900 mb-1">Address</h3>
               <p className="text-sm text-slate-600 leading-relaxed mb-4">
-                {restaurant.address || '123 Main Street, Food District, City Center, 123456'}
+                {getRestaurantAddress(restaurant) || 'Address not available yet'}
               </p>
               <button className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl text-sm font-bold active:scale-95 transition-transform shadow-sm shadow-blue-600/20">
                 <Navigation className="w-4 h-4" />
@@ -55,9 +56,13 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
             <div className="flex-1">
               <h3 className="text-sm font-bold text-slate-900 mb-1">Contact Details</h3>
               <p className="text-sm text-slate-600 mb-2">Call us for any queries or reservations.</p>
-              <a href="tel:+919876543210" className="inline-flex items-center gap-2 text-green-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-lg">
-                +91 98765 43210
-              </a>
+              {restaurant.phone ? (
+                <a href={`tel:${restaurant.phone}`} className="inline-flex items-center gap-2 text-green-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-lg">
+                  {restaurant.phone}
+                </a>
+              ) : (
+                <p className="text-sm font-bold text-slate-400">Phone number not available yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -70,16 +75,11 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-bold text-slate-900 mb-3">Opening Hours</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Monday - Friday</span>
-                  <span className="font-bold text-slate-900">10:00 AM - 11:00 PM</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Saturday - Sunday</span>
-                  <span className="font-bold text-slate-900">09:00 AM - 12:00 AM</span>
-                </div>
-              </div>
+              {restaurant.openingHours ? (
+                <p className="text-sm font-bold text-slate-900">{restaurant.openingHours}</p>
+              ) : (
+                <p className="text-sm font-bold text-slate-400">Opening hours not available yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -92,13 +92,17 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-bold text-slate-900 mb-3">Facilities</h3>
-              <div className="flex flex-wrap gap-2">
-                {['Dine-in', 'Takeaway', 'Delivery', 'Air Conditioned', 'Free Wi-Fi', 'Parking Available'].map((facility, index) => (
-                  <span key={index} className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-medium text-slate-700">
-                    {facility}
-                  </span>
-                ))}
-              </div>
+              {restaurant.facilities && restaurant.facilities.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {restaurant.facilities.map((facility, index) => (
+                    <span key={index} className="px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg text-xs font-medium text-slate-700">
+                      {facility}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-slate-400">Facilities not listed yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -114,15 +118,16 @@ export const RestaurantInfoView: React.FC<RestaurantInfoViewProps> = ({ restaura
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">FSSAI License No.</p>
-                  <p className="text-sm font-bold text-slate-900">12345678901234</p>
+                  <p className="text-sm font-bold text-slate-900">{restaurant.fssaiNo || 'Not available yet'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">GSTIN</p>
-                  <p className="text-sm font-bold text-slate-900">29ABCDE1234F1Z5</p>
+                  <p className="text-sm font-bold text-slate-900">{restaurant.gstin || 'Not available yet'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">Registered Entity Name</p>
-                  <p className="text-sm font-bold text-slate-900">{restaurant.name} Foods Pvt. Ltd.</p>
+                  <p className="text-sm font-bold text-slate-900">{restaurant.registeredName || 'Not available yet'}</p>
+                  <p className="text-xs text-slate-400 mt-1">Registered entity details shown once verified by the restaurant.</p>
                 </div>
               </div>
             </div>

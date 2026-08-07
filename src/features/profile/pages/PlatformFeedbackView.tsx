@@ -9,7 +9,6 @@ export const PlatformFeedbackView: React.FC<PlatformFeedbackViewProps> = ({ onBa
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const tags = [
@@ -29,15 +28,9 @@ export const PlatformFeedbackView: React.FC<PlatformFeedbackViewProps> = ({ onBa
 
   const handleSubmit = () => {
     if (rating === 0) return;
-    setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
-      setTimeout(() => {
-        onBack();
-      }, 2500);
-    }, 1500);
+    // TODO: wire to a real feedback endpoint once available. Submission is
+    // client-only for now, so the success screen makes no server-receipt claim.
+    setIsSuccess(true);
   };
 
   if (isSuccess) {
@@ -48,8 +41,14 @@ export const PlatformFeedbackView: React.FC<PlatformFeedbackViewProps> = ({ onBa
         </div>
         <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tighter text-center">THANK YOU!</h2>
         <p className="text-slate-500 text-sm font-medium text-center leading-relaxed max-w-[240px]">
-          Your feedback helps us make Crevings better for everyone. We've received your notes!
+          Your feedback helps us make Crevings better for everyone. Thank you!
         </p>
+        <button
+          onClick={onBack}
+          className="mt-8 w-full max-w-[240px] bg-[#00bd6f] text-white font-bold py-3 rounded-[14px] active:scale-95 transition-transform"
+        >
+          Done
+        </button>
       </div>
     );
   }
@@ -139,17 +138,11 @@ export const PlatformFeedbackView: React.FC<PlatformFeedbackViewProps> = ({ onBa
       <div className="p-4 bg-white border-t border-slate-100 sticky bottom-0 z-30">
         <button 
           onClick={handleSubmit}
-          disabled={rating === 0 || isSubmitting}
+          disabled={rating === 0}
           className="w-full bg-[#00bd6f] text-white font-bold py-4 rounded-[16px] active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:active:scale-100"
         >
-          {isSubmitting ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <span>Send Feedback</span>
-              <Send className="w-4 h-4" />
-            </>
-          )}
+          <span>Send Feedback</span>
+          <Send className="w-4 h-4" />
         </button>
       </div>
     </div>

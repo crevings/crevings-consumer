@@ -22,7 +22,7 @@ const MAP_OPTIONS: google.maps.MapOptions = {
   mapId: 'DEMO_MAP_ID',
 };
 
-const MAP_LIBRARIES: any = ['marker', 'routes'];
+const MAP_LIBRARIES: ("marker" | "routes")[] = ['marker', 'routes'];
 
 // ── Pin-style markers (tip of the pin anchors the exact location) ────────────
 // AdvancedMarkerElement anchors custom HTML content at its bottom-center by
@@ -140,7 +140,17 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     // 1. Primary: Modern Routes API (Route.computeRoutes with fields mask)
     try {
       if (window.google?.maps?.importLibrary) {
-        const { Route } = await window.google.maps.importLibrary('routes') as any;
+        const routesLibrary = (await window.google.maps.importLibrary("routes")) as unknown as {
+          Route?: {
+            computeRoutes?: (request: Record<string, unknown>) => Promise<{
+              routes?: Array<{
+                createPolylines?: () => Array<{ getPath?: () => { getArray?: () => google.maps.LatLng[] } }>;
+                polyline?: { encodedPolyline?: string };
+              }>;
+            }>;
+          };
+        };
+        const { Route } = routesLibrary;
         if (Route?.computeRoutes) {
           const response = await Route.computeRoutes({
             origin: originLatLng,
@@ -155,14 +165,15 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
             if (typeof route.createPolylines === 'function') {
               const polylines = route.createPolylines();
-              if (polylines?.[0]?.getPath) {
-                path = polylines[0].getPath().getArray();
+              const pathArray = polylines?.[0]?.getPath?.()?.getArray?.();
+              if (pathArray) {
+                path = pathArray;
               }
             }
 
             if (!path && route.polyline?.encodedPolyline) {
-              const { encoding } = await window.google.maps.importLibrary('geometry') as any;
-              path = encoding.decodePath(route.polyline.encodedPolyline);
+              const geometryLibrary = (await window.google.maps?.importLibrary?.("geometry")) as unknown as { encoding?: { decodePath?: (polyline: string) => google.maps.LatLng[] } } | undefined;
+              path = geometryLibrary?.encoding?.decodePath?.(route.polyline.encodedPolyline) ?? null;
             }
 
             if (path && path.length > 0) {
