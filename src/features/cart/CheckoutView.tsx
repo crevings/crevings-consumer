@@ -281,7 +281,7 @@ export const CheckoutView: React.FC = () => {
             restaurantName: selectedRestaurant?.name || "Restaurant",
             location: result.data.customerDetails?.address || "",
             rating: selectedRestaurant?.rating ?? 0,
-            items: result.data.items.map((item) => ({
+            items: (Array.isArray(result.data.items) ? result.data.items : []).map((item) => ({
               name: item.name,
               quantity: item.quantity || 1,
               price: item.price,

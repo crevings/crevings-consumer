@@ -92,7 +92,12 @@ export interface Order {
   location: string;
   rating: number;
   timeEstimate?: string;
-  items: OrderItem[];
+  /**
+   * Typed line items when the backend sends them structured; legacy
+   * comma-joined string (e.g. "2x Chicken Biryani, Gulab Jamun") otherwise.
+   * Always read through normalizeOrderItems() — never call .map() directly.
+   */
+  items: OrderItem[] | string;
   orderDate: string;
   type: OrderType;
   status: OrderStatus;

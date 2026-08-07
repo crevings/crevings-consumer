@@ -140,10 +140,11 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
   }
   
   const formattedOrders: Order[] = (data.orders || []).map((order: PastOrderDto): Order => {
-    const lineItems: OrderItem[] = (order.items || []).map((item: PastOrderItem) => ({
-      name: item.name ?? "",
-      quantity: item.quantity || 1,
-    }));
+    const lineItems: OrderItem[] = (Array.isArray(order.items) ? order.items : [])
+      .map((item: PastOrderItem) => ({
+        name: item.name ?? "",
+        quantity: item.quantity || 1,
+      }));
     const formattedDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
       month: 'long',
       day: 'numeric',

@@ -1,5 +1,6 @@
 import React from "react";
 import { Order } from "@/types";
+import { normalizeOrderItems } from "@/utils/orderItems";
 
 interface OrderPriceSummaryProps {
   order: Order;
@@ -12,7 +13,7 @@ export const OrderPriceSummary: React.FC<OrderPriceSummaryProps> = ({ order, pay
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
       <h3 className="text-sm font-bold text-slate-900 mb-3">Order Details</h3>
       <div className="space-y-2 mb-4">
-        {order.items.map((item, i) => (
+        {normalizeOrderItems(order).map((item, i) => (
           <div key={i} className="flex justify-between text-sm">
             <div className="flex gap-2">
               <span className="font-medium text-slate-700">{item.quantity}x</span>

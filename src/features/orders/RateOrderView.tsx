@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Star, Phone, MessageSquare, ChevronRight, HelpCircle, CheckCircle2, Percent } from 'lucide-react';
 import { Order, Review } from "@/types";
+import { normalizeOrderItems, joinItemNames } from "@/utils/orderItems";
 import { post } from "@/api/fetcher";
 import { downloadInvoice } from "@/lib/invoice";
 
@@ -33,7 +34,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
   const deliveryPartnerName = order.deliveryPartner?.name || "Your Delivery Partner";
   const deliveryPartnerFirstName = deliveryPartnerName.split(" ")[0] || "your delivery partner";
 
-  const foodItems = order.items.map((item) => item.name);
+  const foodItems = normalizeOrderItems(order).map((item) => item.name);
 
   const handleItemRate = (item: string, rating: number) => {
     if (alreadyRated) return;
@@ -321,7 +322,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
 
           <div className="mb-5 border-b border-slate-100 pb-4">
             <p className="text-xs font-bold text-slate-500 mb-1">Order #{order.realOrderId || order.id}</p>
-            <p className="text-sm font-medium text-slate-800">{order.items.map((i) => i.name).join(", ")}</p>
+            <p className="text-sm font-medium text-slate-800">{joinItemNames(order)}</p>
           </div>
 
           <div className="flex flex-col items-center mb-5">

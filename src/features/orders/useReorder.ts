@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Order, CartItem, MenuItem } from "@/types";
+import { normalizeOrderItems } from "@/utils/orderItems";
 import { useCart } from "@/contexts/CartContext";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useRestaurants } from "@/api/restaurant/index";
@@ -25,7 +26,7 @@ export const useReorder = () => {
       const newCart: CartItem[] = [];
       const newMenuItems: MenuItem[] = [];
 
-      order.items.forEach((line, index) => {
+      normalizeOrderItems(order).forEach((line, index) => {
         const quantity = line.quantity || 1;
         const name = line.name;
 

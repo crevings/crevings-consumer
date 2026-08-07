@@ -1,5 +1,6 @@
 import React from 'react';
 import { Order, Review, OrderType } from '@/types';
+import { joinItemNames } from '@/utils/orderItems';
 import { 
   Clock,
   ShoppingBag,
@@ -83,7 +84,7 @@ const OrderCardUnmemoized: React.FC<OrderCardProps> = ({
               </span>
             </div>
             <p className="text-xs font-bold text-slate-400 line-clamp-1 uppercase tracking-tight">
-              {order.items.map((i) => i.name).join(", ")}
+              {joinItemNames(order)}
             </p>
           </div>
 
@@ -141,7 +142,7 @@ const OrderCardUnmemoized: React.FC<OrderCardProps> = ({
         </p>
         <div className="flex justify-between items-start">
           <p className="text-[14px] text-slate-700 font-medium line-clamp-2 pr-4 flex-1">
-            {order.items.map((i) => i.name).join(", ")}
+            {joinItemNames(order)}
           </p>
           <p className="text-[15px] font-bold text-slate-900 shrink-0">
             ₹{order.price || order.total || '0'}

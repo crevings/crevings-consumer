@@ -1,6 +1,7 @@
 import { Order } from "@/types";
 import { BRAND } from "@/config/brand";
 import { formatINR } from "@/utils/currency";
+import { normalizeOrderItems } from "@/utils/orderItems";
 
 export interface InvoiceLine {
   name: string;
@@ -14,14 +15,7 @@ export interface InvoiceLine {
  * unknown, and the invoice renders a dash instead of a made-up number.
  */
 export function parseOrderItems(order: Order): InvoiceLine[] {
-  if (order.rawItems && order.rawItems.length > 0) {
-    return order.rawItems.map((item) => ({
-      name: item.name,
-      quantity: item.quantity || 1,
-      price: item.price || 0,
-    }));
-  }
-  return order.items.map((item) => ({
+  return normalizeOrderItems(order).map((item) => ({
     name: item.name,
     quantity: item.quantity || 1,
     price: item.price ?? 0,

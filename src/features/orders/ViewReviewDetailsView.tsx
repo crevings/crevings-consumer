@@ -9,6 +9,7 @@ import {
   Award
 } from 'lucide-react';
 import { Order, Review } from "@/types";
+import { normalizeOrderItems } from "@/utils/orderItems";
 
 interface ViewReviewDetailsViewProps {
   order: Order;
@@ -17,7 +18,7 @@ interface ViewReviewDetailsViewProps {
 }
 
 export const ViewReviewDetailsView: React.FC<ViewReviewDetailsViewProps> = ({ order, review, onBack }) => {
-  const foodItems = order.items.map((item) => item.name);
+  const foodItems = normalizeOrderItems(order).map((item) => item.name);
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans animate-fadeInUp">

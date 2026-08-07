@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronRight, Clock } from 'lucide-react';
 import { Order } from "@/types";
+import { joinItemNames } from "@/utils/orderItems";
 
 interface ActiveOrderSnackbarProps {
   order: Order;
@@ -33,7 +34,7 @@ export const ActiveOrderSnackbar: React.FC<ActiveOrderSnackbarProps> = ({ order,
           <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
             <span className="text-green-600 font-bold">Arriving soon</span>
             <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0" />
-            <span className="truncate">{order.items.map((i) => i.name).join(", ")}</span>
+            <span className="truncate">{joinItemNames(order)}</span>
           </div>
         </div>
 
