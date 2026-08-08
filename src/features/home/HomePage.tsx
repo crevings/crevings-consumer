@@ -7,7 +7,7 @@ import { HomeFeed } from "@/features/home/HomeFeed";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentLocation } = useLocation();
+  const { currentLocation, isServiceable, checkingServiceability } = useLocation();
   const {
     hiddenRestaurantIds,
     handleItemAdd,
@@ -46,6 +46,32 @@ export const HomePage: React.FC = () => {
           className="w-full max-w-[280px] py-4 bg-[#00BD6F] text-white rounded-2xl text-base font-bold active:scale-95 transition-all shadow-md shadow-[#00BD6F]/20"
         >
           Add Location
+        </button>
+      </div>
+    );
+  }
+
+  // Mandatory serviceable-zone gate: the selected location is outside every
+  // designated service area — show a prominent block instead of the feed.
+  if (!isServiceable && !checkingServiceability) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center animate-fadeInUp pt-10">
+        <img
+          src="/no_location_served.svg"
+          alt="Location not served"
+          className="w-40 h-40 mb-8"
+        />
+        <h2 className="text-3xl font-black text-slate-900 mb-3 tracking-tight">
+          Crevings is not available in your city.
+        </h2>
+        <p className="text-slate-500 text-base max-w-[300px] leading-relaxed mb-10">
+          We&apos;re still expanding to new areas. Try a different delivery location to see what&apos;s available.
+        </p>
+        <button
+          onClick={() => navigate("/location")}
+          className="w-full max-w-[280px] py-4 bg-[#00BD6F] text-white rounded-2xl text-base font-bold active:scale-95 transition-all shadow-md shadow-[#00BD6F]/20"
+        >
+          Change Location
         </button>
       </div>
     );

@@ -787,7 +787,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
           if (orderType === "Delivery" && (!currentLocation || !currentLocation.address)) {
             navigate("/location", { state: { from: "/checkout" } });
           } else if (orderType === "Delivery" && !isServiceable) {
-            alert("Crevings delivery is not available in your selected location yet!");
+            alert("Crevings is not available in your city.");
           } else {
             setShowPaymentSheet(true);
           }

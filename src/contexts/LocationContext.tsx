@@ -38,7 +38,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (!currentLocation) return;
     const coords = currentLocation.coordinates;
-    if (coords && coords.lat && coords.lng) {
+    if (coords && typeof coords.lat === "number" && typeof coords.lng === "number") {
       const controller = new AbortController();
       setCheckingServiceability(true);
       get<{ success: boolean; serviceable?: boolean; zone?: Zone | null }>(
@@ -59,8 +59,10 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       return () => controller.abort();
     } else {
-      // Default to true if coordinates are not attached
-      setIsServiceable(true);
+      // No coordinates attached — the zone check cannot run. Do NOT claim
+      // serviceability; keep the last known value until a geocoded location
+      // is available (the home page shows the "add location" state instead).
+      setCheckingServiceability(false);
     }
   }, [currentLocation]);
 
@@ -82,7 +84,15 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // By default show user their primary location (isDefault: true) or first address
       const defaultAddr = apiAddresses.find((a: SavedAddress) => a.isDefault) || apiAddresses[0];
       if (defaultAddr) {
-        setCurrentLocation({ type: defaultAddr.type, address: defaultAddr.address });
+        setCurrentLocation({
+          type: defaultAddr.type,
+          address: defaultAddr.address,
+          // Carry coordinates through so the /zones/check serviceability
+          // check actually runs for saved addresses — it previously never
+          // fired because coordinates were dropped here, silently defaulting
+          // every saved address to "serviceable".
+          coordinates: defaultAddr.coordinates,
+        });
       } else {
         setCurrentLocation(null);
       }
