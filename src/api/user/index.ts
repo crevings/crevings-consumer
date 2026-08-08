@@ -159,7 +159,7 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
       items: lineItems,
       orderDate: formattedDate,
       type: (order.type as Order["type"]) || "Delivery",
-      status: (order.status === "COMPLETED" || order.status === "DELIVERED" ? "COMPLETED" : "CANCELLED") as Order["status"],
+      status: (order.status === "COMPLETED" || order.status === "DELIVERED" ? "Completed" : "Cancelled") as Order["status"],
       price: order.total || 0,
       total: order.total || 0,
       subtotal: order.subtotal || order.total || 0,

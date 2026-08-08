@@ -15,10 +15,10 @@ const containerStyle = { width: '100%', height: '100%', borderRadius: '16px' };
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
   zoomControl: false,
-  gestureHandling: 'none',
+  gestureHandling: 'greedy',
   clickableIcons: false,
-  draggable: false,
-  scrollwheel: false,
+  draggable: true,
+  scrollwheel: true,
   mapId: 'DEMO_MAP_ID',
 };
 

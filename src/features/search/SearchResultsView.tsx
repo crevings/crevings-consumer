@@ -1,45 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { 
-  ArrowLeft, 
-  Search, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Search,
   SlidersHorizontal,
   History,
   TrendingUp,
   X,
-  Mic
+  Mic,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
-import { useSearch, useSearchSuggestions } from "@/api/restaurant";
-import { useLocation as useAppLocation } from "@/contexts/LocationContext";
-import { Restaurant, FilterOptions } from "@/types";
+import { useFuzzySearch } from "@/hooks/useFuzzySearch";
+import { Restaurant, FilterOptions, MenuItem } from "@/types";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { GridMenuItemCard } from "@/features/collection/GridMenuItemCard";
 import { useDebounce } from "@/shared/hooks/useDebounce";
-
-interface SearchRestaurantDto {
-  branchId: string;
-  name: string;
-  cuisineType?: string;
-  rating?: number;
-  estimatedDeliveryMinutes?: number;
-  logo?: string;
-  distanceKm?: number;
-  isDeliverable?: boolean;
-  address?: { city?: string };
-}
-
-interface SearchDishDto {
-  itemId: string;
-  name: string;
-  category?: string;
-  description?: string;
-  price?: number;
-  dietaryType?: string;
-  images?: string[];
-  restaurant?: { branchId?: string; name?: string; distanceKm?: number; isDeliverable?: boolean };
-}
+import type { DishSearchRecord } from "@/utils/search";
 
 interface SearchResultsViewProps {
   onBack: () => void;
@@ -49,18 +27,65 @@ interface SearchResultsViewProps {
   onMicClick?: () => void;
 }
 
-const FILTER_CHIPS = [
-  { label: 'Filters', icon: <SlidersHorizontal className="w-4 h-4" />, action: 'filter' },
+interface QuickFilters {
+  veg: boolean;
+  rating: boolean;
+  near: boolean;
+}
+
+const FILTER_CHIPS: Array<{
+  label: string;
+  action: 'filter' | 'veg' | 'rating' | 'near';
+  icon?: React.ReactNode;
+}> = [
+  { label: 'Filters', action: 'filter', icon: <SlidersHorizontal className="w-4 h-4" /> },
   { label: 'Veg Only', action: 'veg' },
   { label: 'Rating 4.0+', action: 'rating' },
   { label: 'Under 15 km', action: 'near' },
 ];
 
-export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, initialQuery = 'Burger', onRestaurantClick, onItemAdd, onMicClick }) => {
+/** Build the lightweight Restaurant object needed to open/add from a dish card. */
+const dishRestaurant = (dish: DishSearchRecord): Restaurant => ({
+  id: dish.restaurant.id,
+  name: dish.restaurant.name,
+  cuisine: '',
+  rating: 0,
+  time: '',
+  timeValue: 0,
+  price: '',
+  images: [],
+  distance: dish.restaurant.distanceKm != null ? `${dish.restaurant.distanceKm} km` : '',
+  distanceValue: dish.restaurant.distanceKm ?? 0,
+  dietary: [],
+});
+
+/** Shape a dish record for the GridMenuItemCard. */
+const dishToMenuItem = (dish: DishSearchRecord): MenuItem => ({
+  id: dish.itemId,
+  name: dish.name,
+  price: dish.price ?? 0,
+  rating: 0,
+  ratingCount: '0',
+  image: dish.images?.[0] ?? '',
+  isVeg: dish.isVeg ?? false,
+  isEgg: dish.isEgg,
+  description: dish.description,
+  category: dish.category || 'Special',
+  available: true,
+});
+
+export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
+  onBack,
+  initialQuery = 'Burger',
+  onRestaurantClick,
+  onItemAdd,
+  onMicClick,
+}) => {
   const [query, setQuery] = useState(initialQuery);
   const debouncedQuery = useDebounce(query, 300);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [quickFilters, setQuickFilters] = useState<QuickFilters>({ veg: false, rating: false, near: false });
   const [activeFilters, setActiveFilters] = useState<FilterOptions>({
     maxTime: 60,
     maxDistance: 15,
@@ -68,77 +93,107 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
     dietary: 'all',
     offersOnly: false,
     sortBy: 'default',
-    priceRange: null
+    priceRange: null,
   });
 
-  const { currentLocation } = useAppLocation();
+  // Client-side Fuse.js fuzzy search over the full restaurant + dish corpora.
+  // The dish corpus is only fetched once the user opens the Dishes tab.
+  const {
+    restaurants: fuzzyRestaurants,
+    dishes: fuzzyDishes,
+    restaurantsLoading,
+    dishesLoading,
+    isError,
+    retry,
+  } = useFuzzySearch(debouncedQuery, { loadDishes: searchType === 'dish' });
 
-  // Call real-time H3 powered search API with debounced query & pagination limits
-  // Always pass the selected delivery-area coordinates so out-of-area (other
-  // city/state) restaurants are excluded by the backend's area access check.
-  const { data: searchApiResult } = useSearch({
-    query: debouncedQuery,
-    lat: currentLocation?.coordinates?.lat,
-    lng: currentLocation?.coordinates?.lng,
-    vegOnly: activeFilters.dietary === 'veg',
-    minRating: activeFilters.minRating ?? undefined,
-    limit: 20,
-  });
+  const filteredRestaurants = useMemo(() => {
+    let list = fuzzyRestaurants;
 
-  useSearchSuggestions(debouncedQuery);
+    if (quickFilters.veg) {
+      list = list.filter((r) => !r.dietary || r.dietary.length === 0 || r.dietary.includes('veg'));
+    }
+    if (quickFilters.rating) {
+      list = list.filter((r) => r.rating >= 4);
+    }
+    if (quickFilters.near) {
+      list = list.filter((r) => (r.distanceValue ?? Infinity) <= 15);
+    }
 
-  const apiRestaurants = useMemo(() => {
-    const branches: SearchRestaurantDto[] = searchApiResult?.restaurants ?? [];
-    if (branches.length === 0) return [];
-    return branches.map((branch) => ({
-      id: branch.branchId,
-      name: branch.name,
-      cuisine: branch.cuisineType || '',
-      rating: branch.rating ?? 0,
-      time: branch.estimatedDeliveryMinutes != null ? `${branch.estimatedDeliveryMinutes} min` : '',
-      timeValue: branch.estimatedDeliveryMinutes ?? 0,
-      price: '',
-      images: branch.logo ? [branch.logo] : [],
-      distance: branch.distanceKm != null ? `${branch.distanceKm} km` : '',
-      distanceValue: branch.distanceKm ?? 0,
-      isDeliverable: branch.isDeliverable,
-      area: branch.address?.city || 'Local',
-      dietary: [],
-    }));
-  }, [searchApiResult]);
+    // Sheet filters (FilterBottomSheet)
+    if (activeFilters.minRating && activeFilters.minRating > 1) {
+      list = list.filter((r) => r.rating >= (activeFilters.minRating ?? 0));
+    }
+    if (activeFilters.dietary === 'veg') {
+      list = list.filter((r) => !r.dietary || r.dietary.length === 0 || r.dietary.includes('veg'));
+    }
+    if (activeFilters.maxDistance !== undefined && activeFilters.maxDistance < 15) {
+      list = list.filter((r) => r.distanceValue <= activeFilters.maxDistance);
+    }
+    if (activeFilters.offersOnly) {
+      list = list.filter((r) => Boolean(r.offer));
+    }
 
-  const apiDishes = useMemo(() => {
-    const dishes: SearchDishDto[] = searchApiResult?.dishes ?? [];
-    if (dishes.length === 0) return [];
-    return dishes.map((dish) => ({
-      id: dish.itemId,
-      name: dish.name,
-      category: dish.category || 'Special',
-      description: dish.description || '',
-      price: dish.price ?? 0,
-      isVeg: dish.dietaryType === 'Veg',
-      image: dish.images && dish.images.length > 0 ? (dish.images[0] ?? '') : '',
-      images: dish.images && dish.images.length > 0 ? dish.images : [],
-      rating: 0,
-      ratingCount: '0',
-      restaurant: {
-        id: dish.restaurant?.branchId || '',
-        name: dish.restaurant?.name || 'Restaurant',
-        cuisine: 'Multi',
-        rating: 0,
-        time: '',
-        timeValue: 0,
-        price: '',
-        images: [],
-        distance: dish.restaurant?.distanceKm != null ? `${dish.restaurant.distanceKm} km` : '',
-        distanceValue: dish.restaurant?.distanceKm ?? 0,
-        isDeliverable: dish.restaurant?.isDeliverable,
-        dietary: [],
-      },
-    }));
-  }, [searchApiResult]);
+    if (activeFilters.sortBy && activeFilters.sortBy !== 'default') {
+      list = [...list].sort((a, b) => {
+        switch (activeFilters.sortBy) {
+          case 'ratingHigh': return b.rating - a.rating;
+          case 'ratingLow': return a.rating - b.rating;
+          case 'distanceNear': return a.distanceValue - b.distanceValue;
+          case 'distanceFar': return b.distanceValue - a.distanceValue;
+          default: return 0;
+        }
+      });
+    }
 
-  const currentResultsLength = searchType === 'restaurant' ? apiRestaurants.length : apiDishes.length;
+    return list;
+  }, [fuzzyRestaurants, quickFilters, activeFilters]);
+
+  const filteredDishes = useMemo(() => {
+    let list = fuzzyDishes;
+
+    if (quickFilters.veg) {
+      list = list.filter((d) => d.isVeg !== false);
+    }
+    if (quickFilters.near) {
+      list = list.filter((d) => (d.restaurant.distanceKm ?? Infinity) <= 15);
+    }
+
+    if (activeFilters.dietary === 'veg') {
+      list = list.filter((d) => d.isVeg !== false);
+    }
+    if (activeFilters.priceRange === 'under49') {
+      list = list.filter((d) => (d.price ?? 0) <= 49);
+    } else if (activeFilters.priceRange === '49to99') {
+      list = list.filter((d) => (d.price ?? 0) >= 49 && (d.price ?? 0) <= 99);
+    }
+    if (activeFilters.sortBy === 'priceLow') {
+      list = [...list].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+    } else if (activeFilters.sortBy === 'priceHigh') {
+      list = [...list].sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+    }
+
+    return list;
+  }, [fuzzyDishes, quickFilters, activeFilters]);
+
+  const isSearching =
+    searchType === 'restaurant'
+      ? restaurantsLoading
+      : searchType === 'dish' && dishesLoading;
+
+  const currentResultsLength =
+    searchType === 'restaurant' ? filteredRestaurants.length : filteredDishes.length;
+
+  const toggleQuickFilter = (action: 'veg' | 'rating' | 'near') => {
+    setQuickFilters((prev) => ({ ...prev, [action]: !prev[action] }));
+  };
+
+  const chipIsActive = (action: string): boolean => {
+    if (action === 'veg' || action === 'rating' || action === 'near') {
+      return quickFilters[action];
+    }
+    return false;
+  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
@@ -149,8 +204,8 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
               <button onClick={onBack} className="p-2 flex items-center justify-center text-slate-600 hover:text-slate-900 active:scale-95 transition-transform shrink-0 rounded-full hover:bg-slate-200">
                 <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
               </button>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search food, restaurants..."
@@ -171,7 +226,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
             </div>
           </div>
         </div>
-        
+
         {query && (
           <>
             {/* Toggle Restaurant / Dishes */}
@@ -209,14 +264,16 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
             {/* Filter Chips */}
             <div className="px-4">
               <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 items-center">
-                {FILTER_CHIPS.map((chip, i) => (
-                  <button 
-                    key={i} 
-                    onClick={() => chip.action === 'filter' ? setIsFilterOpen(true) : null}
+                {FILTER_CHIPS.map((chip) => (
+                  <button
+                    key={chip.action}
+                    onClick={() => (chip.action === 'filter' ? setIsFilterOpen(true) : toggleQuickFilter(chip.action))}
                     className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-[12px] text-[13px] font-bold whitespace-nowrap active:scale-95 transition-all ${
-                      chip.action === 'filter' 
-                        ? 'border-slate-200 bg-white text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)]' 
-                        : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:border-slate-200'
+                      chip.action === 'filter'
+                        ? 'border-slate-200 bg-white text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
+                        : chipIsActive(chip.action)
+                          ? 'border-[#00BD6F] bg-[#00BD6F]/10 text-[#008A52]'
+                          : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:border-slate-200'
                     }`}
                   >
                     {chip.icon && chip.icon}
@@ -240,7 +297,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
               </h3>
               <div className="flex flex-wrap gap-2">
                 {['paneer tikka', 'dosa', 'kfc'].map((tag) => (
-                  <button 
+                  <button
                     key={tag}
                     onClick={() => setQuery(tag)}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-slate-200 rounded-[12px] text-[12px] font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
@@ -260,7 +317,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
               </h3>
               <div className="flex flex-wrap gap-2">
                 {['biryani', 'pizza', 'burger', 'shawarma', 'chicken', 'momos', 'thali'].map((tag) => (
-                  <button 
+                  <button
                     key={tag}
                     onClick={() => setQuery(tag)}
                     className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-[12px] text-[12px] font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all"
@@ -284,72 +341,76 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({ onBack, in
 
         {query && (
           <div className="animate-[fadeSlideUp_0.4s_ease-out]">
-            {currentResultsLength > 0 ? (
+            {isSearching ? (
+              <div className="flex flex-col items-center justify-center pt-24">
+                <Loader2 className="w-8 h-8 text-[#00BD6F] animate-spin" strokeWidth={2.5} />
+                <p className="mt-3 text-[13px] font-bold text-slate-400">Searching delicious food...</p>
+              </div>
+            ) : isError ? (
+              <div className="flex flex-col items-center justify-center pt-20 px-8 text-center animate-[fadeIn_0.3s_ease-out]">
+                <div className="w-24 h-24 mb-6 rounded-full bg-red-50 flex items-center justify-center border border-red-100 shadow-sm">
+                  <AlertCircle className="w-10 h-10 text-red-300" strokeWidth={2} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">Something went wrong</h3>
+                <p className="text-[14px] font-medium text-slate-500 mb-8 max-w-[240px]">We couldn't load search results. Check your connection and try again.</p>
+                <button onClick={retry} className="bg-[#00BD6F] text-white px-8 py-3 rounded-[16px] font-bold text-[14px] active:scale-95 transition-all">Try Again</button>
+              </div>
+            ) : currentResultsLength > 0 ? (
               searchType === 'restaurant' ? (
-                 <div className="space-y-4">
-                   {apiRestaurants.map((item) => (
-                      <div key={item.id} className="relative">
-                        {!item.isDeliverable && (
-                          <div className="mb-1 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg inline-flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-amber-600" />
-                            Outside 15 km delivery radius (City Search Result)
-                          </div>
-                        )}
-                        <RestaurantCard
-                          {...item}
-                          onClick={() => onRestaurantClick?.(item)}
-                        />
-                      </div>
-                   ))}
+                <div className="space-y-4">
+                  {filteredRestaurants.map((item) => (
+                    <RestaurantCard
+                      key={item.id}
+                      {...item}
+                      onClick={() => onRestaurantClick?.(item)}
+                    />
+                  ))}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 pb-6">
-                  {apiDishes.map((item) => (
-                    <div key={`${item.restaurant.id}-${item.id}`} className="relative">
-                      {!item.restaurant.isDeliverable && (
-                        <div className="mb-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                          Out of range
-                        </div>
-                      )}
+                  {filteredDishes.map((dish) => {
+                    const restaurant = dishRestaurant(dish);
+                    return (
                       <GridMenuItemCard
-                        item={item}
+                        key={`${dish.restaurant.id}-${dish.itemId}`}
+                        item={dishToMenuItem(dish)}
                         quantity={0}
-                        restaurantName={item.restaurant.name}
+                        restaurantName={dish.restaurant.name}
                         onAdd={(id) => {
-                          onRestaurantClick?.(item.restaurant);
-                          onItemAdd?.(item.restaurant, id);
+                          onRestaurantClick?.(restaurant);
+                          onItemAdd?.(restaurant, id);
                         }}
                         onRemove={() => {}}
                         onClick={() => {
-                          onRestaurantClick?.(item.restaurant);
+                          onRestaurantClick?.(restaurant);
                         }}
                       />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )
             ) : (
               <div className="flex flex-col items-center justify-center pt-20 px-8 text-center animate-[fadeIn_0.3s_ease-out]">
-                  <div className="w-24 h-24 mb-6 relative">
-                      <div className="absolute inset-0 bg-slate-100 rounded-full animate-ping opacity-20"></div>
-                      <div className="w-full h-full bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 relative z-10 shadow-sm">
-                          <Search className="w-10 h-10 text-slate-300" strokeWidth={2} />
-                      </div>
+                <div className="w-24 h-24 mb-6 relative">
+                  <div className="absolute inset-0 bg-slate-100 rounded-full animate-ping opacity-20"></div>
+                  <div className="w-full h-full bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 relative z-10 shadow-sm">
+                    <Search className="w-10 h-10 text-slate-300" strokeWidth={2} />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">No match found</h3>
-                  <p className="text-[14px] font-medium text-slate-500 mb-8 max-w-[240px]">We couldn't find any delicious matches for "{query}". Try searching for something else.</p>
-                  <button onClick={() => setQuery('')} className="bg-[#00BD6F]/10 text-[#00BD6F] px-8 py-3 rounded-[16px] font-bold text-[14px] active:scale-95 transition-all">Clear Search</button>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">No match found</h3>
+                <p className="text-[14px] font-medium text-slate-500 mb-8 max-w-[240px]">We couldn't find any delicious matches for "{query}". Try searching for something else.</p>
+                <button onClick={() => setQuery('')} className="bg-[#00BD6F]/10 text-[#00BD6F] px-8 py-3 rounded-[16px] font-bold text-[14px] active:scale-95 transition-all">Clear Search</button>
               </div>
             )}
           </div>
         )}
       </div>
-      
+
       {isFilterOpen && (
-        <FilterBottomSheet 
-          onClose={() => setIsFilterOpen(false)} 
-          onApply={(f) => { setActiveFilters(f); setIsFilterOpen(false); }} 
-          initialFilters={activeFilters} 
+        <FilterBottomSheet
+          onClose={() => setIsFilterOpen(false)}
+          onApply={(f) => { setActiveFilters(f); setIsFilterOpen(false); }}
+          initialFilters={activeFilters}
         />
       )}
     </div>
