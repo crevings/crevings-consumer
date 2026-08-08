@@ -72,12 +72,19 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
           setDriverLocation({ lat: Number(data.lat), lng: Number(data.lng) });
         }
         if (data.status) {
-          setOrderStatus((prev) => {
-            if ((data.status === "PREPARING" || data.status === "ACCEPTED") && (prev === "NEW" || prev === "PENDING_ACCEPT")) {
-              setShowAcceptedBanner(true);
-            }
-            return data.status;
-          });
+          // Location-only and informational pings — DRIVER_LOCATION fires on
+          // every driver movement and NO_DRIVERS_AVAILABLE is a search notice —
+          // must not overwrite the lifecycle status. Doing so falls through the
+          // progress switch's default (progress -> 0, timeline resets) and leaks
+          // the raw status code into the UI.
+          if (data.status !== "DRIVER_LOCATION" && data.status !== "NO_DRIVERS_AVAILABLE") {
+            setOrderStatus((prev) => {
+              if ((data.status === "PREPARING" || data.status === "ACCEPTED") && (prev === "NEW" || prev === "PENDING_ACCEPT")) {
+                setShowAcceptedBanner(true);
+              }
+              return data.status;
+            });
+          }
           if (data.status !== "NEW") {
             setCancelTimeLeft(0);
           }
@@ -124,12 +131,17 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
         computedProgress = 55;
         break;
       case "READY":
+      case "READY_FOR_PICKUP":
         computedProgress = 45;
+        break;
+      case "DRIVER_ARRIVED":
+        computedProgress = 60;
         break;
       case "OUT FOR DELIVERY":
       case "ORDER_PICKED_UP":
         computedProgress = 75;
         break;
+      case "REACHED_CUSTOMER":
       case "ARRIVING_SOON":
         computedProgress = 90;
         break;
@@ -138,7 +150,9 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
         computedProgress = 100;
         break;
       default:
-        computedProgress = 0;
+        // Auxiliary statuses (DRIVER_LOCATION, NO_DRIVERS_AVAILABLE) carry no
+        // progression — keep the last progress so the timeline never resets.
+        return;
     }
     setProgress(computedProgress);
   }, [orderStatus]);

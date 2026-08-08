@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
-import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS } from "@/config/constants";
-import { DeliveryPartnerCard } from "./components/DeliveryPartnerCard";
+import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS, ORDER_STATUS } from "@/config/constants";
 import { OrderStatusTimeline } from "./components/OrderStatusTimeline";
 import { OrderPriceSummary } from "./components/OrderPriceSummary";
 import { OrderChatBot } from "@/features/orders/OrderChatBot";
@@ -27,8 +26,46 @@ const CANCEL_REASONS = [
   "Other"
 ];
 
+/** Human-readable label for a backend order status — never the raw code. */
+const formatOrderStatus = (status: string, secondsElapsed: number, prepTime?: string | null): string => {
+  switch (status) {
+    case ORDER_STATUS.NEW:
+      return secondsElapsed >= 60 ? "Waiting for restaurant to accept the order" : "Placing Order";
+    case ORDER_STATUS.PENDING_ACCEPT:
+      return "Awaiting Restaurant";
+    case ORDER_STATUS.ACCEPTED:
+    case ORDER_STATUS.PREPARING:
+      return prepTime ? `Preparing (${prepTime})` : "Preparing";
+    case ORDER_STATUS.READY:
+    case ORDER_STATUS.READY_FOR_PICKUP:
+      return "Ready for pickup";
+    case ORDER_STATUS.DRIVER_ASSIGNED:
+      return "Driver assigned — heading to restaurant";
+    case ORDER_STATUS.DRIVER_ARRIVED:
+      return "Driver has arrived at the restaurant";
+    case ORDER_STATUS.OUT_FOR_DELIVERY:
+    case ORDER_STATUS.ORDER_PICKED_UP:
+      return "Out for delivery";
+    case ORDER_STATUS.DRIVER_LOCATION:
+      return "Driver is on the way";
+    case ORDER_STATUS.REACHED_CUSTOMER:
+    case ORDER_STATUS.ARRIVING_SOON:
+      return "Driver has reached your location";
+    case ORDER_STATUS.NO_DRIVERS_AVAILABLE:
+      return "Finding a delivery partner";
+    case ORDER_STATUS.COMPLETED:
+    case ORDER_STATUS.DELIVERED:
+      return "Delivered";
+    case ORDER_STATUS.CANCELLED:
+      return "Cancelled";
+    case ORDER_STATUS.REJECTED:
+      return "Rejected";
+    default:
+      return "Order in progress";
+  }
+};
+
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onBack, onOrderComplete, onCancelOrder }) => {
-  const [showMap, setShowMap] = useState(false);
   const [takeawayOtp, setTakeawayOtp] = useState('');
   const [paymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -68,6 +105,10 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const isOrderAccepted = ACCEPTED_ORDER_STATUSES.includes(orderStatus);
   const estimatedTime = isOrderAccepted ? (prepTime || null) : null;
 
+  const statusLabel = isCancelled
+    ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled')
+    : formatOrderStatus(orderStatus, secondsElapsed, prepTime);
+
   const handlePickupComplete = async () => {
     if (takeawayOtp.length === 6) {
       try {
@@ -105,90 +146,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
           </button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {showMap && order.type === 'Delivery' && (
-          <motion.div 
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            className="fixed inset-0 z-50 bg-slate-100 flex flex-col"
-          >
-            {/* Map Background */}
-            <div className="absolute inset-0 z-0">
-              <LiveTrackingMap 
-                progress={progress} 
-                orderStatus={orderStatus}
-                driverCoordinates={driverLocation}
-                restaurantCoordinates={order.restaurantCoordinates} 
-                deliveryCoordinates={order.deliveryCoordinates} 
-              />
-            </div>
-
-            {/* Header */}
-            <div className="pt-safe px-4 py-4 flex items-center justify-between relative z-10">
-              <button onClick={() => setShowMap(false)} className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center active:scale-95 transition-transform">
-                <ArrowLeft className="w-6 h-6 text-slate-800" />
-              </button>
-              <button onClick={() => setIsSupportOpen(true)} className="w-12 h-12 bg-white rounded-full shadow-md flex items-center justify-center active:scale-95 transition-transform">
-                <HelpCircle className="w-6 h-6 text-slate-800" />
-              </button>
-            </div>
-
-            {/* Bottom Sheet Area */}
-            <div className="mt-auto relative z-10 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] pb-safe">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-4 mb-2" />
-              
-              <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
-                {/* Estimate Time */}
-                {estimatedTime && (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-3xl font-black text-slate-900 tracking-tight">
-                        {estimatedTime}
-                      </h2>
-                      <p className="text-sm font-medium text-slate-500 mt-1">Estimated delivery time</p>
-                    </div>
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center shadow-inner">
-                      <Clock className="w-8 h-8 text-blue-600" />
-                    </div>
-                  </div>
-                )}
-
-                {/* Progress Bar */}
-                <div className="space-y-3">
-                  <div className="relative h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 bg-[#00bd6f] transition-all duration-1000 rounded-full" style={{ width: `${progress}%` }} />
-                  </div>
-                  <p className="text-sm font-bold text-slate-800 text-center">
-                    {progress < 20 ? 'Order Confirmed' : progress < 50 ? 'Preparing your food' : progress < 100 ? 'Your order is on the way' : 'Delivered'}
-                  </p>
-                </div>
-
-                <DeliveryPartnerCard partner={assignedPartner} />
-                {/* Restaurant Card */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full overflow-hidden bg-slate-50 shrink-0 flex items-center justify-center border-2 border-white shadow-sm">
-                    <Store className="w-6 h-6 text-slate-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-bold text-slate-900">{order.restaurantName}</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-0.5 line-clamp-1">{order.location}</p>
-                  </div>
-                  {(order.pickupOtp || order.customerPin) && (
-                    <div className="shrink-0">
-                      <div className="bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs font-bold text-slate-700 flex flex-col items-center">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider mb-0.5">OTP</span>
-                        <span className="text-sm tracking-widest">{order.pickupOtp || order.customerPin}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="flex-1 overflow-y-auto pb-safe">
         <div className="p-4 space-y-4">
@@ -230,13 +187,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             <div className={estimatedTime ? "text-right" : "text-left"}>
               <p className="text-xs text-slate-500 font-medium">Status</p>
               <p className="text-sm font-bold text-[#00bd6f]">
-                {isCancelled ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled') : (
-                  orderStatus === 'NEW' ? (secondsElapsed >= 60 ? 'Waiting for restaurant to accept the order' : 'Placing Order') :
-                  orderStatus === 'PENDING_ACCEPT' ? 'Awaiting Restaurant' :
-                  orderStatus === 'PREPARING' ? (prepTime ? `Preparing (${prepTime})` : 'Preparing') :
-                  (orderStatus === 'READY' || orderStatus === 'OUT FOR DELIVERY') ? 'Your order is on the way' :
-                  orderStatus === 'COMPLETED' ? 'Delivered' : orderStatus
-                )}
+                {statusLabel}
               </p>
             </div>
           </div>
@@ -381,7 +332,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             orderType={order.type}
             progress={progress}
             assignedPartner={assignedPartner}
-            onViewMap={() => setShowMap(true)}
           />
 
           {/* Restaurant / Delivery Partner Info */}
