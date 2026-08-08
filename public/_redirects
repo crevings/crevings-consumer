@@ -1,0 +1,5 @@
+# SPA fallback: every unknown path serves index.html (200 rewrite) so
+# client-side routes (e.g. /profile) work on hard refresh / deep link.
+# Existing files (e.g. /assets/*.js) are served first, so hashed assets
+# are never rewritten.
+/*    /index.html   200

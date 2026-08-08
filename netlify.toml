@@ -1,0 +1,23 @@
+# Netlify configuration for the Crevings consumer SPA.
+
+# SPA fallback — mirrors public/_redirects so client-side routes
+# (/profile, /restaurant/:id, ...) survive hard refreshes and deep links.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The HTML "version pointer" must never be cached: it references the
+# content-hashed chunks of the CURRENT build. Caching it is what causes
+# stale-chunk "Failed to fetch dynamically imported module" errors after
+# a deploy.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Hashed build assets are immutable — safe to cache for a year.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
