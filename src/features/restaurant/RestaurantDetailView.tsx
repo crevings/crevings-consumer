@@ -19,6 +19,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { addOrUpdateCartItem, withQuantity } from "@/utils/cartUtils";
 import { getRestaurantAddress } from "@/utils/restaurantUtils";
+import { normalizeSearchText } from "@/utils/search";
 
 interface RestaurantDetailViewProps {
   restaurant: Restaurant;
@@ -211,7 +212,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   let totalPrice = cart.reduce((sum, c) => sum + c.totalPrice, 0);
 
   let filteredMenu = menuItems.filter(item => {
-    if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !normalizeSearchText(item.name).includes(normalizeSearchText(searchQuery))) return false;
     if (isFilterActive('Pure Veg') && !item.isVeg) return false;
     if (isFilterActive('Non Veg') && (item.isVeg || item.isEgg)) return false;
     if (isFilterActive('Egg') && !item.isEgg) return false;

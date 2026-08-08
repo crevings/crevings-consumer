@@ -1,118 +1,198 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Mic, X } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Mic, MicOff, X } from 'lucide-react';
 import { motion } from 'motion/react';
+import { createSpeechService, type SpeechErrorCode, type SpeechService } from '@/services/speech';
+import { cleanVoiceTranscript } from '@/utils/voiceQuery';
 
 interface VoiceSearchModalProps {
   onClose: () => void;
   onResult: (text: string) => void;
 }
 
-interface SpeechRecognitionResultEvent {
-  resultIndex: number;
-  results: { [index: number]: { [index: number]: { transcript: string } } };
+type VoiceStatus =
+  | 'checking' // permission/availability pre-flight
+  | 'listening'
+  | 'success'
+  | 'denied' // mic permission blocked — needs user action outside the app
+  | 'unsupported' // platform has no speech recognition at all
+  | 'error'; // one of the mapped SpeechErrorCode values
+
+interface ErrorCopy {
+  title: string;
+  body: string;
 }
 
-interface SpeechRecognitionErrorEvent {
-  error?: string;
+/**
+ * Human-readable guidance per error code. Every distinct failure mode gets its
+ * own actionable message instead of the old one-size "Didn't hear that".
+ */
+const ERROR_COPY: Record<SpeechErrorCode, ErrorCopy> = {
+  'not-allowed': {
+    title: 'Microphone access is blocked',
+    body: 'Allow microphone access for this site in your browser or app settings, then tap the mic to try again.',
+  },
+  'no-speech': {
+    title: "Didn't hear anything",
+    body: 'Try saying a restaurant name or a dish, a little closer to the microphone.',
+  },
+  network: {
+    title: 'Speech service unavailable',
+    body: 'Voice recognition needs a connection to the speech service. Check your internet and try again.',
+  },
+  'audio-capture': {
+    title: 'No microphone available',
+    body: 'Connect a microphone, or close another app that is using it, then try again.',
+  },
+  'service-not-allowed': {
+    title: 'Voice recognition is turned off',
+    body: 'The speech service is disabled on this device or browser. Check your settings and try again.',
+  },
+  'language-not-supported': {
+    title: 'Language not supported',
+    body: 'The selected language is not supported by this device. Try English.',
+  },
+  aborted: {
+    title: 'Stopped',
+    body: 'Tap the mic to start again.',
+  },
+  unknown: {
+    title: 'Something went wrong',
+    body: 'Voice recognition hit an unexpected error. Tap the mic to try again.',
+  },
+};
+
+/** Prefer the device locale when it is a language we know the recognizer
+ * handles well (English variants + Hindi for Indian dish names); otherwise
+ * fall back to en-US so the recognizer never rejects the language. */
+function pickSpeechLang(): string {
+  if (typeof navigator === 'undefined') return 'en-US';
+  const lang = navigator.language || 'en-US';
+  const base = lang.toLowerCase();
+  if (base.startsWith('en') || base.startsWith('hi')) return lang;
+  return 'en-US';
 }
-
-interface SpeechRecognitionLike {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onstart: (() => void) | null;
-  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  successTranscript?: string;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-}
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-type VoiceStatus = 'listening' | 'error' | 'success' | 'idle';
 
 export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onResult }) => {
-  const [status, setStatus] = useState<VoiceStatus>('idle');
+  const [status, setStatus] = useState<VoiceStatus>('checking');
   const [transcript, setTranscript] = useState('');
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const [errorCode, setErrorCode] = useState<SpeechErrorCode | null>(null);
 
+  const serviceRef = useRef<SpeechService | null>(null);
+  const callbacksRef = useRef({ onClose, onResult });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const erroredRef = useRef(false);
+
+  // Keep the latest props available to callbacks without re-creating the service.
   useEffect(() => {
-    // Initialize Speech Recognition
-    const w = window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
-    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setStatus('listening');
-        setTranscript('');
-      };
-
-      recognition.onresult = (event: SpeechRecognitionResultEvent) => {
-        const current = event.resultIndex;
-        const result = event.results[current]?.[0]?.transcript ?? "";
-        setTranscript(result);
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error', event.error);
-        setStatus('error');
-      };
-
-      recognition.onend = () => {
-        const success = recognition.successTranscript;
-        if (success) {
-          setStatus('success');
-          setTimeout(() => {
-            onResult(success);
-            onClose();
-          }, 1000);
-        } else {
-          setStatus('error');
-        }
-      };
-    } else {
-      setStatus('error'); // Not supported
-    }
-
-    startListening();
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
+    callbacksRef.current = { onClose, onResult };
   }, [onClose, onResult]);
 
-  // Keep the latest transcript accessible for onend
-  useEffect(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.successTranscript = transcript;
+  const stopAndSettle = useCallback((service: SpeechService) => {
+    try {
+      service.stop();
+    } catch {
+      /* noop */
     }
-  }, [transcript]);
+  }, []);
 
-  const startListening = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch {
-        // Already started
+  const startListening = useCallback((service: SpeechService) => {
+    setStatus('listening');
+    setTranscript('');
+    setErrorCode(null);
+    erroredRef.current = false;
+    service.start({ lang: pickSpeechLang() });
+  }, []);
+
+  // Permission + availability gate, then start. Only blocks when the
+  // OS/browser has already denied the mic; otherwise start (web browsers show
+  // their own prompt on start(); the Capacitor shell prompts via
+  // requestPermission()). Re-runs on every retry so a mic enabled in settings
+  // is picked up immediately.
+  const beginSession = useCallback(
+    async (service: SpeechService) => {
+      const available = await service.isAvailable();
+      if (!available) {
+        setStatus('unsupported');
+        return;
       }
+
+      let permission = await service.getPermissionStatus();
+      if (permission === 'prompt') {
+        permission = await service.requestPermission();
+      }
+      if (permission === 'denied') {
+        setStatus('denied');
+        return;
+      }
+
+      startListening(service);
+    },
+    [startListening]
+  );
+
+  // Boot the platform-adaptive service once.
+  useEffect(() => {
+    let disposed = false;
+
+    const service = createSpeechService({
+      onResult: (text, _isFinal) => {
+        if (disposed) return;
+        setTranscript(text);
+      },
+      onError: (code) => {
+        if (disposed || code === 'aborted') return;
+        erroredRef.current = true;
+        setErrorCode(code);
+        setStatus('error');
+      },
+      onEnd: (finalText) => {
+        if (disposed) return;
+        // Strip filler words ("please show me..."), punctuation noise, and
+        // expand common mishearings ("biriyani" → "biryani").
+        const cleaned = cleanVoiceTranscript(finalText);
+        if (cleaned) {
+          setTranscript(cleaned);
+          setStatus('success');
+          timeoutRef.current = setTimeout(() => {
+            callbacksRef.current.onResult(cleaned);
+            callbacksRef.current.onClose();
+          }, 1200);
+        } else if (!erroredRef.current) {
+          // Only claim "no speech" when the session ended without a mapped
+          // error (e.g. silence timeout) — never overwrite network/denied.
+          setErrorCode('no-speech');
+          setStatus('error');
+        }
+      },
+    });
+
+    serviceRef.current = service;
+
+    if (!service.supported) {
+      setStatus('unsupported');
+      return () => {
+        disposed = true;
+        service.dispose();
+      };
     }
+
+    void beginSession(service);
+
+    return () => {
+      disposed = true;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      service.dispose();
+    };
+  }, [beginSession]);
+
+  const handleMicTap = () => {
+    const service = serviceRef.current;
+    if (!service) return;
+    // Retry from any terminal state (error / denied / unsupported / idle).
+    void beginSession(service);
   };
 
-  const handleMicClick = () => {
-    if (status === 'error' || status === 'idle') {
-      startListening();
-    }
-  };
+  const errorCopy = errorCode ? ERROR_COPY[errorCode] : null;
 
   return (
     <>
@@ -133,8 +213,8 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onR
         {/* Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
           <h2 className="text-lg font-semibold text-slate-900">Voice Search</h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 bg-slate-50 rounded-full text-slate-500"
           >
             <X className="w-5 h-5" />
@@ -142,70 +222,84 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onR
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-8">
-          
+          {status === 'checking' && (
+            <>
+              <h2 className="text-xl font-bold text-gray-900 mb-8">Getting microphone ready...</h2>
+              <div className="w-20 h-20 rounded-full bg-[#00bd6f]/20 flex items-center justify-center">
+                <Mic className="w-8 h-8 text-[#00bd6f] animate-pulse" />
+              </div>
+            </>
+          )}
+
           {status === 'listening' && (
             <>
-              <h2 className="text-xl font-bold text-gray-900 mb-8">{transcript || 'Listening...'}</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 mb-8 min-h-[28px]">{transcript || 'Listening...'}</h2>
+
               <div className="relative mb-8">
                 {/* Pulsing animation */}
                 <div className="absolute inset-0 bg-[#00bd6f] rounded-full opacity-20 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
                 <div className="absolute inset-[-15px] bg-[#00bd6f] rounded-full opacity-10 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]"></div>
-                
-                {/* Large circular microphone button */}
-                <button 
-                  onClick={() => recognitionRef.current?.stop()}
+
+                {/* Large circular microphone button — tap to stop */}
+                <button
+                  onClick={() => stopAndSettle(serviceRef.current!)}
                   className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10"
                 >
                   <Mic className="w-8 h-8 text-white" />
                 </button>
               </div>
-              
+
               <p className="text-gray-500 text-sm">
                 Say a restaurant name or a dish
               </p>
             </>
           )}
 
-          {(status === 'error' || status === 'idle') && (
-            <>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Sorry! Didn't hear that</h2>
-              <p className="text-gray-500 text-sm mb-8">
-                Try saying a restaurant name or a dish
-              </p>
-              
-              <div className="relative mb-8">
-                {/* Large circular microphone button */}
-                <button 
-                  onClick={handleMicClick}
-                  className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10 hover:scale-105 transition-transform"
-                >
-                  <Mic className="w-8 h-8 text-white" />
-                </button>
-              </div>
-              
-              <p className="text-gray-500 text-sm">
-                Tap the microphone to try again
-              </p>
-            </>
-          )}
-
           {status === 'success' && (
             <>
-              <h2 className="text-xl font-bold text-gray-900 mb-8">"{transcript}"</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 mb-8">&quot;{transcript}&quot;</h2>
+
               <div className="relative mb-8">
                 <button className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10 scale-110 transition-transform duration-300">
                   <Mic className="w-8 h-8 text-white" />
                 </button>
               </div>
-              
-              <p className="text-gray-500 text-sm opacity-0">
-                Placeholder
+
+              <p className="text-gray-500 text-sm">
+                Searching for &quot;{transcript}&quot;
               </p>
             </>
           )}
 
+          {(status === 'error' || status === 'denied' || status === 'unsupported') && (
+            <>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {status === 'denied' ? ERROR_COPY['not-allowed'].title : status === 'unsupported' ? 'Voice search isn\u2019t supported here' : (errorCopy?.title ?? ERROR_COPY.unknown.title)}
+              </h2>
+              <p className="text-gray-500 text-sm mb-8 px-2">
+                {status === 'unsupported'
+                  ? 'This browser or device doesn\u2019t support speech recognition. Try Chrome, Edge, or Safari, or the Crevings mobile app — or just type your search.'
+                  : (errorCopy?.body ?? ERROR_COPY.unknown.body)}
+              </p>
+
+              <div className="relative mb-8">
+                <button
+                  onClick={handleMicTap}
+                  className="w-20 h-20 bg-[#00bd6f] rounded-full flex items-center justify-center shadow-lg shadow-[#00bd6f]/30 relative z-10 hover:scale-105 transition-transform"
+                >
+                  {status === 'denied' ? (
+                    <MicOff className="w-8 h-8 text-white" />
+                  ) : (
+                    <Mic className="w-8 h-8 text-white" />
+                  )}
+                </button>
+              </div>
+
+              <p className="text-gray-500 text-sm">
+                {status === 'unsupported' ? 'Close this to keep searching by text' : 'Tap the microphone to try again'}
+              </p>
+            </>
+          )}
         </div>
       </motion.div>
     </>
