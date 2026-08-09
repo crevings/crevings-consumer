@@ -2,6 +2,13 @@ import useSWRInfinite from "swr/infinite";
 import { Restaurant, MenuItem } from "@/types";
 import { fetcher } from "@/api/fetcher";
 
+// L1 SWR cache policy (see backend caching-strategy.md). staleTime keeps the
+// in-memory cache fresh for the category's expected volatility; the global
+// dedupingInterval in App.tsx coalesces concurrent requests for the same key.
+const SWR_HOT = { revalidateOnFocus: false, staleTime: 60_000 }; // feed / filter / search
+const SWR_WARM = { revalidateOnFocus: false, staleTime: 300_000 }; // menu / categories / promotions
+const SWR_LIVE = { revalidateOnFocus: false, staleTime: 30_000 }; // items-under-* / suggestions / category detail
+
 interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -26,9 +33,7 @@ export const useRestaurants = (limit: number = 10) => {
   const { data, error, size, setSize, mutate } = useSWRInfinite<PaginatedResponse<Restaurant>>(
     getKey,
     fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    SWR_HOT
   );
 
   const restaurants = data ? data.flatMap(page => page.data || []) : [];
@@ -69,9 +74,7 @@ export const useRestaurantDetail = (id: string | undefined, limit: number = 20) 
   const { data, error, size, setSize, mutate } = useSWRInfinite<PaginatedResponse<MenuItem>>(
     getKey,
     fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    SWR_WARM
   );
 
   const menuItems = data ? data.flatMap(page => page.data || []) : [];
@@ -106,7 +109,7 @@ export const useRestaurantCustomMenus = (id: string | undefined) => {
   }>(
     id ? `/consumer/restaurants/${id}/menus` : null,
     fetcher,
-    { revalidateOnFocus: false }
+    SWR_WARM
   );
 
   return {
@@ -148,9 +151,7 @@ export const useItemsUnder99 = (limit: number = 10) => {
   const { data, error, size, setSize } = useSWRInfinite<PaginatedResponse<Under99Item>>(
     getKey,
     fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    SWR_LIVE
   );
 
   const items = data ? data.flatMap(page => page.data || []) : [];
@@ -191,7 +192,7 @@ export const useItemsUnder109 = (limit: number = 20) => {
     priceCap?: number | null;
     data?: Under109Item[];
     nextCursor?: string | null;
-  }>(`/consumer/items-under-109?limit=${limit}`, fetcher, { revalidateOnFocus: false });
+  }>(`/consumer/items-under-109?limit=${limit}`, fetcher, SWR_LIVE);
 
   return {
     items: (data?.data || []) as Under109Item[],
@@ -243,7 +244,7 @@ export const useFilteredRestaurants = (filters: FilterOptions, limit: number = 1
   const { data, error, size, setSize, mutate } = useSWRInfinite<PaginatedResponse<Restaurant>>(
     getKey,
     fetcher,
-    { revalidateOnFocus: false }
+    SWR_HOT
   );
 
   const restaurants = data ? data.flatMap((page) => page.data || []) : [];
@@ -317,7 +318,7 @@ export const useSearch = (params: SearchApiParams) => {
         isDeliverable?: boolean;
       };
     }>;
-  }>(endpoint, fetcher, { revalidateOnFocus: false });
+  }>(endpoint, fetcher, SWR_HOT);
 
   return {
     data,
@@ -339,7 +340,7 @@ export const useSearchSuggestions = (query: string, city?: string) => {
       dishes?: unknown[];
       cuisines?: unknown[];
     };
-  }>(endpoint, fetcher, { revalidateOnFocus: false });
+  }>(endpoint, fetcher, SWR_LIVE);
 
   return {
     suggestions: data?.suggestions || { restaurants: [], dishes: [], cuisines: [] },
@@ -395,9 +396,7 @@ export const useCategoryDetail = (categoryName: string, limit: number = 20) => {
   const { data, error, size, setSize, mutate } = useSWRInfinite<CategoryResponse>(
     getKey,
     fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    SWR_LIVE
   );
 
   const restaurants = data ? data.flatMap((page) => page.restaurants || []) : [];
@@ -428,7 +427,7 @@ export const useCategories = (limit: number = 12) => {
   const { data, error, isLoading } = useSWR<{ data?: Array<{ name: string; count: number }> }>(
     `/consumer/restaurants/categories?limit=${limit}`,
     fetcher,
-    { revalidateOnFocus: false }
+    SWR_WARM
   );
 
   return {
@@ -447,7 +446,7 @@ export const usePromotions = () => {
   const { data, error, isLoading, mutate } = useSWR<{ data?: CompanyPromotion[] }>(
     "/consumer/promotions",
     fetcher,
-    { revalidateOnFocus: false }
+    SWR_WARM
   );
 
   return {

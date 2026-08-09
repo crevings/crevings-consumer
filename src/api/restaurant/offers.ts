@@ -8,6 +8,12 @@ interface PaginatedResponse<T> {
   nextCursor?: string | null;
 }
 
+// Offers are low-volatility; 120s L1 freshness (see backend caching-strategy.md
+// §1.2). staleTime is enforced by the staleTimeMiddleware registered in App.tsx
+// (SWR itself has no staleTime option). Invalidated server-side via the
+// 'offers:{restaurantId}' tag on offer create/update/toggle/delete.
+const SWR_OFFERS = { revalidateOnFocus: false, staleTime: 120_000 };
+
 /**
  * Fetch restaurant active offers with SWR Infinite (cursor-based pagination).
  */
@@ -28,9 +34,7 @@ export const useRestaurantOffers = (id: string | undefined, limit: number = 5) =
   const { data, error, size, setSize, mutate } = useSWRInfinite<PaginatedResponse<Offer>>(
     getKey,
     fetcher,
-    {
-      revalidateOnFocus: false,
-    }
+    SWR_OFFERS
   );
 
   const offers = data ? data.flatMap(page => page.data || []) : [];

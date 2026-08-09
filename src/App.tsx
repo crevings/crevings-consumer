@@ -7,6 +7,7 @@ import { RestaurantProvider } from "@/contexts/RestaurantContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AppRoutes } from "@/app/router";
 import { fetcher } from "@/api/fetcher";
+import { staleTimeMiddleware } from "@/api/swrStaleTime";
 import { LoginView } from "@/shared/components/LoginView";
 import { TermsAndConditionsView } from "@/features/profile/pages/TermsAndConditionsView";
 import { PrivacyPolicyView } from "@/features/profile/pages/PrivacyPolicyView";
@@ -80,6 +81,12 @@ export default function App() {
         fetcher,
         revalidateOnFocus: false,
         shouldRetryOnError: false,
+        // Coalesce concurrent requests for the same key within 2s (L1 cache
+        // policy — see backend caching-strategy.md); per-hook staleTime lives
+        // in the api hooks and is enforced by the staleTime middleware (SWR
+        // itself has no staleTime option).
+        dedupingInterval: 2000,
+        use: [staleTimeMiddleware],
       }}
     >
       <AppProvider>
