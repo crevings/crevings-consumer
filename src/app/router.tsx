@@ -6,7 +6,7 @@ import { BlankLayout } from "@/layouts/BlankLayout";
 import { PageLoader } from "@/shared/components/PageLoader";
 
 import { ComingSoonPage } from "@/app/routes/ComingSoonPage";
-import { RestaurantDetailRoute, RestaurantInfoRoute } from "@/app/routes/RestaurantRoutes";
+import { RestaurantDetailRoute } from "@/app/routes/RestaurantRoutes";
 import { CategoryDetailRoute, ItemsUnder99Route } from "@/app/routes/CollectionRoutes";
 
 import { useUser } from "@/contexts/UserContext";
@@ -114,7 +114,6 @@ export const AppRoutes: React.FC = () => {
       {/* Blank Layout: wrapped subpages and full-screen flows */}
       <Route element={<BlankLayout />}>
         <Route path="/restaurant/:id" element={<RestaurantDetailRoute />} />
-        <Route path="/restaurant/:id/info" element={<RestaurantInfoRoute />} />
         <Route path="/checkout" element={<CheckoutView />} />
 
         <Route

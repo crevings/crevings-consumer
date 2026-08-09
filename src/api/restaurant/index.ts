@@ -170,6 +170,38 @@ export const useItemsUnder99 = (limit: number = 10) => {
   };
 };
 
+export interface Under109Item {
+  id: string;
+  name: string;
+  price: string;
+  image?: string;
+  restaurantId?: string;
+  restaurant?: string;
+}
+
+/**
+ * Free-delivery rail: items under ₹109 from restaurants currently running an
+ * ongoing offer. The backend aggregation returns `offerActive` so the UI can
+ * hide the rail entirely when no offer is live in the user's area.
+ */
+export const useItemsUnder109 = (limit: number = 20) => {
+  const { data, error, isLoading } = useSWR<{
+    success: boolean;
+    offerActive?: boolean;
+    priceCap?: number | null;
+    data?: Under109Item[];
+    nextCursor?: string | null;
+  }>(`/consumer/items-under-109?limit=${limit}`, fetcher, { revalidateOnFocus: false });
+
+  return {
+    items: (data?.data || []) as Under109Item[],
+    offerActive: data?.offerActive ?? false,
+    priceCap: data?.priceCap ?? null,
+    isLoading,
+    isError: error,
+  };
+};
+
 import useSWR from "swr";
 import { CompanyPromotion, FilterOptions } from "@/types";
 

@@ -20,6 +20,7 @@ interface BranchDetails {
 /** Raw past-order shape returned by the backend list endpoint. */
 interface PastOrderDto {
   orderId?: string;
+  displayOrderNumber?: string;
   items?: PastOrderItem[];
   createdAt?: string;
   restaurantName?: string;
@@ -153,6 +154,7 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
 
     return {
       id: order.orderId || "", 
+      displayOrderNumber: order.displayOrderNumber,
       restaurantName: order.restaurantName || order.branchDetails?.profile?.restaurantInfo?.name || order.branchDetails?.name || order.branchDetails?.profile?.restaurantInfo?.legalName || order.branchName || "",
       location: order.restaurantAddress || order.branchDetails?.profile?.restaurantInfo?.address || (typeof order.branchDetails?.address === 'string' ? order.branchDetails.address : [order.branchDetails?.address?.street, order.branchDetails?.address?.city].filter(Boolean).join(', ')) || "",
       rating: 0,

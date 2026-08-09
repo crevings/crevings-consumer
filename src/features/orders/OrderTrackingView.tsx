@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2, SkipForward } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, MessageCircle, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2, SkipForward } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
 import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS, ORDER_STATUS } from "@/config/constants";
 import { OrderStatusTimeline } from "./components/OrderStatusTimeline";
 import { OrderPriceSummary } from "./components/OrderPriceSummary";
-import { OrderChatBot } from "@/features/orders/OrderChatBot";
 import { useOrderLiveUpdates } from "@/features/orders/hooks/useOrderLiveUpdates";
 import { SupportMessagingView } from "@/shared/ui/SupportMessagingView";
 import { LiveTrackingMap } from "@/features/orders/components/LiveTrackingMap";
@@ -23,7 +22,6 @@ interface OrderTrackingViewProps {
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onBack, onOrderComplete, onCancelOrder }) => {
   const [takeawayOtp, setTakeawayOtp] = useState('');
   const [paymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   // User chose to Skip the remaining cancellation window — this ends the
   // backend buffer early so the restaurant is notified immediately.
@@ -46,16 +44,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     driverLocation,
     handleCancelOrderApi,
   } = useOrderLiveUpdates(order, { onOrderComplete, onCancelOrder });
-
-  // Real remaining time until the estimated delivery moment (order placed +
-  // restaurant-set prep time). 0 when the data needed isn't available.
-  const estimatedTimeLeftSeconds = (() => {
-    if (!order.createdAt) return 0;
-    const prepMinutes = parseInt(prepTime || "", 10);
-    if (!Number.isFinite(prepMinutes) || prepMinutes <= 0) return 0;
-    const etaMs = new Date(order.createdAt).getTime() + prepMinutes * 60_000;
-    return Math.max(0, Math.floor((etaMs - Date.now()) / 1000));
-  })();
 
   // Restaurant-set preparation time is only meaningful once the order is accepted.
   // Only show a value the restaurant actually set (via accept) — no fabricated default.
@@ -112,7 +100,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
           </button>
           <div>
             <h1 className="text-lg font-bold text-slate-900">Order Tracking</h1>
-            <p className="text-xs text-slate-500">Order ID: {order.id}</p>
+            <p className="text-xs text-slate-500">Order ID: {order.displayOrderNumber || order.id}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -346,6 +334,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
 
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             {order.type === 'Delivery' ? (
+              assignedPartner ? (
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
                   <img loading="lazy" src={assignedPartner?.photo || "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=200&h=200&fit=crop&q=80"} alt="Delivery Partner" className="w-full h-full object-cover" />
@@ -369,6 +358,17 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   </button>
                 </div>
               </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-[#00bd6f] animate-spin" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-slate-900">Searching for Delivery Partner</h3>
+                    <p className="text-xs text-slate-500">Finding a nearby driver for your order</p>
+                  </div>
+                </div>
+              )
             ) : (
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
@@ -394,7 +394,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
 
           {/* Help & Support Section */}
           <div className="bg-white rounded-2xl p-2 shadow-sm border border-slate-100">
-            <button onClick={() => setIsChatOpen(true)} className="w-full flex items-center justify-between p-3 active:bg-slate-50 rounded-xl transition-colors">
+            <a href="mailto:support@crevings.com" className="w-full flex items-center justify-between p-3 active:bg-slate-50 rounded-xl transition-colors">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
                   <AlertCircle className="w-4 h-4 text-slate-600" />
@@ -402,56 +402,26 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 <span className="text-sm font-medium text-slate-700">Report an issue</span>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
-            <button className="w-full flex items-center justify-between p-3 active:bg-slate-50 rounded-xl transition-colors">
+            </a>
+            <a
+              href="https://wa.me/918678842995?text=Hello"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between p-3 active:bg-slate-50 rounded-xl transition-colors"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                  <Phone className="w-4 h-4 text-slate-600" />
+                  <MessageCircle className="w-4 h-4 text-slate-600" />
                 </div>
-                <span className="text-sm font-medium text-slate-700">Call support</span>
+                <span className="text-sm font-medium text-slate-700">WhatsApp support</span>
               </div>
               <ChevronRight className="w-4 h-4 text-slate-400" />
-            </button>
+            </a>
           </div>
 
-          {/* Ads Section */}
-          <div className="space-y-3">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-4 shadow-sm text-white relative overflow-hidden">
-              <div className="relative z-10">
-                <h3 className="font-bold mb-1">Get 50% OFF on next order!</h3>
-                <p className="text-xs text-white/80 mb-3">Join Crevings Gold membership today.</p>
-                <button className="bg-white text-blue-600 text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
-                  Explore Now
-                </button>
-              </div>
-              <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1550547660-d9450f859349?w=400&h=400&fit=crop" alt="Burger" className="w-full h-full object-cover" />
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 shadow-sm text-white relative overflow-hidden">
-              <div className="relative z-10">
-                <h3 className="font-bold mb-1">Craving something sweet?</h3>
-                <p className="text-xs text-white/80 mb-3">Add a dessert to your order now.</p>
-                <button className="bg-white text-orange-600 text-xs font-bold px-4 py-2 rounded-full active:scale-95 transition-transform">
-                  View Desserts
-                </button>
-              </div>
-              <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20">
-                <img loading="lazy" src="https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?w=400&h=400&fit=crop" alt="Dessert" className="w-full h-full object-cover" />
-              </div>
-            </div>
-          </div>
 
         </div>
       </div>
-      <OrderChatBot 
-        isOpen={isChatOpen} 
-        onClose={() => setIsChatOpen(false)} 
-        order={order} 
-        progress={progress} 
-        timeLeft={estimatedTimeLeftSeconds} 
-      />
 
       <AnimatePresence>
         {isSupportOpen && (

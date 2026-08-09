@@ -9,6 +9,7 @@ import { RestaurantCard } from "@/features/restaurant/RestaurantCard";
 import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { PromotionsCarousel } from "@/features/home/PromotionsCarousel";
+import { FreeDeliveryItemsSlider } from "@/features/home/FreeDeliveryItemsSlider";
 
 interface HomeFeedProps {
   onCategoryClick: (name: string) => void;
@@ -133,7 +134,12 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
       <div className="pb-8 animate-fadeInUp">
         <PromotionsCarousel />
 
-
+        {/* Free Delivery • Items At ₹109 — auto-slider, only when offers are live */}
+        <FreeDeliveryItemsSlider
+          restaurants={restaurants}
+          onRestaurantClick={onRestaurantClick}
+          onItemAdd={onItemAdd}
+        />
 
         {/* Explore Categories - 2-Row Horizontal Touch Slider */}
         <div className="mb-10 px-4">

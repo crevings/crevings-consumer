@@ -31,7 +31,6 @@ interface RestaurantDetailViewProps {
   onRemoveFavourite?: () => void;
   isFavourite?: boolean;
   isHidden?: boolean;
-  onInfoClick?: () => void;
   autoAddItem?: string | null;
 }
 
@@ -45,7 +44,6 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   onRemoveFavourite,
   isFavourite,
   isHidden,
-  onInfoClick,
   autoAddItem
 }) => {
   const { customMenus, isLoading: isMenuLoading } = useRestaurantCustomMenus(restaurant.id);
@@ -303,7 +301,6 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         isHidden={isHidden}
         onHide={onHide}
         onUnhide={onUnhide}
-        onInfoClick={onInfoClick}
         selectedOutlet={selectedOutlet}
         onOutletClick={() => setIsOutletsOpen(true)}
       >

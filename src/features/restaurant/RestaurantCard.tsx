@@ -14,6 +14,7 @@ interface RestaurantCardProps {
   images?: string[];
   distance: string;
   offer?: string;
+  offers?: string[];
   address?: string | RestaurantAddress;
   dietary?: string[];
   onClick?: () => void;
@@ -31,6 +32,7 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   image,
   images = [],
   distance,
+  offers = [],
   address,
   dietary = [],
   onClick,
@@ -134,17 +136,24 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
         ))}
       </div>
 
-      <div className="flex items-center text-[13px] text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-100">
-        <div className="w-[18px] h-[18px] mr-2 flex items-center justify-center shrink-0">
-          <svg viewBox="0 0 24 24" className="w-full h-full text-green-600 fill-current">
-            <path d="M12 2L14.8 5.6L19.4 6.2L18.4 10.8L20.6 14.8L17 17.6L16.4 22.2L12 20.6L7.6 22.2L7 17.6L3.4 14.8L5.6 10.8L4.6 6.2L9.2 5.6L12 2Z" />
-            <path d="M10 15L14 9" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="10.5" cy="10.5" r="1.5" fill="white" />
-            <circle cx="13.5" cy="13.5" r="1.5" fill="white" />
-          </svg>
+      {/* Ongoing offers — dynamic, from the backend; hidden when none */}
+      {offers.length > 0 && (
+        <div className="flex flex-col gap-1.5 mt-3">
+          {offers.map((text, idx) => (
+            <div key={idx} className="flex items-center text-[13px] text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-100">
+              <div className="w-[18px] h-[18px] mr-2 flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" className="w-full h-full text-green-600 fill-current">
+                  <path d="M12 2L14.8 5.6L19.4 6.2L18.4 10.8L20.6 14.8L17 17.6L16.4 22.2L12 20.6L7.6 22.2L7 17.6L3.4 14.8L5.6 10.8L4.6 6.2L9.2 5.6L12 2Z" />
+                  <path d="M10 15L14 9" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                  <circle cx="10.5" cy="10.5" r="1.5" fill="white" />
+                  <circle cx="13.5" cy="13.5" r="1.5" fill="white" />
+                </svg>
+              </div>
+              <span className="font-medium text-slate-800">{text}</span>
+            </div>
+          ))}
         </div>
-        <span className="font-medium text-slate-800">Free Delivery • Items At ₹109</span>
-      </div>
+      )}
     </div>
   );
 };

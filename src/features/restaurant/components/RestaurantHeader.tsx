@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Heart, Share2, Check, Star, ChevronRight, Info, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, Check, Star, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { Restaurant } from '@/types';
 import { getRestaurantAddress } from "@/utils/restaurantUtils";
 
@@ -12,7 +12,6 @@ interface RestaurantHeaderProps {
   isHidden?: boolean;
   onHide?: () => void;
   onUnhide?: () => void;
-  onInfoClick?: () => void;
   selectedOutlet: string;
   onOutletClick: () => void;
 }
@@ -23,7 +22,6 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
   isFavourite,
   onFavourite,
   onRemoveFavourite,
-  onInfoClick,
   selectedOutlet,
   onOutletClick,
   children
@@ -90,15 +88,6 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
               <h1 className="text-[20px] font-bold text-slate-900 tracking-tight leading-none">
                 {restaurant.name}
               </h1>
-              {onInfoClick && (
-                <button
-                  onClick={onInfoClick}
-                  className="text-slate-400 hover:text-slate-600 transition-colors"
-                  aria-label="Restaurant information"
-                >
-                  <Info className="w-4 h-4" />
-                </button>
-              )}
             </div>
 
             <button

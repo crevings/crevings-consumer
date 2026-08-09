@@ -35,6 +35,8 @@ export interface Restaurant {
   distance: string;
   distanceValue: number;
   offer?: string;
+  /** Ongoing offers for this branch, formatted for the under-card offer rail. */
+  offers?: string[];
   dietary: string[];
   address?: string | RestaurantAddress;
   phone?: string;

@@ -3,6 +3,7 @@ import { SavedAddress, Zone } from "@/types";
 import { deepEqual } from "@/utils/deepEqual";
 import { useVerifyToken } from "@/api/auth";
 import { get, put } from "@/api/fetcher";
+import { mutate } from "swr";
 
 // Helper to assign icons based on type
 import { Home, Briefcase, MapPin } from "lucide-react";
@@ -59,10 +60,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       return () => controller.abort();
     } else {
-      // No coordinates attached — the zone check cannot run. Do NOT claim
-      // serviceability; keep the last known value until a geocoded location
-      // is available (the home page shows the "add location" state instead).
+      // No coordinates attached — the zone check cannot run. Fail closed:
+      // the selected address can't be verified as serviceable, so surface
+      // the "not available in your city" block (with the no_location_served
+      // fallback) instead of silently claiming serviceability and showing
+      // the feed's empty state.
       setCheckingServiceability(false);
+      setIsServiceable(false);
     }
   }, [currentLocation]);
 
@@ -126,8 +130,22 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // If a default is set, update currentLocation
         const defaultAddr = newAddresses.find((a) => a.isDefault);
         if (defaultAddr) {
-          setCurrentLocation({ type: defaultAddr.type, address: defaultAddr.address });
+          setCurrentLocation({
+            type: defaultAddr.type,
+            address: defaultAddr.address,
+            coordinates: defaultAddr.coordinates,
+          });
         }
+
+        // Location changed — the saved default address is the backend's source
+        // of truth for every location-aware consumer endpoint (home feed,
+        // filter, items-under-99, categories, menus, offers). Revalidate those
+        // SWR caches against the new default address instead of serving stale
+        // results until a manual browser refresh.
+        mutate((key) =>
+          typeof key === "string" &&
+          (key.startsWith("/consumer/restaurants") || key.startsWith("/consumer/items-under-99"))
+        );
       }
     } catch (err) {
       console.error("Failed to save addresses to backend:", err);

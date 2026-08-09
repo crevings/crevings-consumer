@@ -49,7 +49,7 @@ function uuidv7(): string {
 interface LocationPickerViewProps {
   addresses: SavedAddress[];
   setAddresses: React.Dispatch<React.SetStateAction<SavedAddress[]>>;
-  onSelectLocation?: (location: { type: string, address: string }) => void;
+  onSelectLocation?: (location: { type: string, address: string, coordinates?: { lat: number; lng: number } }) => void;
   onClose?: () => void;
 }
 
@@ -243,7 +243,11 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
     setActiveMenuId(null);
     const selected = addresses.find(a => a.id === id);
     if (selected && onSelectLocation) {
-      onSelectLocation({ type: selected.type, address: selected.address });
+      onSelectLocation({
+        type: selected.type,
+        address: selected.address,
+        coordinates: selected.coordinates,
+      });
     }
     onClose?.();
   };

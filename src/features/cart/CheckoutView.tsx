@@ -25,7 +25,6 @@ import {
   Check,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { UpiLogo } from "@/shared/components/UpiLogo";
 import { useLocation as useAppLocation } from "@/contexts/LocationContext";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { CartItem, OrderItem, OrderCustomer, OrderType, MenuItem, Order } from "@/types";
@@ -49,6 +48,7 @@ interface PlaceOrderResponse {
     items: OrderItem[];
     orderId: string;
     displayOrderId?: string;
+    displayOrderNumber?: string;
     branchId?: string;
     type?: string;
     total?: number;
@@ -108,7 +108,7 @@ export const CheckoutView: React.FC = () => {
   const [showTaxesSheet, setShowTaxesSheet] = useState(false);
   const [tempNote, setTempNote] = useState("");
   const [showCartPreview, setShowCartPreview] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"UPI" | "COD" | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"COD" | null>(null);
   const [showProcessing, setShowProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<"processing" | "buffer" | "success" | "cancelling" | "cancelled">("processing");
   const [timeLeft, setTimeLeft] = useState(30);
@@ -277,6 +277,7 @@ export const CheckoutView: React.FC = () => {
           orderPayload = {
             id: result.data.displayOrderId || result.data.orderId,
             realOrderId: result.data.orderId,
+            displayOrderNumber: result.data.displayOrderNumber,
             restaurantId: selectedRestaurant?.id || result.data.branchId,
             restaurantName: selectedRestaurant?.name || "Restaurant",
             location: result.data.customerDetails?.address || "",
@@ -881,7 +882,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-[18px] font-bold text-slate-900">
-                GST & Other Charges
+                GST
               </h3>
               <button
                 onClick={() => setShowTaxesSheet(false)}
@@ -901,23 +902,11 @@ loading="lazy"                         src={item.image || "https://images.unspla
                 </div>
                 <span className="text-slate-900 font-medium">₹{formatAmount(taxes)}</span>
               </div>
-              
-              <div className="border-b border-slate-100" />
-
-              <div className="flex justify-between items-start text-[14px]">
-                <div className="flex flex-col">
-                  <span className="text-slate-700 font-medium">Platform Fee</span>
-                  <span className="text-[12px] text-slate-500 mt-1 max-w-[240px] leading-snug">
-                    This helps us operate and improve the app experience for you.
-                  </span>
-                </div>
-                <span className="text-slate-900 font-medium">₹{formatAmount(platformFee)}</span>
-              </div>
             </div>
 
             <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
               <span>Total</span>
-              <span>₹{formatAmount(taxes + platformFee)}</span>
+              <span>₹{formatAmount(taxes)}</span>
             </div>
           </div>
         </div>
@@ -946,42 +935,6 @@ loading="lazy"                         src={item.image || "https://images.unspla
             </div>
 
             <div className="space-y-3">
-              <button
-                onClick={() => setSelectedPaymentMethod("UPI")}
-                className={`w-full p-4 rounded-[16px] border flex items-center gap-4 transition-all ${
-                  selectedPaymentMethod === "UPI"
-                    ? "border-green-500 bg-green-50"
-                    : "border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                    selectedPaymentMethod === "UPI"
-                      ? "bg-green-50 border border-green-100/50"
-                      : "bg-slate-50 border border-slate-100"
-                  }`}
-                >
-                  <UpiLogo size={24} useBrandColors={true} />
-                </div>
-                <div className="text-left flex-1">
-                  <h4 className="text-[15px] font-bold text-slate-900">
-                    Pay via UPI
-                  </h4>
-                  <p className="text-[13px] text-slate-500">
-                    Google Pay, PhonePe, Paytm
-                  </p>
-                </div>
-                <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                    selectedPaymentMethod === "UPI"
-                      ? "border-green-600 bg-green-600 text-white"
-                      : "border-slate-300"
-                  }`}
-                >
-                  {selectedPaymentMethod === "UPI" && <Check size={12} />}
-                </div>
-              </button>
-
               <button
                 onClick={() => setSelectedPaymentMethod("COD")}
                 className={`w-full p-4 rounded-[16px] border flex items-center gap-4 transition-all ${

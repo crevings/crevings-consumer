@@ -76,6 +76,7 @@ export interface Review {
 export interface CreatedOrder {
   orderId: string;
   displayOrderId?: string;
+  displayOrderNumber?: string;
   items: OrderItem[];
   type?: string;
   status?: string;
@@ -110,6 +111,7 @@ export interface Order {
   offer?: string;
   paymentMethod?: string;
   realOrderId?: string;
+  displayOrderNumber?: string;
   restaurantId?: string;
   createdAt?: string;
   prepTime?: string;

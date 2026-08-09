@@ -73,6 +73,20 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           </div>
         ) : null}
 
+        {platformFee > 0 && (
+          <div className="flex justify-between items-start text-[15px]">
+            <div className="flex flex-col text-left">
+              <span className="text-slate-500">Platform Fee</span>
+              <span className="text-[13px] text-slate-400 mt-2 max-w-[220px] leading-snug">
+                This helps us maintain service quality and keep improving the app experience for you.
+              </span>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-green-600 font-medium">₹{formatAmount(platformFee)}</span>
+            </div>
+          </div>
+        )}
+
         {discountAmount > 0 && (
           <div className="flex justify-between items-center text-[15px]">
             <span className="text-slate-500">Extra discount for you</span>
@@ -92,10 +106,10 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
             className="flex items-center gap-1.5 cursor-pointer group"
             onClick={onShowTaxesSheet}
           >
-            <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST & Other Charges</span>
+            <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST</span>
             <Info size={14} className="text-slate-400" />
           </div>
-          <span className="text-slate-700 font-medium">₹{formatAmount(taxes + platformFee)}</span>
+          <span className="text-slate-700 font-medium">₹{formatAmount(taxes)}</span>
         </div>
 
         <div className="border-b border-dashed border-slate-200 my-2" />

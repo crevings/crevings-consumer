@@ -1,7 +1,6 @@
 import React from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { RestaurantDetailView } from "@/features/restaurant/RestaurantDetailView";
-import { RestaurantInfoView } from "@/features/restaurant/RestaurantInfoView";
 import { useRestaurants } from "@/api/restaurant/index";
 import { useRestaurant } from "@/contexts/RestaurantContext";
 import { useCart } from "@/contexts/CartContext";
@@ -61,24 +60,9 @@ export const RestaurantDetailRoute: React.FC = () => {
         onRemoveFavourite={() => setFavouriteRestaurantIds((prev) => prev.filter((fid) => fid !== String(selectedRestaurant.id)))}
         isFavourite={favouriteRestaurantIds.includes(String(selectedRestaurant.id))}
         isHidden={hiddenRestaurantIds.includes(String(selectedRestaurant.id))}
-        onInfoClick={() => navigate(`/restaurant/${selectedRestaurant.id}/info`)}
         autoAddItem={autoAddItem}
       />
     );
-  }
-
-  if (isLoading) return <PageLoader />;
-  if (restaurants.length > 0) return <Navigate to="/" replace />;
-  return null;
-};
-
-export const RestaurantInfoRoute: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { restaurants, selectedRestaurant, isLoading } = useSelectedRestaurant(id);
-
-  if (selectedRestaurant) {
-    return <RestaurantInfoView restaurant={selectedRestaurant} onBack={() => navigate(-1)} />;
   }
 
   if (isLoading) return <PageLoader />;
