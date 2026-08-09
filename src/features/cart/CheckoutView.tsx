@@ -33,6 +33,8 @@ import { CartPreviewSheet } from "@/features/cart/components/CartPreviewSheet";
 import { PriceBreakdown } from "@/features/cart/components/PriceBreakdown";
 import { CouponRow } from "@/features/cart/components/CouponRow";
 import { CouponSheet } from "@/features/cart/components/CouponSheet";
+import { GstWaiverOfferCard } from "@/features/cart/components/GstWaiverOfferCard";
+import { GstWaiverSheet } from "@/features/cart/components/GstWaiverSheet";
 import { useCoupon } from "@/features/cart/hooks/useCoupon";
 import { ConfirmationBottomSheet } from "@/shared/components/ConfirmationBottomSheet";
 import { useRestaurantOffers } from "@/api/restaurant/index";
@@ -117,6 +119,8 @@ export const CheckoutView: React.FC = () => {
   const [customTipInput, setCustomTipInput] = useState("");
   const [customTipError, setCustomTipError] = useState("");
   const [deliveryNote, setDeliveryNote] = useState("");
+  const [gstWaiverApplied, setGstWaiverApplied] = useState(false);
+  const [showGstWaiverSheet, setShowGstWaiverSheet] = useState(false);
 
   const [_isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [_orderError, setOrderError] = useState("");
@@ -197,7 +201,22 @@ export const CheckoutView: React.FC = () => {
   const netTaxableAmount = taxableSubtotal * discountRatio;
   const rawTaxes = cart.length === 0 ? 0 : netTaxableAmount * FEES.taxRate;
   const taxes = Number(rawTaxes.toFixed(2)); // Exact float up to 2 decimal places (no Integer rounding errors)
-  const rawTotal = cart.length === 0 ? 0 : Math.max(0, subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount);
+
+  // When item GST is included (or MRP-based), no GST is actually charged. We surface
+  // the GST that *would* have applied (5% food, 18% delivery & platform) through a
+  // static frontend offer the customer opts into. Until the offer is applied these
+  // show as charges on the bill; once applied they're shown as waived.
+  const gstWaivable = cart.length > 0 && taxes === 0;
+  const gstOnFood = gstWaivable ? Number(((subtotal - discountAmount) * FEES.foodGstRate).toFixed(2)) : 0;
+  const gstOnDelivery = gstWaivable ? Number((deliveryFee * FEES.serviceGstRate).toFixed(2)) : 0;
+  const gstOnPlatform = gstWaivable ? Number((platformFee * FEES.serviceGstRate).toFixed(2)) : 0;
+  const gstSavings = Number((gstOnFood + gstOnDelivery + gstOnPlatform).toFixed(2));
+  const gstWaived = gstWaivable && gstWaiverApplied;
+  const gstCharged = gstWaivable && !gstWaiverApplied;
+
+  // Display-only total: until the waiver offer is applied, the would-be GST is shown
+  // as part of the bill (the backend computes the actual charged total server-side).
+  const rawTotal = cart.length === 0 ? 0 : Math.max(0, subtotal - discountAmount + deliveryFee + taxes + platformFee + tipAmount + (gstCharged ? gstSavings : 0));
   const total = Number(rawTotal.toFixed(2));
 
   /** Extracts the restaurant's GeoJSON coordinates ([lng, lat]) from its address. */
@@ -725,6 +744,13 @@ loading="lazy"                         src={item.image || "https://images.unspla
           onClick={() => setShowCouponSheet(true)}
         />
 
+        {gstWaivable && (
+          <GstWaiverOfferCard
+            applied={gstWaiverApplied}
+            onClick={() => setShowGstWaiverSheet(true)}
+          />
+        )}
+
         <PriceBreakdown
           subtotal={subtotal}
           deliveryFee={deliveryFee}
@@ -733,6 +759,11 @@ loading="lazy"                         src={item.image || "https://images.unspla
           tipAmount={tipAmount}
           taxes={taxes}
           platformFee={platformFee}
+          gstWaived={gstWaived}
+          gstCharged={gstCharged}
+          gstOnFood={gstOnFood}
+          gstOnDelivery={gstOnDelivery}
+          gstOnPlatform={gstOnPlatform}
           total={total}
           orderType={orderType}
           onShowTaxesSheet={() => setShowTaxesSheet(true)}
@@ -852,6 +883,27 @@ loading="lazy"                         src={item.image || "https://images.unspla
         </div>
       )}
 
+      {/* GST Waiver Offer Bottom Sheet */}
+      {gstWaivable && (
+        <GstWaiverSheet
+          open={showGstWaiverSheet}
+          applied={gstWaiverApplied}
+          gstOnFood={gstOnFood}
+          gstOnDelivery={gstOnDelivery}
+          gstOnPlatform={gstOnPlatform}
+          savings={gstSavings}
+          onApply={() => {
+            setGstWaiverApplied(true);
+            setShowGstWaiverSheet(false);
+          }}
+          onRemove={() => {
+            setGstWaiverApplied(false);
+            setShowGstWaiverSheet(false);
+          }}
+          onClose={() => setShowGstWaiverSheet(false)}
+        />
+      )}
+
       {/* Coupon Bottom Sheet */}
       <CouponSheet
         open={showCouponSheet}
@@ -892,22 +944,58 @@ loading="lazy"                         src={item.image || "https://images.unspla
               </button>
             </div>
 
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between items-start text-[14px]">
-                <div className="flex flex-col">
-                  <span className="text-slate-700 font-medium">Restaurant GST</span>
-                  <span className="text-[12px] text-slate-500 mt-1 max-w-[240px] leading-snug">
-                    This is collected by the restaurant to pay to the government.
-                  </span>
+            {gstWaivable ? (
+              <>
+                <div className="space-y-4 mb-6">
+                  {[
+                    { label: "GST on Food (5%)", amount: gstOnFood },
+                    { label: "GST on Delivery Fee (18%)", amount: gstOnDelivery },
+                    { label: "GST on Platform Fee (18%)", amount: gstOnPlatform },
+                  ].map(({ label, amount }) => (
+                    <div key={label} className="flex justify-between items-center text-[14px]">
+                      <span className="text-slate-700 font-medium">{label}</span>
+                      {gstWaived ? (
+                        <span className="flex items-center gap-2">
+                          <span className="text-slate-400 line-through">₹{formatAmount(amount)}</span>
+                          <span className="text-[#00bd6f] font-semibold text-[13px]">Waived</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-900 font-medium">₹{formatAmount(amount)}</span>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-[12px] text-slate-500 leading-snug">
+                    {gstWaived
+                      ? "GST is already included in your item prices, so these charges are waived for you — you pay ₹0 in taxes."
+                      : "Apply the GST waiver offer to waive off these charges on your order."}
+                  </p>
                 </div>
-                <span className="text-slate-900 font-medium">₹{formatAmount(taxes)}</span>
-              </div>
-            </div>
 
-            <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
-              <span>Total</span>
-              <span>₹{formatAmount(taxes)}</span>
-            </div>
+                <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
+                  <span>Total</span>
+                  <span>₹{formatAmount(gstWaived ? 0 : gstSavings)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-4 mb-6">
+                  <div className="flex justify-between items-start text-[14px]">
+                    <div className="flex flex-col">
+                      <span className="text-slate-700 font-medium">Restaurant GST</span>
+                      <span className="text-[12px] text-slate-500 mt-1 max-w-[240px] leading-snug">
+                        This is collected by the restaurant to pay to the government.
+                      </span>
+                    </div>
+                    <span className="text-slate-900 font-medium">₹{formatAmount(taxes)}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center text-[16px] font-bold text-slate-900 pt-4 border-t border-slate-200 border-dashed">
+                  <span>Total</span>
+                  <span>₹{formatAmount(taxes)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

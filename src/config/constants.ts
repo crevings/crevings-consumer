@@ -90,7 +90,11 @@ export const FILTER_DEFAULTS = {
 /** Pricing constants applied at checkout. */
 export const FEES = {
   platformFee: 5,
+  /** GST actually charged on non-GST-included items. */
   taxRate: 0.05,
+  /** Would-be GST rates shown when item GST is included (then waived). */
+  foodGstRate: 0.05,
+  serviceGstRate: 0.18,
 } as const;
 
 /** Seconds after placing a delivery order during which the customer may cancel it. */

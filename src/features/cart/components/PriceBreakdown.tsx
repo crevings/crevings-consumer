@@ -10,6 +10,11 @@ interface PriceBreakdownProps {
   tipAmount: number;
   taxes: number;
   platformFee: number;
+  gstWaived: boolean;
+  gstCharged: boolean;
+  gstOnFood: number;
+  gstOnDelivery: number;
+  gstOnPlatform: number;
   total: number;
   orderType: "Delivery" | "Takeaway";
   onShowTaxesSheet: () => void;
@@ -24,10 +29,21 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   tipAmount,
   taxes,
   platformFee,
+  gstWaived,
+  gstCharged,
+  gstOnFood,
+  gstOnDelivery,
+  gstOnPlatform,
   total,
   orderType,
   onShowTaxesSheet,
 }) => {
+  const gstRows = [
+    { label: "GST on Food (5%)", amount: gstOnFood },
+    { label: "GST on Delivery Fee (18%)", amount: gstOnDelivery },
+    { label: "GST on Platform Fee (18%)", amount: gstOnPlatform },
+  ];
+
   return (
     <div className="bg-white border border-slate-100 rounded-[24px] shadow-sm overflow-hidden mb-6">
       <div className="p-4 flex items-start justify-between border-b border-slate-100">
@@ -101,16 +117,57 @@ export const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           <span className="text-green-600 font-medium">₹{formatAmount(tipAmount)}</span>
         </div>
 
-        <div className="flex justify-between items-center text-[15px]">
-          <div
-            className="flex items-center gap-1.5 cursor-pointer group"
-            onClick={onShowTaxesSheet}
-          >
-            <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST</span>
-            <Info size={14} className="text-slate-400" />
+        {gstWaived ? (
+          <div className="space-y-2.5">
+            <div
+              className="flex items-center gap-1.5 cursor-pointer group w-fit"
+              onClick={onShowTaxesSheet}
+            >
+              <span className="text-slate-500 text-[14px] font-semibold border-b border-dashed border-slate-300 group-hover:border-slate-400">
+                GST waived for you
+              </span>
+              <Info size={14} className="text-slate-400" />
+            </div>
+            {gstRows.map(({ label, amount }) => (
+              <div key={label} className="flex justify-between items-center text-[15px]">
+                <span className="text-slate-500">{label}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-slate-400 line-through">₹{formatAmount(amount)}</span>
+                  <span className="text-[#00bd6f] font-semibold text-[13px]">Waived</span>
+                </span>
+              </div>
+            ))}
           </div>
-          <span className="text-slate-700 font-medium">₹{formatAmount(taxes)}</span>
-        </div>
+        ) : gstCharged ? (
+          <div className="space-y-2.5">
+            <div
+              className="flex items-center gap-1.5 cursor-pointer group w-fit"
+              onClick={onShowTaxesSheet}
+            >
+              <span className="text-slate-500 text-[14px] font-semibold border-b border-dashed border-slate-300 group-hover:border-slate-400">
+                GST & Other Charges
+              </span>
+              <Info size={14} className="text-slate-400" />
+            </div>
+            {gstRows.map(({ label, amount }) => (
+              <div key={label} className="flex justify-between items-center text-[15px]">
+                <span className="text-slate-500">{label}</span>
+                <span className="text-slate-700 font-medium">₹{formatAmount(amount)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex justify-between items-center text-[15px]">
+            <div
+              className="flex items-center gap-1.5 cursor-pointer group"
+              onClick={onShowTaxesSheet}
+            >
+              <span className="text-slate-500 border-b border-dashed border-slate-300 group-hover:border-slate-400">GST & Other Charges</span>
+              <Info size={14} className="text-slate-400" />
+            </div>
+            <span className="text-slate-700 font-medium">₹{formatAmount(taxes)}</span>
+          </div>
+        )}
 
         <div className="border-b border-dashed border-slate-200 my-2" />
 
