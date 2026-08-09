@@ -85,7 +85,10 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
               return data.status;
             });
           }
-          if (data.status !== "NEW") {
+          // Only terminal statuses end the cancellation window. When the
+          // restaurant confirms the order (ACCEPTED/PREPARING/...), the window
+          // stays open so the user can Skip the remaining wait or Cancel.
+          if (data.status === "CANCELLED" || data.status === "REJECTED" || data.status === "COMPLETED") {
             setCancelTimeLeft(0);
           }
           if (data.status === "CANCELLED") {

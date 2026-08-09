@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2, SkipForward } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
 import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS, ORDER_STATUS } from "@/config/constants";
 import { OrderStatusTimeline } from "./components/OrderStatusTimeline";
@@ -18,60 +18,17 @@ interface OrderTrackingViewProps {
   onCancelOrder?: () => void;
 }
 
-const CANCEL_REASONS = [
-  "Ordered by mistake",
-  "Delivery time is too long",
-  "Changed my mind",
-  "Forgot to add an item",
-  "Other"
-];
 
-/** Human-readable label for a backend order status — never the raw code. */
-const formatOrderStatus = (status: string, secondsElapsed: number, prepTime?: string | null): string => {
-  switch (status) {
-    case ORDER_STATUS.NEW:
-      return secondsElapsed >= 60 ? "Waiting for restaurant to accept the order" : "Placing Order";
-    case ORDER_STATUS.PENDING_ACCEPT:
-      return "Awaiting Restaurant";
-    case ORDER_STATUS.ACCEPTED:
-    case ORDER_STATUS.PREPARING:
-      return prepTime ? `Preparing (${prepTime})` : "Preparing";
-    case ORDER_STATUS.READY:
-    case ORDER_STATUS.READY_FOR_PICKUP:
-      return "Ready for pickup";
-    case ORDER_STATUS.DRIVER_ASSIGNED:
-      return "Driver assigned — heading to restaurant";
-    case ORDER_STATUS.DRIVER_ARRIVED:
-      return "Driver has arrived at the restaurant";
-    case ORDER_STATUS.OUT_FOR_DELIVERY:
-    case ORDER_STATUS.ORDER_PICKED_UP:
-      return "Out for delivery";
-    case ORDER_STATUS.DRIVER_LOCATION:
-      return "Driver is on the way";
-    case ORDER_STATUS.REACHED_CUSTOMER:
-    case ORDER_STATUS.ARRIVING_SOON:
-      return "Driver has reached your location";
-    case ORDER_STATUS.NO_DRIVERS_AVAILABLE:
-      return "Finding a delivery partner";
-    case ORDER_STATUS.COMPLETED:
-    case ORDER_STATUS.DELIVERED:
-      return "Delivered";
-    case ORDER_STATUS.CANCELLED:
-      return "Cancelled";
-    case ORDER_STATUS.REJECTED:
-      return "Rejected";
-    default:
-      return "Order in progress";
-  }
-};
 
 export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onBack, onOrderComplete, onCancelOrder }) => {
   const [takeawayOtp, setTakeawayOtp] = useState('');
   const [paymentStatus] = useState(order.paymentMethod === 'cod' ? 'PENDING' : 'PAID');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
+  // User chose to Skip the remaining cancellation window — this ends the
+  // backend buffer early so the restaurant is notified immediately.
+  const [isSkipped, setIsSkipped] = useState(false);
+  const [isSkippingWait, setIsSkippingWait] = useState(false);
 
   const {
     progress,
@@ -105,9 +62,27 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const isOrderAccepted = ACCEPTED_ORDER_STATUSES.includes(orderStatus);
   const estimatedTime = isOrderAccepted ? (prepTime || null) : null;
 
-  const statusLabel = isCancelled
-    ? (rejectionReason === 'Rejected by restaurant' ? 'Rejected' : 'Cancelled')
-    : formatOrderStatus(orderStatus, secondsElapsed, prepTime);
+  // End the 60-second cancellation buffer server-side. The restaurant is only
+  // notified after this window, so skipping it means it gets the order now.
+  const handleSkipWait = async () => {
+    if (isSkippingWait) return;
+    setIsSkippingWait(true);
+    try {
+      const result = await post<{ success: boolean; message?: string }>(
+        `/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/skip-cancel-window`,
+        {}
+      );
+      if (result.success) {
+        setIsSkipped(true);
+      } else {
+        alert(result.message || "Failed to skip the wait.");
+      }
+    } catch {
+      alert("Failed to skip the wait due to network issue.");
+    } finally {
+      setIsSkippingWait(false);
+    }
+  };
 
   const handlePickupComplete = async () => {
     if (takeawayOtp.length === 6) {
@@ -171,9 +146,9 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </div>
           )}
 
-          {/* Timer Section */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
-            {estimatedTime && (
+          {/* Estimated Time Section */}
+          {estimatedTime && (
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-blue-600" />
@@ -183,17 +158,11 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   <p className="text-lg font-bold text-slate-900">{estimatedTime}</p>
                 </div>
               </div>
-            )}
-            <div className={estimatedTime ? "text-right" : "text-left"}>
-              <p className="text-xs text-slate-500 font-medium">Status</p>
-              <p className="text-sm font-bold text-[#00bd6f]">
-                {statusLabel}
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* Cancellation Timer Card */}
-          {cancelTimeLeft > 0 && !isCancelled && (
+          {/* Cancellation Timer Card — Cancel (terminate the order) or Skip (notify the restaurant now) */}
+          {cancelTimeLeft > 0 && !isCancelled && !isSkipped && (
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col items-center text-center animate-in fade-in duration-300">
               <div className="flex items-center gap-2 mb-2">
                 <Clock className="w-5 h-5 text-green-600 animate-pulse" />
@@ -211,23 +180,44 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 />
               </div>
 
-              <button
-                onClick={handleCancelOrderApi}
-                disabled={isCancellingOrder}
-                className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-sm active:scale-[0.98] transition-all border border-red-200 flex items-center justify-center gap-2 disabled:opacity-75"
-              >
-                {isCancellingOrder ? (
-                  <Loader2 className="w-4.5 h-4.5 animate-spin text-red-600" />
-                ) : (
-                  <X className="w-4 h-4" />
-                )}
-                Cancel Order
-              </button>
+              <div className="grid grid-cols-2 gap-3 w-full">
+                {/* Skip — end the 60s window now and notify the restaurant immediately */}
+                <button
+                  onClick={handleSkipWait}
+                  disabled={isSkippingWait}
+                  className="py-3 bg-[#00bd6f] hover:bg-[#00a85f] text-white font-bold rounded-xl text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-75 shadow-sm"
+                >
+                  {isSkippingWait ? (
+                    <Loader2 className="w-4.5 h-4.5 animate-spin text-white" />
+                  ) : (
+                    <SkipForward className="w-4 h-4" />
+                  )}
+                  Skip Wait
+                </button>
+
+                {/* Cancel — terminate the order entirely within the 60s window */}
+                <button
+                  onClick={handleCancelOrderApi}
+                  disabled={isCancellingOrder}
+                  className="py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-sm active:scale-[0.98] transition-all border border-red-200 flex items-center justify-center gap-2 disabled:opacity-75"
+                >
+                  {isCancellingOrder ? (
+                    <Loader2 className="w-4.5 h-4.5 animate-spin text-red-600" />
+                  ) : (
+                    <X className="w-4 h-4" />
+                  )}
+                  Cancel Order
+                </button>
+              </div>
+
+              <p className="text-[10px] text-slate-400 mt-2">
+                Skipping notifies the restaurant immediately instead of waiting for the timer to finish.
+              </p>
             </div>
           )}
 
-          {/* Waiting for Restaurant Banner (Shown after 60s of PENDING/NEW status) */}
-          {secondsElapsed >= 60 && orderStatus === 'NEW' && !isCancelled && (
+          {/* Waiting for Restaurant Banner (Shown once the restaurant has been notified but hasn't responded) */}
+          {secondsElapsed >= 60 && orderStatus === ORDER_STATUS.PENDING_ACCEPT && !isCancelled && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center animate-in fade-in duration-300">
               <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-3 text-amber-700 animate-pulse">
                 <AlertCircle className="w-6 h-6" />
@@ -453,16 +443,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             </div>
           </div>
 
-          {progress < 20 && (
-            <button 
-              onClick={() => setIsCancelConfirmOpen(true)}
-              className="w-full py-3 rounded-xl font-bold text-red-500 bg-red-50 active:scale-95 transition-transform mt-4 border border-red-100"
-            >
-              Cancel Order
-            </button>
-          )}
-
-          
         </div>
       </div>
       <OrderChatBot 
@@ -482,71 +462,6 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isCancelConfirmOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
-            >
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-8 h-8 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-center text-slate-900 mb-2">Cancel Order?</h3>
-              <p className="text-center text-slate-500 text-sm mb-4">
-                Please select a reason for cancellation.
-              </p>
-
-              <div className="space-y-2 mb-6">
-                {CANCEL_REASONS.map((reason) => (
-                  <button
-                    key={reason}
-                    onClick={() => setCancelReason(reason)}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors border ${
-                      cancelReason === reason 
-                        ? 'bg-red-50 border-red-500 text-red-700' 
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                    }`}
-                  >
-                    {reason}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    setIsCancelConfirmOpen(false);
-                    setCancelReason("");
-                  }}
-                  className="flex-1 py-3 rounded-xl font-bold text-slate-700 bg-slate-100 active:scale-95 transition-transform"
-                >
-                  No, Keep It
-                </button>
-                <button 
-                  onClick={() => {
-                    if (cancelReason) {
-                      setIsCancelConfirmOpen(false);
-                      onCancelOrder?.();
-                    }
-                  }}
-                  disabled={!cancelReason}
-                  className="flex-1 py-3 rounded-xl font-bold text-white bg-red-500 active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Yes, Cancel
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

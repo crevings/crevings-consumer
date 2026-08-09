@@ -2,6 +2,8 @@ export interface PricingOption {
   _id?: string;
   label?: string;
   price: number;
+  /** Add-ons configured for this specific variant (pricing_unit === "size"). */
+  allowedAddons?: AddonGroupItem[];
 }
 
 export interface AddonOption {

@@ -59,8 +59,9 @@ const getVariantsForItem = (item: MenuItem): ItemVariant[] => {
   return [];
 };
 
-// Helper to generate dynamic addons from the item's allowed addon groups
-const getAddonsForItem = (item: MenuItem): CustomizationSection[] => {
+// Helper to generate dynamic addons from the item's allowed addon groups.
+// `addonsSource` overrides the root allowedAddons (used for per-variant add-ons).
+const getAddonsForItem = (item: MenuItem, addonsSource?: AddonGroupItem[]): CustomizationSection[] => {
   const sectionMap = new Map<string, CustomizationSection>();
 
   const processAddon = (addon: AddonGroupItem, defaultTitle: string, type: 'addon' | 'beverage') => {
@@ -103,8 +104,9 @@ const getAddonsForItem = (item: MenuItem): CustomizationSection[] => {
     });
   };
 
-  if (Array.isArray(item.allowedAddons)) {
-    item.allowedAddons.forEach((addon) => processAddon(addon, 'Addons', 'addon'));
+  const addons = Array.isArray(addonsSource) ? addonsSource : item.allowedAddons;
+  if (Array.isArray(addons)) {
+    addons.forEach((addon) => processAddon(addon, 'Addons', 'addon'));
   }
   if (Array.isArray(item.allowedToppings)) {
     item.allowedToppings.forEach((addon) => processAddon(addon, 'Toppings', 'addon'));
@@ -116,11 +118,35 @@ const getAddonsForItem = (item: MenuItem): CustomizationSection[] => {
   return Array.from(sectionMap.values());
 };
 
+// Returns the pricing option matching a selected variant (by _id or label).
+const getPricingOptionForVariant = (item: MenuItem, variant: ItemVariant | null): PricingOption | undefined => {
+  if (!variant) return undefined;
+  return (item.pricing_options || []).find((option) =>
+    (option._id && variant.id && option._id === variant.id) ||
+    (option.label && variant.name && option.label === variant.name)
+  );
+};
+
 export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> = ({ item, onClose, onAddToCart }) => {
   const variants = useMemo(() => getVariantsForItem(item), [item]);
-  const sections = useMemo(() => getAddonsForItem(item), [item]);
 
   const [selectedVariant, setSelectedVariant] = useState<ItemVariant | null>(variants[0] ?? null);
+
+  // When the item carries per-variant add-ons (variety/size pricing), the add-on
+  // sections must follow the currently selected variant; otherwise fall back to
+  // the root-level allowedAddons/allowedToppings/allowedBeverages.
+  const sections = useMemo(() => {
+    const hasPerVariantAddons = (item.pricing_options || []).some(
+      (option) => Array.isArray(option.allowedAddons) && option.allowedAddons.length > 0
+    );
+    if (hasPerVariantAddons) {
+      const option = getPricingOptionForVariant(item, selectedVariant);
+      if (option && Array.isArray(option.allowedAddons) && option.allowedAddons.length > 0) {
+        return getAddonsForItem(item, option.allowedAddons);
+      }
+    }
+    return getAddonsForItem(item);
+  }, [item, selectedVariant]);
   const [mainQuantity, setMainQuantity] = useState(1);
   const [addonQuantities, setAddonQuantities] = useState<Record<string, number>>({});
   const [selectedBeverages, setSelectedBeverages] = useState<Record<string, boolean>>({});
