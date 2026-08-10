@@ -13,9 +13,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ currentLocation, onSearchClick, onMicClick, onLocationClick, onProfileClick, hideSearch }) => {
   return (
-    <div className="bg-white pb-4 px-4 pt-safe-6 relative overflow-hidden">
+    <div className="bg-white pb-3 px-4 pt-3 relative overflow-hidden">
       {/* Top Bar: Location Section */}
-      <div className="flex justify-between items-center mb-6 relative z-10">
+      <div className="flex justify-between items-center mb-3 relative z-10">
         <div 
           onClick={onLocationClick}
           className="flex flex-col cursor-pointer active:opacity-70 transition-all group"
