@@ -255,8 +255,8 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
   if (isInitialLoading) {
     return (
       <div className="fixed inset-0 bg-white z-[100] flex flex-col overflow-hidden">
-        <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20 border-b border-slate-100">
-           <div className="flex items-center gap-3 mt-4 px-2">
+        <div className="bg-white pt-3 pb-3 px-4 sticky top-0 z-20 border-b border-slate-100">
+           <div className="flex items-center gap-3 px-2">
              <div className="w-[32px] h-[32px] bg-slate-100 rounded-full animate-pulse shrink-0"></div>
              <div className="h-5 w-1/3 bg-slate-100 rounded-md animate-pulse"></div>
            </div>
@@ -289,8 +289,8 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
       className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20 border-b border-slate-100">
-        <div className="flex items-center gap-4 mt-4">
+      <div className="bg-white pt-3 pb-3 px-4 sticky top-0 z-20 border-b border-slate-100">
+        <div className="flex items-center gap-4">
           {addresses && addresses.length > 0 && (
             <button onClick={onClose} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
               <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />

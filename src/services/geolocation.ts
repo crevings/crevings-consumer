@@ -51,29 +51,6 @@ const isDenialError = (err: unknown): boolean => {
   return msg.includes("denied") || msg.includes("permission");
 };
 
-/**
- * Heuristic: when getCurrentPosition fails AFTER permission was granted,
- * it usually means the device's Location Services toggle is OFF. The
- * Capacitor plugin and browser API surface this as "position unavailable"
- * with messages like "location disabled", "gps off", "unable to determine",
- * etc. We catch those and map to code 4 so the UI can show "Turn on GPS".
- */
-const isGpsOffError = (err: unknown): boolean => {
-  if (err instanceof LocationError) return err.code === 4;
-  const msg = err instanceof Error ? err.message.toLowerCase() : "";
-  return (
-    msg.includes("location disabled") ||
-    msg.includes("gps") ||
-    msg.includes("location request was denied") ||
-    msg.includes("unable to determine") ||
-    msg.includes("location unavailable") ||
-    msg.includes("location not available") ||
-    msg.includes("provider") ||
-    // Browser code 2 = POSITION_UNAVAILABLE — often means GPS hardware off
-    (err instanceof GeolocationPositionError && err.code === 2)
-  );
-};
-
 // ── Native plugin bridge: open Android's device Location Settings ──────────
 interface LocationSettingsPlugin {
   openLocationSettings(): Promise<void>;
@@ -162,22 +139,20 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
         throw new LocationError("Location permission denied", 1);
       }
       // Permission granted — now try to get the actual position.
-      // If this fails, it almost certainly means the device's GPS toggle is OFF.
+      // Since permission was explicitly verified as "granted" right above,
+      // any failure fetching position is GUARANTEED to be a device-level
+      // location service (GPS) issue (code 4) — NEVER an app permission denial.
       try {
         const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
         return { lat: pos.coords.latitude, lng: pos.coords.longitude };
       } catch (posErr) {
-        // Permission was granted but position fetch failed → GPS is off
-        if (isGpsOffError(posErr) || !isDenialError(posErr)) {
-          throw new LocationError(
-            "Your device's location service (GPS) is turned off. Please enable it to use this feature.",
-            4
-          );
-        }
-        throw posErr;
+        throw new LocationError(
+          "Your device's location service (GPS) is turned off or unavailable. Please enable it to use this feature.",
+          4
+        );
       }
     } catch (e) {
-      // Re-throw our own LocationErrors directly
+      // Re-throw our own LocationErrors directly (code 1 or code 4)
       if (e instanceof LocationError) throw e;
       if (isDenialError(e)) {
         throw new LocationError("Location permission denied", 1);
@@ -188,7 +163,10 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
       } catch (browserErr) {
         throw browserErr instanceof LocationError
           ? browserErr
-          : new LocationError("Could not access your location", 2);
+          : new LocationError(
+              "Your device's location service (GPS) is turned off. Please enable it in your device settings.",
+              4
+            );
       }
     }
   }
