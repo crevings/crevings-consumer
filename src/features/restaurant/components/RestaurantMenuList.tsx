@@ -50,7 +50,9 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
   const filteredItemIds = new Set(filteredMenu.map((i) => i.id));
 
   return (
-    <div className="space-y-6">
+    // pt-2 / pb-6 give the list breathing room at the top and bottom so items
+    // don't sit flush against the header above or the page edge below.
+    <div className="space-y-8 pt-2 pb-6">
       {/* 1. Custom Menu Sections (Show menu items first in arranged order with menu name) */}
       {customMenus.map((menu) => {
         const isExpanded = expandedCategories[menu.name] !== false;

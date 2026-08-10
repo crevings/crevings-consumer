@@ -42,7 +42,9 @@ export const RestaurantDetailRoute: React.FC = () => {
     return (
       <RestaurantDetailView
         restaurant={selectedRestaurant}
-        onBack={() => navigate("/")}
+        // History-aware back: return to wherever the user came from (feed,
+        // search, category, under-99 page); fall back to home on deep links.
+        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
         onCheckout={(cart, items) => {
           setCart(cart);
           setMenuItems(items);

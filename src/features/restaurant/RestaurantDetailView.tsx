@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronUp, X, Menu } from 'lucide-react';
+import { ChevronUp, X, Menu, ArrowLeft, UtensilsCrossed } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import { useSWRConfig } from 'swr';
 import { Restaurant, MenuItem, CartItem, Offer } from "@/types";
 import { CustomizationBottomSheet } from "@/features/restaurant/components/CustomizationBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
@@ -34,6 +35,33 @@ interface RestaurantDetailViewProps {
   autoAddItem?: string | null;
 }
 
+/** Skeleton shown while the menu streams in — keeps the header + back button
+ * visible so the user is never trapped on a full-screen spinner. */
+const MenuLoadingSkeleton: React.FC = () => {
+  const shimmer = "relative overflow-hidden bg-slate-100 rounded-xl";
+  return (
+    <div className="px-4 pb-6 pt-1 space-y-6 animate-pulse">
+      {[0, 1, 2].map((i) => (
+        <div key={i}>
+          <div className={`${shimmer} h-12 mb-4`} />
+          <div className="space-y-3">
+            {[0, 1, 2].map((j) => (
+              <div key={j} className="flex items-center gap-3">
+                <div className={`${shimmer} w-20 h-20 rounded-2xl shrink-0`} />
+                <div className="flex-1 space-y-2">
+                  <div className={`${shimmer} h-4 w-3/4`} />
+                  <div className={`${shimmer} h-3 w-1/2`} />
+                  <div className={`${shimmer} h-3 w-1/4`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({ 
   restaurant, 
   onBack, 
@@ -46,7 +74,8 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   isHidden,
   autoAddItem
 }) => {
-  const { customMenus, isLoading: isMenuLoading } = useRestaurantCustomMenus(restaurant.id);
+  const { customMenus, isLoading: isMenuLoading, isError: isMenuError } = useRestaurantCustomMenus(restaurant.id);
+  const { mutate: mutateMenu } = useSWRConfig();
   const { offers, isLoadingMore: isOffersLoadingMore, isReachingEnd: isOffersReachingEnd, size: offersSize, setSize: setOffersSize } = useRestaurantOffers(restaurant.id, 5);
 
   const menuItems = useMemo(() => {
@@ -274,15 +303,42 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
     });
   };
 
-
-  if (isMenuLoading) {
+  // Menu failed to load and we have nothing cached — full error state with a
+  // working back button and a retry, never a silent spinner.
+  if (isMenuError && customMenus.length === 0) {
     return (
-      <div className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-2 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3" />
-        <p className="text-slate-500 font-bold text-sm">Loading menu...</p>
+      <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+          <button
+            onClick={onBack}
+            className="p-2 -ml-2 text-slate-800 active:scale-90 transition-transform"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6 stroke-[2]" />
+          </button>
+          <span className="text-[16px] font-bold text-slate-900 truncate flex-1 ml-2">
+            {restaurant.name}
+          </span>
+          <span className="w-8 shrink-0" />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <UtensilsCrossed className="w-12 h-12 text-slate-300 mb-4" />
+          <h3 className="text-lg font-bold text-slate-900 mb-1">Couldn't load the menu</h3>
+          <p className="text-sm text-slate-500 mb-6">Check your connection and try again.</p>
+          <button
+            onClick={() => void mutateMenu(`/consumer/restaurants/${restaurant.id}/menus`)}
+            className="px-5 py-2.5 bg-[#00bd6f] text-white rounded-xl font-bold text-sm active:scale-95 transition-transform"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
+
+  // First load (nothing cached yet): render the header + a skeleton so the
+  // back button stays reachable and the page isn't a blank spinner.
+  const isInitialMenuLoad = isMenuLoading && customMenus.length === 0;
 
   return (
       <div 
@@ -304,38 +360,44 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         selectedOutlet={selectedOutlet}
         onOutletClick={() => setIsOutletsOpen(true)}
       >
-        <RestaurantOffers 
-          offers={offers}
-          isLoadingMore={!!isOffersLoadingMore}
-          isReachingEnd={!!isOffersReachingEnd}
-          onLoadMore={() => setOffersSize(offersSize + 1)}
-          onSelectOffer={setSelectedOffer}
-        />
+        {isInitialMenuLoad ? (
+          <MenuLoadingSkeleton />
+        ) : (
+          <>
+            <RestaurantOffers 
+              offers={offers}
+              isLoadingMore={!!isOffersLoadingMore}
+              isReachingEnd={!!isOffersReachingEnd}
+              onLoadMore={() => setOffersSize(offersSize + 1)}
+              onSelectOffer={setSelectedOffer}
+            />
 
-        <RestaurantFilters 
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          setIsVoiceSearchOpen={setIsVoiceSearchOpen}
-          sortBy={sortBy}
-          setIsSortOpen={setIsSortOpen}
-          isFilterActive={isFilterActive}
-          toggleFilter={toggleFilter}
-        />
+            <RestaurantFilters 
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              setIsVoiceSearchOpen={setIsVoiceSearchOpen}
+              sortBy={sortBy}
+              setIsSortOpen={setIsSortOpen}
+              isFilterActive={isFilterActive}
+              toggleFilter={toggleFilter}
+            />
 
-        <RestaurantMenuList 
-          customMenus={customMenus}
-          filteredMenu={filteredMenu}
-          categories={categories}
-          expandedCategories={expandedCategories}
-          toggleCategory={toggleCategory}
-          getItemQuantity={getItemQuantity}
-          handleAdd={handleAdd}
-          handleRemove={handleRemove}
-          onItemClick={(item) => {
-            setSelectedMenuItemDetail(item);
-            setIsMenuItemDetailOpen(true);
-          }}
-        />
+            <RestaurantMenuList 
+              customMenus={customMenus}
+              filteredMenu={filteredMenu}
+              categories={categories}
+              expandedCategories={expandedCategories}
+              toggleCategory={toggleCategory}
+              getItemQuantity={getItemQuantity}
+              handleAdd={handleAdd}
+              handleRemove={handleRemove}
+              onItemClick={(item) => {
+                setSelectedMenuItemDetail(item);
+                setIsMenuItemDetailOpen(true);
+              }}
+            />
+          </>
+        )}
       </RestaurantHeader>
 
       <FloatingCartBar 

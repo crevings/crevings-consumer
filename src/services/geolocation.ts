@@ -71,7 +71,18 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
   if (isCapacitorNative()) {
     try {
       const { Geolocation } = await import("@capacitor/geolocation");
-      const perm = await Geolocation.requestPermissions();
+      // Pre-check BEFORE requesting: once Android marks a permission "denied"
+      // (esp. after "don't ask again"), requestPermissions() returns instantly
+      // without showing a dialog — so re-requesting just loops the denial UI.
+      // Failing fast lets callers route straight to the app-settings page.
+      const checked = await Geolocation.checkPermissions();
+      if (checked.location === "denied") {
+        throw new LocationError("Location permission denied", 1);
+      }
+      let perm = checked;
+      if (perm.location !== "granted") {
+        perm = await Geolocation.requestPermissions();
+      }
       if (perm.location !== "granted") {
         // 'denied' (hard block) or 'prompt' (dialog dismissed) → treat as denial.
         throw new LocationError("Location permission denied", 1);

@@ -196,6 +196,11 @@ loading="lazy"                     src={cat.image}
               const rest = restaurants.find((r) => r.id === item.restaurantId);
               if (!rest) return null;
 
+              // Safety net on top of the backend's cheapest-option filter:
+              // never surface an item that isn't actually under ₹99.
+              const itemPrice = parseFloat(String(item.price ?? "").replace(/[^\d.]/g, ""));
+              if (!Number.isNaN(itemPrice) && itemPrice >= 99) return null;
+
               const handleAddClick = (e: React.MouseEvent) => {
                 e.stopPropagation();
                 onItemAdd(rest, item.id);

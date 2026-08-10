@@ -287,8 +287,11 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
   };
 
   // User tapped "Use current location" → directly request browser / Android system location permissions
+  // NOTE: we deliberately do NOT clear locationError at the start. Keeping the
+  // error card on screen during the retry avoids the flicker where the modal
+  // briefly flashes back to the "Allow location access?" state (the glitch
+  // users saw when tapping "Try Again").
   const handleLocateMe = async () => {
-    setLocationError(null);
     setIsLocating(true);
     try {
       const pos = await requestLocationAndGetPosition();
@@ -569,16 +572,18 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
                 {isCapacitorNative() && (
                   <button
                     onClick={openLocationSettings}
-                    className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all"
+                    disabled={isLocating}
+                    className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all disabled:opacity-60"
                   >
                     Open Settings
                   </button>
                 )}
                 <button
-                  onClick={() => { setLocationError(null); handleAllowLocation(); }}
-                  className="w-full border border-slate-200 text-slate-700 py-3 rounded-xl font-bold text-[13px] hover:bg-slate-50 active:scale-[0.99] transition-all"
+                  onClick={handleAllowLocation}
+                  disabled={isLocating}
+                  className="w-full border border-slate-200 text-slate-700 py-3 rounded-xl font-bold text-[13px] hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60"
                 >
-                  Try Again
+                  {isLocating ? 'Requesting...' : 'Try Again'}
                 </button>
                 <button
                   onClick={() => { setShowLocationModal(false); setLocationError(null); }}

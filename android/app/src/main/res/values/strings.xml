@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Crevings</string>
+    <string name="title_activity_main">Crevings</string>
+    <string name="package_name">com.crevings.consumer</string>
+    <string name="custom_url_scheme">com.crevings.consumer</string>
+</resources>

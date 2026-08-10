@@ -69,9 +69,11 @@ export const MainLayout: React.FC = () => {
   } = useRestaurant();
 
   const { showBackToTop, scrollToTop } = useScrollBehavior();
+  // Pull-to-refresh still revalidates the feed on the gesture; the visual
+  // drag indicator was removed per UX request (the "Refreshing Feed..." state
+  // below still gives feedback while the request is in flight).
   const {
     isPullLoading,
-    pullDistance,
     handleTouchStart,
     handleTouchMove,
     handleTouchEnd,
@@ -107,21 +109,6 @@ export const MainLayout: React.FC = () => {
       onTouchEnd={handleTouchEnd}
       className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto shadow-2xl relative"
     >
-      {/* Pull to Refresh Indicator */}
-      {pullDistance > 0 && (
-        <div
-          className="absolute left-0 right-0 flex justify-center items-center pointer-events-none z-50 transition-all duration-75"
-          style={{
-            top: `${Math.max(10, pullDistance - 20)}px`,
-            opacity: pullDistance / 60,
-          }}
-        >
-          <div className="bg-white p-2 rounded-full shadow-md border border-slate-100 flex items-center justify-center animate-spin">
-            <span className="text-green-600 text-xs font-bold">↻</span>
-          </div>
-        </div>
-      )}
-
       {/* Pull Loading Overlay */}
       {isPullLoading && (
         <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-50 flex items-center justify-center pointer-events-none">

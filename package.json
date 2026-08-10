@@ -6,6 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:android": "npm run build && npx cap sync && npx @capacitor/assets generate --android && npx cap open android",
+    "build:ios": "npm run build && npx cap sync && npx @capacitor/assets generate --ios && npx cap open ios",
+    "cap:sync": "npx cap sync",
+    "cap:update": "npx cap update",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "lint": "tsc --noEmit && eslint .",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\" \"index.html\"",
@@ -13,9 +19,11 @@
   },
   "dependencies": {
     "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.0",
     "@capacitor/geolocation": "^8.2.0",
+    "@capacitor/ios": "^8.4.1",
     "@google/genai": "^1.52.0",
     "@react-google-maps/api": "^2.20.8",
     "fuse.js": "^7.4.2",
@@ -27,6 +35,8 @@
     "swr": "^2.4.1"
   },
   "devDependencies": {
+    "@capacitor/assets": "^1.0.0",
+    "@capacitor/cli": "^8.4.1",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
