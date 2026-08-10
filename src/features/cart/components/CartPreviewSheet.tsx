@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ShoppingCart, Trash2, X, Plus, Minus, ChevronRight } from 'lucide-react';
 import { CartItem } from '@/types';
 import { ConfirmationBottomSheet } from '@/shared/components/ConfirmationBottomSheet';
+import { useHardwareBack } from '@/services/backButton';
 
 interface CartPreviewSheetProps {
   showCartPreview: boolean;
@@ -30,6 +31,14 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
   checkoutButtonPrice
 }) => {
   const [showClearConfirm, setShowClearConfirm] = React.useState(false);
+
+  // The sheet stays mounted (visibility is prop-driven), so the back handler
+  // is only registered while it is actually showing. Android hardware back
+  // closes the sheet instead of exiting the app.
+  useHardwareBack(() => {
+    setShowCartPreview(false);
+    return true;
+  }, showCartPreview);
 
   return (
     <>

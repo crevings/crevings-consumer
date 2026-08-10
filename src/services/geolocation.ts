@@ -5,6 +5,7 @@
 // Every failure is normalized to a LocationError with a POSIX-style code, so
 // callers never have to sniff error message strings.
 
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { isCapacitorNative, openAppSettings as openLocationSettings } from "./permissions";
 
 export { isCapacitorNative, openLocationSettings };
@@ -14,8 +15,14 @@ export interface GeoPosition {
   lng: number;
 }
 
-/** Mirrors the GeolocationPositionError codes (1 = denied, 2 = unavailable, 3 = timeout). */
-export type LocationErrorCode = 1 | 2 | 3;
+/**
+ * Extended error codes:
+ *   1 = user denied permission
+ *   2 = position unavailable / unsupported
+ *   3 = request timed out
+ *   4 = device Location Services (GPS) turned off (permission granted but hardware disabled)
+ */
+export type LocationErrorCode = 1 | 2 | 3 | 4;
 
 export class LocationError extends Error {
   readonly code: LocationErrorCode;
@@ -31,6 +38,10 @@ export class LocationError extends Error {
 export const isLocationPermissionDenied = (err: unknown): boolean =>
   err instanceof LocationError && err.code === 1;
 
+/** True when GPS / Location Services are turned off at the device level. */
+export const isLocationServicesDisabled = (err: unknown): boolean =>
+  err instanceof LocationError && err.code === 4;
+
 /** True when a raw error (native or web) means the user denied access. */
 const isDenialError = (err: unknown): boolean => {
   if (err instanceof LocationError) return err.code === 1;
@@ -38,6 +49,57 @@ const isDenialError = (err: unknown): boolean => {
   // @capacitor/geolocation rejects with message-based denial text; the browser
   // API rejects with `code: 1` (already normalized above) or a PERMISSION_DENIED message.
   return msg.includes("denied") || msg.includes("permission");
+};
+
+/**
+ * Heuristic: when getCurrentPosition fails AFTER permission was granted,
+ * it usually means the device's Location Services toggle is OFF. The
+ * Capacitor plugin and browser API surface this as "position unavailable"
+ * with messages like "location disabled", "gps off", "unable to determine",
+ * etc. We catch those and map to code 4 so the UI can show "Turn on GPS".
+ */
+const isGpsOffError = (err: unknown): boolean => {
+  if (err instanceof LocationError) return err.code === 4;
+  const msg = err instanceof Error ? err.message.toLowerCase() : "";
+  return (
+    msg.includes("location disabled") ||
+    msg.includes("gps") ||
+    msg.includes("location request was denied") ||
+    msg.includes("unable to determine") ||
+    msg.includes("location unavailable") ||
+    msg.includes("location not available") ||
+    msg.includes("provider") ||
+    // Browser code 2 = POSITION_UNAVAILABLE — often means GPS hardware off
+    (err instanceof GeolocationPositionError && err.code === 2)
+  );
+};
+
+// ── Native plugin bridge: open Android's device Location Settings ──────────
+interface LocationSettingsPlugin {
+  openLocationSettings(): Promise<void>;
+}
+const LocationSettingsBridge = registerPlugin<LocationSettingsPlugin>("LocationSettings");
+
+/**
+ * Opens the device-level Location Settings screen (the system toggle to
+ * enable/disable GPS, Wi-Fi scanning, etc.). Distinct from openAppSettings()
+ * which opens the per-app permission page.
+ *
+ * - Android: fires ACTION_LOCATION_SOURCE_SETTINGS via a tiny native plugin.
+ * - iOS/web: falls back to openAppSettings (iOS has no direct GPS toggle intent).
+ */
+export const openDeviceLocationSettings = async (): Promise<void> => {
+  if (!isCapacitorNative()) return;
+  try {
+    if (Capacitor.getPlatform() === "android") {
+      await LocationSettingsBridge.openLocationSettings();
+      return;
+    }
+  } catch {
+    // fall through
+  }
+  // iOS / fallback — route to app settings (closest available)
+  await openLocationSettings();
 };
 
 const getBrowserPosition = (): Promise<GeoPosition> =>
@@ -49,9 +111,20 @@ const getBrowserPosition = (): Promise<GeoPosition> =>
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       (err) => {
-        const code: LocationErrorCode =
-          err.code === 1 || err.code === 2 || err.code === 3 ? err.code : 2;
-        reject(new LocationError(err.message || "Could not determine your location", code));
+        if (err.code === 1) {
+          reject(new LocationError(err.message || "Location permission denied", 1));
+        } else if (err.code === 2) {
+          // POSITION_UNAVAILABLE — very likely GPS is turned off
+          reject(
+            new LocationError(
+              "Your device's location service (GPS) appears to be turned off. Please enable it in your device settings.",
+              4
+            )
+          );
+        } else {
+          const code: LocationErrorCode = err.code === 3 ? 3 : 2;
+          reject(new LocationError(err.message || "Could not determine your location", code));
+        }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
@@ -65,6 +138,7 @@ const getBrowserPosition = (): Promise<GeoPosition> =>
  *   - code 1 → user denied permission (show settings guidance, never retry-loop)
  *   - code 2 → position unavailable / unsupported
  *   - code 3 → request timed out
+ *   - code 4 → device Location Services (GPS) turned off
  */
 export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
   // Native (Capacitor) path — triggers the proper Android/iOS permission dialog
@@ -87,11 +161,26 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
         // 'denied' (hard block) or 'prompt' (dialog dismissed) → treat as denial.
         throw new LocationError("Location permission denied", 1);
       }
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
-      return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      // Permission granted — now try to get the actual position.
+      // If this fails, it almost certainly means the device's GPS toggle is OFF.
+      try {
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+        return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      } catch (posErr) {
+        // Permission was granted but position fetch failed → GPS is off
+        if (isGpsOffError(posErr) || !isDenialError(posErr)) {
+          throw new LocationError(
+            "Your device's location service (GPS) is turned off. Please enable it to use this feature.",
+            4
+          );
+        }
+        throw posErr;
+      }
     } catch (e) {
+      // Re-throw our own LocationErrors directly
+      if (e instanceof LocationError) throw e;
       if (isDenialError(e)) {
-        throw e instanceof LocationError ? e : new LocationError("Location permission denied", 1);
+        throw new LocationError("Location permission denied", 1);
       }
       // Plugin unavailable / runtime failure — fall back to the webview's browser API.
       try {

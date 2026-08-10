@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { SavedAddress, Zone } from "@/types";
 import { deepEqual } from "@/utils/deepEqual";
 import { useVerifyToken } from "@/api/auth";
@@ -69,6 +69,30 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsServiceable(false);
     }
   }, [currentLocation]);
+
+  // Location-aware feed caches (home feed, items-under-99) key off the active
+  // area. Revalidate them whenever the location changes — not only when an
+  // address is saved to the backend — so a temporary map pick / default
+  // switch refreshes the feed instead of serving the previous area's cached
+  // results until a manual refresh.
+  const revalidateLocationFeeds = useCallback(() => {
+    mutate((key) =>
+      typeof key === "string" &&
+      (key.startsWith("/consumer/restaurants") || key.startsWith("/consumer/items-under-99"))
+    );
+  }, []);
+
+  // Skip the very first run: initial hydration sets currentLocation from the
+  // saved default address and the feeds already fetch on mount.
+  const isInitialLocationRef = useRef(true);
+  useEffect(() => {
+    if (!currentLocation) return;
+    if (isInitialLocationRef.current) {
+      isInitialLocationRef.current = false;
+      return;
+    }
+    revalidateLocationFeeds();
+  }, [currentLocation, revalidateLocationFeeds]);
 
   // Sync addresses from backend on load/verify
   useEffect(() => {
@@ -141,11 +165,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // of truth for every location-aware consumer endpoint (home feed,
         // filter, items-under-99, categories, menus, offers). Revalidate those
         // SWR caches against the new default address instead of serving stale
-        // results until a manual browser refresh.
-        mutate((key) =>
-          typeof key === "string" &&
-          (key.startsWith("/consumer/restaurants") || key.startsWith("/consumer/items-under-99"))
-        );
+        // results until a manual browser refresh. (The currentLocation effect
+        // above also revalidates, so a failed PUT can't leave the feed stale.)
+        revalidateLocationFeeds();
       }
     } catch (err) {
       console.error("Failed to save addresses to backend:", err);

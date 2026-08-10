@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { SWRConfig } from "swr";
 import { AppProvider } from "@/contexts/AppContext";
 import { UserProvider, useUser } from "@/contexts/UserContext";
@@ -7,6 +7,7 @@ import { RestaurantProvider } from "@/contexts/RestaurantContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AppRoutes } from "@/app/router";
 import { fetcher } from "@/api/fetcher";
+import { initBackButtonListener } from "@/services/backButton";
 import { LoginView } from "@/shared/components/LoginView";
 import { TermsAndConditionsView } from "@/features/profile/pages/TermsAndConditionsView";
 import { PrivacyPolicyView } from "@/features/profile/pages/PrivacyPolicyView";
@@ -74,6 +75,12 @@ const AppProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 };
 
 export default function App() {
+  // Android hardware back closes open overlays (voice search, map picker,
+  // cart sheet) before falling back to default history/exit navigation.
+  useEffect(() => {
+    initBackButtonListener();
+  }, []);
+
   return (
     <SWRConfig
       value={{

@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { createSpeechService, type SpeechErrorCode, type SpeechService } from '@/services/speech';
 import { cleanVoiceTranscript } from '@/utils/voiceQuery';
 import { isCapacitorNative, openAppSettings } from '@/services/permissions';
+import { useHardwareBack } from '@/services/backButton';
 
 interface VoiceSearchModalProps {
   onClose: () => void;
@@ -74,6 +75,12 @@ function pickSpeechLang(): string {
 }
 
 export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onResult }) => {
+  // Android hardware back closes the voice overlay instead of exiting the app.
+  useHardwareBack(() => {
+    onClose();
+    return true;
+  });
+
   const [status, setStatus] = useState<VoiceStatus>('checking');
   const [transcript, setTranscript] = useState('');
   const [errorCode, setErrorCode] = useState<SpeechErrorCode | null>(null);

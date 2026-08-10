@@ -3,6 +3,8 @@ import { X, MapPin, Bell, Settings } from 'lucide-react';
 import {
   requestLocationAndGetPosition,
   isLocationPermissionDenied,
+  isLocationServicesDisabled,
+  openDeviceLocationSettings,
 } from '@/services/geolocation';
 import { isCapacitorNative, openAppSettings } from '@/services/permissions';
 
@@ -22,6 +24,7 @@ export const PermissionManager = () => {
   // with an "Open Settings" escape hatch instead of silently moving on.
   const [deniedError, setDeniedError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [isGpsOff, setIsGpsOff] = useState(false);
 
   const permissions: PermissionDef[] = [
     {
@@ -85,11 +88,19 @@ export const PermissionManager = () => {
       // Stay on this step with an actionable error card. Denial is never
       // silently swallowed — the user gets a settings link (native) or a
       // retry, and an explicit "Skip for now" if they don't want it.
-      setDeniedError(
-        isLocationPermissionDenied(e)
-          ? 'Location access is turned off. Allow it in your device settings to see restaurants near you.'
-          : 'Could not access your location right now. Please try again.'
-      );
+      if (isLocationServicesDisabled(e)) {
+        setIsGpsOff(true);
+        setDeniedError(
+          'Your device\'s location service (GPS) is turned off. Please enable it to discover nearby restaurants.'
+        );
+      } else {
+        setIsGpsOff(false);
+        setDeniedError(
+          isLocationPermissionDenied(e)
+            ? 'Location access is turned off. Allow it in your device settings to see restaurants near you.'
+            : 'Could not access your location right now. Please try again.'
+        );
+      }
       setShow(true);
     } finally {
       setIsRequesting(false);
@@ -122,12 +133,12 @@ export const PermissionManager = () => {
 
         {/* Content */}
         <div className="p-8 flex flex-col items-center text-center relative">
-            <div className={`w-24 h-24 rounded-full ${deniedError ? 'bg-rose-50' : current.bgColor} flex items-center justify-center mb-6`}>
-              {deniedError ? <MapPin className="w-10 h-10 text-rose-500" /> : current.icon}
+            <div className={`w-24 h-24 rounded-full ${deniedError ? (isGpsOff ? 'bg-amber-50' : 'bg-rose-50') : current.bgColor} flex items-center justify-center mb-6`}>
+              {deniedError ? <MapPin className={`w-10 h-10 ${isGpsOff ? 'text-amber-500' : 'text-rose-500'}`} /> : current.icon}
             </div>
 
             <h3 className="text-2xl font-bold text-slate-900 mb-3">
-              {deniedError ? 'Location access needed' : current.title}
+              {deniedError ? (isGpsOff ? 'Turn on Location' : 'Location access needed') : current.title}
             </h3>
             <p className="text-slate-500 text-[15px] mb-8 leading-relaxed">
               {deniedError ?? current.desc}
@@ -135,7 +146,16 @@ export const PermissionManager = () => {
 
             {deniedError ? (
               <div className="flex flex-col gap-3 w-full">
-                {isCapacitorNative() && (
+                {isCapacitorNative() && isGpsOff && (
+                  <button
+                    onClick={() => void openDeviceLocationSettings()}
+                    className="w-full py-4 rounded-2xl font-bold text-white text-[15px] transition-transform active:scale-[0.98] bg-[#00bd6f] flex items-center justify-center gap-2"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Turn on GPS
+                  </button>
+                )}
+                {isCapacitorNative() && !isGpsOff && (
                   <button
                     onClick={() => void openAppSettings()}
                     className="w-full py-4 rounded-2xl font-bold text-white text-[15px] transition-transform active:scale-[0.98] bg-[#00bd6f] flex items-center justify-center gap-2"

@@ -82,6 +82,14 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
   onMicClick,
 }) => {
   const [query, setQuery] = useState(initialQuery);
+
+  // Sync internal query when initialQuery changes (e.g. from voice search
+  // setting AppContext.searchQuery while already on this route — React Router
+  // does NOT remount the component for same-route navigations, so useState's
+  // initial value is stale).
+  React.useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
   const debouncedQuery = useDebounce(query, 300);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
   const [isFilterOpen, setIsFilterOpen] = useState(false);

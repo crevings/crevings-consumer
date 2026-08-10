@@ -7,7 +7,10 @@ import {
   isCapacitorNative,
   openLocationSettings,
   requestLocationAndGetPosition,
+  isLocationServicesDisabled,
+  openDeviceLocationSettings,
 } from '@/services/geolocation';
+import { useHardwareBack } from '@/services/backButton';
 
 const libraries: ("places" | "marker" | "geometry")[] = ["places", "marker", "geometry"];
 
@@ -79,6 +82,12 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
   onClose, 
   onConfirm 
 }) => {
+  // Android hardware back closes the picker instead of exiting the app.
+  useHardwareBack(() => {
+    onClose();
+    return true;
+  });
+
   const [isMoving, setIsMoving] = useState(false);
   const [_permissionGranted, setPermissionGranted] = useState(false);
   const [useAccountDetails, setUseAccountDetails] = useState(true);
@@ -90,6 +99,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
   // Location permission modal state
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isGpsOff, setIsGpsOff] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
   const [mapCenter, setMapCenter] = useState<{ lat: number, lng: number }>(() => {
@@ -302,15 +312,30 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       setPermissionGranted(true);
       setShowLocationModal(false);
       setLocationError(null);
+      setIsGpsOff(false);
     } catch (error) {
       const err = error as { code?: number } | null;
       if (err?.code !== 1) console.error("Error getting location", error);
       setPermissionGranted(false);
-      setLocationError(
-        err?.code === 1
-          ? 'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
-          : 'Could not access your location. Please check your location settings and try again.'
-      );
+
+      if (isLocationServicesDisabled(error)) {
+        // GPS / Location Services toggle is OFF on the device
+        setIsGpsOff(true);
+        setLocationError(
+          'Your device\'s location service (GPS) is turned off. Please enable it to get your current location.'
+        );
+      } else if (err?.code === 1) {
+        // App-level permission denied
+        setIsGpsOff(false);
+        setLocationError(
+          'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
+        );
+      } else {
+        setIsGpsOff(false);
+        setLocationError(
+          'Could not access your location. Please check your location settings and try again.'
+        );
+      }
       setShowLocationModal(true);
     } finally {
       setIsLocating(false);
@@ -552,7 +577,10 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
             </div>
 
             <h3 className="text-[16px] font-bold text-slate-900 mt-4">
-              {locationError ? 'Location access needed' : 'Allow location access?'}
+              {locationError
+                ? (isGpsOff ? 'Turn on Location' : 'Location access needed')
+                : 'Allow location access?'
+              }
             </h3>
             <p className="text-[13px] text-slate-500 mt-1.5 leading-relaxed">
               {locationError
@@ -569,7 +597,16 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
 
             {locationError ? (
               <div className="mt-5 space-y-2">
-                {isCapacitorNative() && (
+                {isCapacitorNative() && isGpsOff && (
+                  <button
+                    onClick={openDeviceLocationSettings}
+                    disabled={isLocating}
+                    className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all disabled:opacity-60"
+                  >
+                    Turn on GPS
+                  </button>
+                )}
+                {isCapacitorNative() && !isGpsOff && (
                   <button
                     onClick={openLocationSettings}
                     disabled={isLocating}
@@ -586,7 +623,7 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
                   {isLocating ? 'Requesting...' : 'Try Again'}
                 </button>
                 <button
-                  onClick={() => { setShowLocationModal(false); setLocationError(null); }}
+                  onClick={() => { setShowLocationModal(false); setLocationError(null); setIsGpsOff(false); }}
                   className="w-full py-2 text-slate-400 text-[12px] font-semibold"
                 >
                   Cancel

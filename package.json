@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:android": "npm run build && npx cap sync && npx @capacitor/assets generate --android && npx cap open android",
+    "build:android": "npm run build && npx cap sync && npx cap update android && npx @capacitor/assets generate --android && npx cap open android",
     "build:ios": "npm run build && npx cap sync && npx @capacitor/assets generate --ios && npx cap open ios",
     "cap:sync": "npx cap sync",
     "cap:update": "npx cap update",
