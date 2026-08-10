@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ChevronLeft, Store, Star, SlidersHorizontal, ChevronRight } from "lucide-react";
+import { ChevronLeft, Store, SlidersHorizontal } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useItemsUnder99 } from "@/api/restaurant";
 import { MenuItem, Restaurant, FilterOptions } from "@/types";
@@ -8,6 +8,9 @@ import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 interface ItemsUnder99ViewProps {
   onBack: () => void;
   onRestaurantClick: (restaurant: Restaurant) => void;
+  /** Same contract as the home feed: add the item to cart (via the item sheet)
+   * and redirect to the restaurant page. */
+  onItemAdd: (restaurant: Restaurant, itemId: string) => void;
 }
 
 interface Under99Item {
@@ -77,6 +80,7 @@ const toRestaurant = (raw: Under99Item): Restaurant => ({
 export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
   onBack,
   onRestaurantClick,
+  onItemAdd,
 }) => {
   const {
     items,
@@ -99,6 +103,7 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
     () =>
       (items as Under99Item[])
         .map((raw) => ({
+          raw,
           menuItem: toMenuItem(raw),
           restaurant: toRestaurant(raw),
           restaurantName: raw.restaurant,
@@ -195,7 +200,7 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
         </button>
       </div>
 
-      {/* List */}
+      {/* Grid */}
       <div className="px-4 pt-5">
         {isLoading ? (
           <div className="py-20 flex flex-col items-center text-center">
@@ -214,34 +219,57 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
               </p>
             </div>
 
-            {/* Item cards — same presentation as the feed's list cards */}
-            <div className="flex flex-col gap-3 pb-2">
-              {visibleRows.map(({ menuItem, restaurant, restaurantName }) => (
-                <button
+            {/* Item cards — same image cards as the home "Item under ₹99" slider,
+                in a 2-column grid. Tapping the card opens the restaurant; ADD
+                adds the item to cart and redirects to the restaurant page. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 pb-2">
+              {visibleRows.map(({ raw, menuItem, restaurant, restaurantName }) => (
+                <div
                   key={menuItem.id}
-                  type="button"
                   onClick={() => onRestaurantClick(restaurant)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3.5 flex items-center justify-between gap-3 text-left hover:border-slate-300 active:scale-[0.99] transition-all"
+                  className="w-full flex flex-col cursor-pointer group"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-slate-900 truncate">
-                      {menuItem.name}
-                    </p>
-                    <p className="text-[13px] text-slate-500 truncate mt-0.5 flex items-center gap-1">
-                      <Store className="w-3.5 h-3.5 opacity-70 shrink-0" />
-                      <span className="truncate">{restaurantName}</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <div className="bg-[#00bd6f] text-white flex items-center gap-0.5 px-1.5 py-0.5 rounded-md">
-                      <Star className="w-2.5 h-2.5 fill-current" />
-                      <span className="font-bold text-[11px]">
-                        {menuItem.rating ?? 4.2}
+                  {/* Image Container */}
+                  <div className="relative rounded-[20px] overflow-hidden aspect-square border border-slate-100/50 mb-2.5 transform transition-all duration-300 group-active:scale-95 bg-slate-100">
+                    {raw.image && (
+                      <img
+                        loading="lazy"
+                        src={raw.image}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        alt={menuItem.name}
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                    {/* Price + ADD button */}
+                    <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-end justify-between z-10">
+                      <span className="text-white font-black text-[16px] leading-none">
+                        {raw.price}
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onItemAdd(restaurant, menuItem.id);
+                        }}
+                        className="bg-white text-[#00bd6f] border border-white px-3 py-1.5 rounded-[10px] text-[12px] font-bold shadow-md hover:bg-slate-50 active:scale-90 transition-transform"
+                      >
+                        ADD
+                      </button>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-slate-300" />
                   </div>
-                </button>
+
+                  {/* Details */}
+                  <div className="flex flex-col gap-0.5 px-0.5">
+                    <h4 className="text-slate-900 font-bold text-[15px] leading-snug line-clamp-1 group-hover:text-[#00bd6f] transition-colors">
+                      {menuItem.name}
+                    </h4>
+                    <div className="flex items-center gap-1 text-slate-500 text-[12px] font-medium leading-tight">
+                      <Store className="w-3 h-3 opacity-70" />
+                      <span className="truncate">{restaurantName}</span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
 

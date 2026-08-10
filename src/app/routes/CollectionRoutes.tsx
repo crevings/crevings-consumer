@@ -35,7 +35,7 @@ export const CategoryDetailRoute: React.FC = () => {
 
 export const ItemsUnder99Route: React.FC = () => {
   const navigate = useNavigate();
-  const { setSelectedRestaurant } = useRestaurant();
+  const { setSelectedRestaurant, handleItemAdd } = useRestaurant();
 
   return (
     <ItemsUnder99View
@@ -44,6 +44,7 @@ export const ItemsUnder99Route: React.FC = () => {
         setSelectedRestaurant(rest);
         navigate(`/restaurant/${rest.id}`);
       }}
+      onItemAdd={handleItemAdd}
     />
   );
 };
