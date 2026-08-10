@@ -69,4 +69,21 @@
   ::placeholder {
     color: #94a3b8;
   }
+
+  /* Fixed-scale UI: never let the browser auto-size text (orientation
+     change on mobile) or allow double-tap zoom on interactive elements. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  body {
+    touch-action: manipulation; /* kills double-tap zoom; pinch is blocked in index.html */
+  }
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
 }

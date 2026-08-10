@@ -2,7 +2,12 @@
 <html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      user-scalable=no + maximum-scale=1 fix the interface scale so the app
+      never zooms. This is the Capacitor Android shell's first line of defense;
+      the inline script below backs it up for WebViews that ignore the meta tag.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Food Delivery Orders</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,6 +64,40 @@
       } else {
         document.documentElement.classList.remove('dark');
       }
+    </script>
+    <script>
+      // Pinch-to-zoom / double-tap-zoom guard.
+      //
+      // Some Android WebViews ignore `user-scalable=no`, so block the gesture
+      // events directly: multi-touch moves (pinch), the legacy iOS gesture
+      // events, and desktop ctrl+wheel / ctrl+± zoom. Scroll and one-finger
+      // panning are untouched. Pinch gestures inside the embedded Google Maps
+      // canvas (.gm-style) are exempt — that's map navigation, not page zoom,
+      // and the map consumes the gesture so the page never scales.
+      (function () {
+        function insideMap(target) {
+          var el = target instanceof Element ? target : null;
+          while (el) {
+            if (el.classList && el.classList.contains('gm-style')) return true;
+            el = el.parentElement;
+          }
+          return false;
+        }
+        document.addEventListener('touchmove', function (e) {
+          if (e.touches && e.touches.length > 1 && !insideMap(e.target)) e.preventDefault();
+        }, { passive: false });
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (name) {
+          document.addEventListener(name, function (e) { e.preventDefault(); });
+        });
+        document.addEventListener('wheel', function (e) {
+          if (e.ctrlKey) e.preventDefault();
+        }, { passive: false });
+        document.addEventListener('keydown', function (e) {
+          if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '0' || e.key === '=')) {
+            e.preventDefault();
+          }
+        });
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

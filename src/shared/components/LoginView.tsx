@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MessageSquare, Loader2, ShieldCheck } from "lucide-react";
-import { post, put } from "@/api/fetcher";
+import { post, put, ResponseError } from "@/api/fetcher";
 import { AuthUser } from "@/types";
 
 interface LoginViewProps {
@@ -10,6 +10,26 @@ interface LoginViewProps {
 }
 
 type LoginStep = "input" | "otp" | "name";
+
+/**
+ * Map a failed OTP verification to a user-facing message.
+ *
+ * The backend distinguishes the two failure modes with an `error` code:
+ *   - OTP_INCORRECT → generic "Incorrect OTP"
+ *   - OTP_EXPIRED   → specific "OTP is expired"
+ * Everything else falls back to the generic message. The entered digits are
+ * NEVER echoed back and no hint about the expected code is shown — the raw
+ * backend text is not surfaced either.
+ */
+const otpFailureMessage = (err: unknown): string => {
+  const info = (err as ResponseError | null)?.info;
+  const code =
+    info && typeof info === "object" && "error" in info
+      ? (info as { error?: unknown }).error
+      : undefined;
+  if (code === "OTP_EXPIRED") return "OTP is expired";
+  return "Incorrect OTP";
+};
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
@@ -35,7 +55,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [otpError, setOtpError] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -46,7 +66,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const otpInputs = useRef<(HTMLInputElement | null)[]>([]);
 
   const handleOtpChange = (value: string, index: number) => {
-    setOtpError(false);
+    setOtpError(null);
     setApiError(null);
 
     const digitsOnly = value.replace(/\D/g, "");
@@ -79,7 +99,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
   const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>, startIndex: number) => {
     e.preventDefault();
-    setOtpError(false);
+    setOtpError(null);
     setApiError(null);
 
     const pastedText = e.clipboardData.getData("text").replace(/\D/g, "");
@@ -134,6 +154,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       const data = await post<{
         success: boolean;
         message?: string;
+        error?: string;
         user?: AuthUser;
         isNewUser?: boolean;
         deletionCancelled?: boolean;
@@ -143,7 +164,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
       });
 
       if (!data.success) {
-        throw new Error(data.message || "Invalid or expired OTP");
+        throw new Error(data.error === "OTP_EXPIRED" ? "OTP is expired" : "Incorrect OTP");
       }
 
       if (data.user) {
@@ -166,8 +187,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         }
       }
     } catch (err) {
-      setOtpError(true);
-      setApiError(err instanceof Error ? err.message : "OTP verification failed. Please try again.");
+      // Generic message for wrong codes, specific one for expired codes —
+      // never the backend text, never the entered digits.
+      setOtpError(otpFailureMessage(err));
+      setApiError(null);
     } finally {
       setIsVerifying(false);
     }
@@ -306,7 +329,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               ))}
             </div>
 
-            {otpError && <p className="text-rose-500 text-[13px] font-medium animate-in fade-in">Invalid code. Please try again (Use 123456).</p>}
+            {otpError && (
+              <p className="text-rose-500 text-[13px] font-medium animate-in fade-in">
+                {otpError}
+              </p>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, X } from 'lucide-react';
+import { Mic, MicOff, X, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { createSpeechService, type SpeechErrorCode, type SpeechService } from '@/services/speech';
 import { cleanVoiceTranscript } from '@/utils/voiceQuery';
+import { isCapacitorNative, openAppSettings } from '@/services/permissions';
 
 interface VoiceSearchModalProps {
   onClose: () => void;
@@ -295,9 +296,21 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({ onClose, onR
                 </button>
               </div>
 
-              <p className="text-gray-500 text-sm">
-                {status === 'unsupported' ? 'Close this to keep searching by text' : 'Tap the microphone to try again'}
-              </p>
+              {/* When the OS has hard-blocked the mic, retrying can't help —
+                  send the user to the app settings page instead (native only). */}
+              {status === 'denied' && isCapacitorNative() ? (
+                <button
+                  onClick={() => void openAppSettings()}
+                  className="mt-1 mb-1 w-full max-w-[220px] bg-[#00bd6f] text-white py-2.5 rounded-xl font-bold text-sm active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Open Settings
+                </button>
+              ) : (
+                <p className="text-gray-500 text-sm">
+                  {status === 'unsupported' ? 'Close this to keep searching by text' : 'Tap the microphone to try again'}
+                </p>
+              )}
             </>
           )}
         </div>
