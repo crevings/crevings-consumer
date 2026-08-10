@@ -274,7 +274,7 @@ export const CustomizationBottomSheet: React.FC<CustomizationBottomSheetProps> =
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] z-[70] flex flex-col max-h-[90vh]"
+        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] z-[70] flex flex-col max-h-[90vh] pb-safe"
       >
         {/* Top Section (Item Header) */}
         <div className="p-4 border-b border-gray-100 shrink-0 relative">

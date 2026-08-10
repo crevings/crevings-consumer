@@ -79,7 +79,7 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 overflow-hidden max-h-[85vh] flex flex-col"
+        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-safe-8 overflow-hidden max-h-[85vh] flex flex-col"
       >
         <div className="bg-[#00bd6f] p-6 pt-8 pb-10 relative shrink-0">
           <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '12px 12px' }}></div>

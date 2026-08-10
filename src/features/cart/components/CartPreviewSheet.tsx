@@ -48,7 +48,7 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 max-h-[75vh] flex flex-col overflow-hidden"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-safe-8 max-h-[75vh] flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-5 pb-3 border-b border-slate-100 shrink-0">

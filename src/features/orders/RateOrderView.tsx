@@ -517,7 +517,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
       </div>
 
       {/* Submit Section */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40">
+      <div className="fixed bottom-0 left-0 right-0 px-4 pt-4 pb-safe-bottom bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40">
         <button 
           onClick={handleSubmit}
           disabled={!isSubmitEnabled}

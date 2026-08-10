@@ -134,7 +134,7 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 pb-24`}>
+      <main className={`flex-1 pb-28`}>
         <Outlet />
       </main>
 
@@ -165,7 +165,7 @@ export const MainLayout: React.FC = () => {
       {/* Cart Snackbar (Sticky bottom checkout bar) */}
       {isTabRoute && cart.length > 0 && selectedRestaurant && (
         <FloatingCartBar
-          className="bottom-20"
+          className="bottom-4"
           totalItems={totalItems}
           totalPrice={totalPrice}
           onPreviewClick={() => setShowCartPreview(true)}

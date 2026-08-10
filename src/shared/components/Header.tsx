@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ currentLocation, onSearchClick, onMicClick, onLocationClick, onProfileClick, hideSearch }) => {
   return (
-    <div className="bg-white pb-4 pt-6 px-4 relative overflow-hidden">
+    <div className="bg-white pb-4 px-4 pt-safe-6 relative overflow-hidden">
       {/* Top Bar: Location Section */}
       <div className="flex justify-between items-center mb-6 relative z-10">
         <div 

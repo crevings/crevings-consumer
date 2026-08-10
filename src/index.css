@@ -87,3 +87,37 @@
     touch-action: manipulation;
   }
 }
+
+@layer utilities {
+  /*
+    Safe-area helpers for edge-to-edge Android (Capacitor 8.4 injects
+    env(safe-area-inset-*) into the WebView when the meta viewport has
+    viewport-fit=cover, which this app does). On Android 15+ the WebView
+    draws under the system bars, so fixed bottom bars / sheets / sticky
+    headers must add these insets or the Android gesture/3-button nav
+    overlaps the app's own buttons. On the web and older Android these
+    resolve to 0 and change nothing.
+
+    Composite variants (pt-safe-6, pb-safe-8, ...) bake the app's usual
+    padding into the calc() so they can replace the Tailwind utility 1:1
+    (never stack them on the same side — both set the same property).
+  */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pt-safe-4 {
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
+  }
+  .pt-safe-6 {
+    padding-top: calc(env(safe-area-inset-top) + 1.5rem);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-bottom {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+  .pb-safe-8 {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 2rem);
+  }
+}

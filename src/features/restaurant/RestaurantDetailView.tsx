@@ -445,7 +445,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-8 max-h-[70vh] flex flex-col"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] pb-safe-8 max-h-[70vh] flex flex-col"
             >
               <div className="flex items-center justify-between p-6 border-b border-gray-100 shrink-0">
                 <h2 className="text-[20px] font-bold text-black">Menu</h2>

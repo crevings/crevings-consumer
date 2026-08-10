@@ -100,7 +100,7 @@ export const SupportMessagingView: React.FC<SupportMessagingViewProps> = ({ onBa
       </div>
 
       {/* Input Area */}
-      <div className="bg-white p-3 border-t border-slate-100 shrink-0 pb-safe">
+      <div className="bg-white px-3 pt-3 border-t border-slate-100 shrink-0 pb-safe-bottom">
         <div className="flex items-end gap-2 bg-slate-100 rounded-2xl p-1.5 border border-slate-200 focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
           <button className="p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-xl transition-colors shrink-0">
             <Paperclip className="w-5 h-5" />

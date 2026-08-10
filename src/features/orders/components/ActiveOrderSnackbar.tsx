@@ -11,7 +11,7 @@ interface ActiveOrderSnackbarProps {
 
 export const ActiveOrderSnackbar: React.FC<ActiveOrderSnackbarProps> = ({ order, onClick }) => {
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-40 animate-[slideUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
+    <div className="fixed bottom-4 left-4 right-4 z-40 pb-safe animate-[slideUp_0.4s_cubic-bezier(0.16,1,0.3,1)]">
       <div 
         onClick={() => onClick(order)}
         className="bg-white rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center gap-3 active:scale-[0.98] transition-all cursor-pointer relative overflow-hidden group border border-slate-100"

@@ -795,7 +795,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
 
       {/* Bottom Cart Bar */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 bg-white border-t border-slate-100 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 bg-white border-t border-slate-100 px-4 pt-4 pb-safe-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           {orderType === "Delivery" && (!currentLocation || !currentLocation.address) ? (
             <button 
               onClick={() => navigate("/location", { state: { from: "/checkout" } })}

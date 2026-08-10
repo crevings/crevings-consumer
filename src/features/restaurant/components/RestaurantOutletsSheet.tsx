@@ -33,7 +33,7 @@ export const RestaurantOutletsSheet: React.FC<RestaurantOutletsSheetProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] overflow-hidden flex flex-col max-h-[80vh]"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[70] overflow-hidden flex flex-col max-h-[80vh] pb-safe"
           >
             <div className="p-4 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white">
               <h2 className="text-lg font-bold text-slate-900">Select Outlet</h2>

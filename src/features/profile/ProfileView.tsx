@@ -167,7 +167,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   return (
     <div className="bg-white min-h-screen animate-fadeInUp pb-12 font-sans relative">
        {/* App Bar */}
-       <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100">
+       <div className="bg-white px-4 pb-4 pt-safe-4 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform">
               <ChevronLeft className="w-6 h-6 text-slate-800" />
