@@ -7,7 +7,6 @@ import { RestaurantProvider } from "@/contexts/RestaurantContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { AppRoutes } from "@/app/router";
 import { fetcher } from "@/api/fetcher";
-import { staleTimeMiddleware } from "@/api/swrStaleTime";
 import { LoginView } from "@/shared/components/LoginView";
 import { TermsAndConditionsView } from "@/features/profile/pages/TermsAndConditionsView";
 import { PrivacyPolicyView } from "@/features/profile/pages/PrivacyPolicyView";
@@ -79,14 +78,19 @@ export default function App() {
     <SWRConfig
       value={{
         fetcher,
+        // No refetch on window focus (mobile — avoid noisy background polls);
+        // remounting a page (navigation back/forward) revalidates instead, so
+        // the feed/menu/category data is auto-refreshed on every visit without
+        // needing a hard refresh.
         revalidateOnFocus: false,
-        shouldRetryOnError: false,
+        // Bounded retries: a single transient failure (cold backend, timeout)
+        // must not permanently leave the feed empty until a hard refresh —
+        // SWR retries a couple of times, then self-heals on the next remount.
+        shouldRetryOnError: true,
+        errorRetryCount: 2,
         // Coalesce concurrent requests for the same key within 2s (L1 cache
-        // policy — see backend caching-strategy.md); per-hook staleTime lives
-        // in the api hooks and is enforced by the staleTime middleware (SWR
-        // itself has no staleTime option).
+        // policy — see backend caching-strategy.md).
         dedupingInterval: 2000,
-        use: [staleTimeMiddleware],
       }}
     >
       <AppProvider>

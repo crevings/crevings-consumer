@@ -392,7 +392,10 @@ export const CheckoutView: React.FC = () => {
           Good food is always being cooked! Add items from a restaurant to start your order.
         </p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => {
+              if (window.history.length > 1) navigate(-1);
+              else navigate("/");
+            }}
           className="px-6 py-3 bg-[#00bd6f] text-white rounded-xl text-sm font-bold shadow-md active:scale-95 transition-transform"
         >
           Browse Restaurants
@@ -408,8 +411,11 @@ export const CheckoutView: React.FC = () => {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
-              if (cart.length === 0) {
-                navigate("/");
+              // Pop back instead of pushing: pushing /restaurant/:id here kept
+              // Checkout on the history stack, so backing out of the restaurant
+              // returned to Checkout again - an endless loop.
+              if (window.history.length > 1) {
+                navigate(-1);
               } else if (selectedRestaurant) {
                 navigate(`/restaurant/${selectedRestaurant.id}`);
               } else {
@@ -558,7 +564,10 @@ loading="lazy"                         src={cartItem.item.image}
 
           <div className="mt-5 pt-4 border-t border-slate-100">
             <button
-              onClick={() => navigate("/")}
+              onClick={() => {
+              if (window.history.length > 1) navigate(-1);
+              else navigate("/");
+            }}
               className="w-full py-2.5 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-colors hover:bg-slate-100 hover:text-slate-900"
             >
               <Plus className="w-3 h-3" /> Add more items
@@ -1092,7 +1101,8 @@ loading="lazy"                         src={item.image || "https://images.unspla
             onConfirm={() => {
               setCart([]);
               setShowClearConfirm(false);
-              navigate("/");
+              if (window.history.length > 1) navigate(-1);
+              else navigate("/");
             }}
             onClose={() => setShowClearConfirm(false)}
           />
