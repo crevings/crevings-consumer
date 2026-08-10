@@ -191,10 +191,26 @@ loading="lazy"                     src={cat.image}
             className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 snap-x -mt-1"
           >
             {itemsUnder99.map((item) => {
-              // Only render items whose restaurant is known — never fabricate
-              // a fake restaurant object just to make the card clickable.
-              const rest = restaurants.find((r) => r.id === item.restaurantId);
-              if (!rest) return null;
+              // Resolve the restaurant from the loaded feed when available;
+              // otherwise build a minimal stub from the item's own payload.
+              // The feed is paginated by distance, so a restaurant beyond the
+              // first page used to hide ALL of its items here — the home
+              // slider rendered empty while "See all" showed the full list.
+              const rest =
+                restaurants.find((r) => r.id === item.restaurantId) || {
+                  id: item.restaurantId ?? "",
+                  name: item.restaurant || "Restaurant",
+                  cuisine: "",
+                  rating: 4.2,
+                  time: "",
+                  timeValue: 0,
+                  price: "",
+                  images: item.image ? [item.image] : [],
+                  distance: "",
+                  distanceValue: 0,
+                  offer: "",
+                  dietary: [],
+                };
 
               // Safety net on top of the backend's cheapest-option filter:
               // never surface an item that isn't actually under ₹99.
