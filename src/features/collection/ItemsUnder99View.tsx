@@ -93,6 +93,8 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
 
   // Client-side price guard as a safety net on top of the backend's
   // cheapest-option filter — an item priced at ₹99+ can never surface here.
+  // Nameless items are also skipped: without a name the card would show only
+  // the restaurant subtext, which reads as "restaurant names instead of items".
   const rows = useMemo(
     () =>
       (items as Under99Item[])
@@ -101,7 +103,12 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
           restaurant: toRestaurant(raw),
           restaurantName: raw.restaurant,
         }))
-        .filter(({ menuItem }) => menuItem.available !== false && menuItem.price < 99),
+        .filter(
+          ({ menuItem }) =>
+            menuItem.available !== false &&
+            menuItem.price < 99 &&
+            menuItem.name.trim().length > 0
+        ),
     [items]
   );
 

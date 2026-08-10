@@ -15,10 +15,14 @@ function useSelectedRestaurant(id: string | undefined) {
   const { selectedRestaurant, setSelectedRestaurant } = useRestaurant();
 
   React.useEffect(() => {
-    if (!selectedRestaurant && restaurants.length > 0 && id) {
-      const found = restaurants.find((r) => String(r.id) === id);
-      if (found) setSelectedRestaurant(found);
-    }
+    if (!id) return;
+    // Keep the context in sync with the URL: if a stale restaurant from a
+    // previous visit is still selected (navigating back, or deep-linking to a
+    // different restaurant), replace it so the page never shows the old one.
+    if (selectedRestaurant && String(selectedRestaurant.id) === id) return;
+    const found = restaurants.find((r) => String(r.id) === id);
+    if (found) setSelectedRestaurant(found);
+    else if (selectedRestaurant) setSelectedRestaurant(null);
   }, [id, restaurants, selectedRestaurant, setSelectedRestaurant]);
 
   return { restaurants, selectedRestaurant, isLoading };
@@ -34,6 +38,7 @@ export const RestaurantDetailRoute: React.FC = () => {
     hiddenRestaurantIds,
     setHiddenRestaurantIds,
     autoAddItem,
+    setAutoAddItem,
     setConfirmModal,
   } = useRestaurant();
   const { setCart, setMenuItems } = useCart();
@@ -44,7 +49,12 @@ export const RestaurantDetailRoute: React.FC = () => {
         restaurant={selectedRestaurant}
         // History-aware back: return to wherever the user came from (feed,
         // search, category, under-99 page); fall back to home on deep links.
-        onBack={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
+        // Clear the one-shot auto-add so it can't re-fire on the next visit.
+        onBack={() => {
+          setAutoAddItem(null);
+          if (window.history.length > 1) navigate(-1);
+          else navigate("/");
+        }}
         onCheckout={(cart, items) => {
           setCart(cart);
           setMenuItems(items);
