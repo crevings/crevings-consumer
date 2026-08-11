@@ -7,7 +7,6 @@ import {
   isCapacitorNative,
   openLocationSettings,
   requestLocationAndGetPosition,
-  isLocationServicesDisabled,
   openDeviceLocationSettings,
 } from '@/services/geolocation';
 import { useHardwareBack } from '@/services/backButton';
@@ -318,22 +317,17 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
       if (err?.code !== 1) console.error("Error getting location", error);
       setPermissionGranted(false);
 
-      if (isLocationServicesDisabled(error)) {
-        // GPS / Location Services toggle is OFF on the device
-        setIsGpsOff(true);
-        setLocationError(
-          'Your device\'s location service (GPS) is turned off. Please enable it to get your current location.'
-        );
-      } else if (err?.code === 1) {
+      if (err?.code === 1) {
         // App-level permission denied
         setIsGpsOff(false);
         setLocationError(
           'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
         );
       } else {
-        setIsGpsOff(false);
+        // GPS / Location Services toggle is OFF on the device
+        setIsGpsOff(true);
         setLocationError(
-          'Could not access your location. Please check your location settings and try again.'
+          'Your device\'s location service (GPS) is turned off. Please enable it to get your current location.'
         );
       }
       setShowLocationModal(true);

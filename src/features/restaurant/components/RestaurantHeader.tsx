@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Heart, Share2, Check, Star, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, Check, Star, CheckCircle2 } from 'lucide-react';
 import { Restaurant } from '@/types';
 import { getRestaurantAddress } from "@/utils/restaurantUtils";
 
@@ -13,7 +13,7 @@ interface RestaurantHeaderProps {
   onHide?: () => void;
   onUnhide?: () => void;
   selectedOutlet: string;
-  onOutletClick: () => void;
+  onOutletClick?: () => void;
 }
 
 export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeaderProps>> = ({
@@ -23,7 +23,6 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
   onFavourite,
   onRemoveFavourite,
   selectedOutlet,
-  onOutletClick,
   children
 }) => {
   const [isCopied, setIsCopied] = useState(false);
@@ -90,15 +89,9 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
               </h1>
             </div>
 
-            <button
-              onClick={onOutletClick}
-              className="flex items-center gap-0.5 text-[11px] text-slate-700 font-bold active:scale-95 transition-transform text-left"
-            >
-              <span>
-                {selectedOutlet || getRestaurantAddress(restaurant)} • {restaurant.distance} • {restaurant.time}
-              </span>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-            </button>
+            <p className="text-[11px] text-slate-700 font-bold text-left">
+              {selectedOutlet || getRestaurantAddress(restaurant)} • {restaurant.distance} • {restaurant.time}
+            </p>
 
             {restaurant.cuisine && (
               <p className="text-[10px] text-slate-500 font-medium">

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, MapPin, Bell, Settings } from 'lucide-react';
 import {
   requestLocationAndGetPosition,
-  isLocationPermissionDenied,
-  isLocationServicesDisabled,
   openDeviceLocationSettings,
 } from '@/services/geolocation';
 import { isCapacitorNative, openAppSettings } from '@/services/permissions';
@@ -85,20 +83,16 @@ export const PermissionManager = () => {
       await requestCurrentPermission();
       advance();
     } catch (e) {
-      // Stay on this step with an actionable error card. Denial is never
-      // silently swallowed — the user gets a settings link (native) or a
-      // retry, and an explicit "Skip for now" if they don't want it.
-      if (isLocationServicesDisabled(e)) {
+      const err = e as { code?: number } | null;
+      if (err?.code === 1) {
+        setIsGpsOff(false);
+        setDeniedError(
+          'Location access is turned off. Allow it in your device settings to see restaurants near you.'
+        );
+      } else {
         setIsGpsOff(true);
         setDeniedError(
           'Your device\'s location service (GPS) is turned off. Please enable it to discover nearby restaurants.'
-        );
-      } else {
-        setIsGpsOff(false);
-        setDeniedError(
-          isLocationPermissionDenied(e)
-            ? 'Location access is turned off. Allow it in your device settings to see restaurants near you.'
-            : 'Could not access your location right now. Please try again.'
         );
       }
       setShow(true);

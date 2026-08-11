@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, { createContext, useContext, useState, useMemo, useEffect } from "react";
 import { CartItem, MenuItem } from "@/types";
 import { consolidateCart } from "@/utils/cartUtils";
+import { useLocation } from "@/contexts/LocationContext";
 
 interface CartContextType {
   cart: CartItem[];
@@ -21,8 +22,17 @@ interface CartProviderProps {
 export const CartProvider: React.FC<CartProviderProps> = ({ children, onNavigateToCheckout }) => {
   const [rawCart, setRawCart] = useState<CartItem[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const { isServiceable, checkingServiceability } = useLocation();
 
   const cart = useMemo(() => consolidateCart(rawCart), [rawCart]);
+
+  // Erase cart whenever location changes to an unserviceable area
+  useEffect(() => {
+    if (!isServiceable && !checkingServiceability) {
+      setRawCart([]);
+      setMenuItems([]);
+    }
+  }, [isServiceable, checkingServiceability]);
 
   const setCart: React.Dispatch<React.SetStateAction<CartItem[]>> = (action) => {
     setRawCart((prev) => {

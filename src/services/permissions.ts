@@ -13,7 +13,7 @@
  *   - Web: no-op (permissions are reset from the browser's site settings).
  */
 
-import { registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 interface AppSettingsPlugin {
   open(): Promise<void>;
@@ -22,14 +22,8 @@ interface AppSettingsPlugin {
 /** Native Android bridge — registered from MainActivity.onCreate(). */
 const AppSettings = registerPlugin<AppSettingsPlugin>("AppSettings");
 
-interface CapacitorGlobal {
-  isNativePlatform?: () => boolean;
-}
-
 export const isCapacitorNative = (): boolean => {
-  if (typeof window === "undefined") return false;
-  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
-  return !!cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform();
+  return Capacitor.isNativePlatform();
 };
 
 /** Opens the OS app-settings page for this app (native only). No-op on web. */

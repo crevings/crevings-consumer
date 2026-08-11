@@ -165,7 +165,7 @@ export const MainLayout: React.FC = () => {
       {/* Cart Snackbar (Sticky bottom checkout bar) */}
       {isTabRoute && cart.length > 0 && selectedRestaurant && (
         <FloatingCartBar
-          className="bottom-4"
+          className="bottom-3"
           totalItems={totalItems}
           totalPrice={totalPrice}
           onPreviewClick={() => setShowCartPreview(true)}

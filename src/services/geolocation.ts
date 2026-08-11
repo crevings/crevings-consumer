@@ -38,9 +38,13 @@ export class LocationError extends Error {
 export const isLocationPermissionDenied = (err: unknown): boolean =>
   err instanceof LocationError && err.code === 1;
 
-/** True when GPS / Location Services are turned off at the device level. */
-export const isLocationServicesDisabled = (err: unknown): boolean =>
-  err instanceof LocationError && err.code === 4;
+/** True when GPS / Location Services are turned off at the device level (or any non-denial location failure). */
+export const isLocationServicesDisabled = (err: unknown): boolean => {
+  if (err instanceof LocationError) {
+    return err.code !== 1;
+  }
+  return !isLocationPermissionDenied(err);
+};
 
 /** True when a raw error (native or web) means the user denied access. */
 const isDenialError = (err: unknown): boolean => {
