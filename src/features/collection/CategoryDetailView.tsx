@@ -96,7 +96,10 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
                     rating: item.rating || 4.2,
                     ratingCount: "100+",
                     image: item.image || "",
-                    isVeg: Boolean(item.veg),
+                    dietaryType: item.dietaryType || (item.veg ? "Veg" : ""),
+                    isVeg: item.dietaryType === "Veg" || Boolean(item.veg),
+                    isEgg: item.dietaryType === "Egg",
+                    isNonVeg: item.dietaryType === "Non-Veg",
                     category: "Special",
                   }}
                   quantity={0}

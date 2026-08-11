@@ -207,8 +207,10 @@ export interface DishSearchRecord {
   description?: string;
   price?: number;
   images?: string[];
+  dietaryType?: string;
   isVeg?: boolean;
   isEgg?: boolean;
+  isNonVeg?: boolean;
   restaurant: {
     id: string;
     name: string;

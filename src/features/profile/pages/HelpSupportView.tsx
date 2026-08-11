@@ -75,8 +75,8 @@ export const HelpSupportView: React.FC<HelpSupportViewProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans relative">
       {/* Header */}
-      <div className="bg-white pt-safe pb-4 px-4 sticky top-0 z-20">
-        <div className="flex items-center gap-4 mt-4">
+      <div className="bg-white py-3 px-4 sticky top-0 z-20 border-b border-slate-100">
+        <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">
             <ArrowLeft className="w-[22px] h-[22px] text-slate-800" strokeWidth={2.5} />
           </button>

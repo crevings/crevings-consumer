@@ -25,13 +25,11 @@ interface OrderCardProps {
 
 const OrderCardUnmemoized: React.FC<OrderCardProps> = ({ 
   order, 
-  review, 
-  onRateClick, 
+  review: _review, 
+  onRateClick: _onRateClick, 
   onViewDetailsClick,
   onReorderClick
 }) => {
-  const isCompleted = (order.status as string) === 'Completed' || (order.status as string) === 'COMPLETED' || (order.status as string) === 'DELIVERED';
-  const isCancelled = (order.status as string) === 'Cancelled' || (order.status as string) === 'CANCELLED';
   const isActive = order.status === 'Active';
 
   const getTypeConfig = (type: OrderType) => {
@@ -158,39 +156,12 @@ const OrderCardUnmemoized: React.FC<OrderCardProps> = ({
       </div>
 
       <div className="flex gap-2.5">
-        {!isCancelled && (
-          <button 
-            onClick={() => onViewDetailsClick?.(order)}
-            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors border border-slate-200 active:scale-95"
-          >
-            Details
-          </button>
-        )}
-        
         <button 
           onClick={() => onReorderClick?.(order)}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors border border-slate-200 active:scale-95"
+          className="w-full flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors border border-slate-200 active:scale-95"
         >
           Reorder
         </button>
-
-        {isCompleted && (
-          (order.isRated || review) ? (
-            <button 
-              disabled
-              className="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 text-slate-400 py-2.5 rounded-xl text-[13px] font-medium border border-slate-200 cursor-not-allowed"
-            >
-              Rated
-            </button>
-          ) : (
-            <button 
-              onClick={() => onRateClick?.(order)}
-              className="flex-1 flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl text-[13px] font-medium transition-colors border border-slate-200 active:scale-95"
-            >
-              Rate Order
-            </button>
-          )
-        )}
       </div>
     </div>
   );

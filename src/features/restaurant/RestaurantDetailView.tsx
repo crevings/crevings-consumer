@@ -240,9 +240,9 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
   let filteredMenu = menuItems.filter(item => {
     if (searchQuery && !normalizeSearchText(item.name).includes(normalizeSearchText(searchQuery))) return false;
-    if (isFilterActive('Pure Veg') && !item.isVeg) return false;
-    if (isFilterActive('Non Veg') && (item.isVeg || item.isEgg)) return false;
-    if (isFilterActive('Egg') && !item.isEgg) return false;
+    if (isFilterActive('Pure Veg') && item.dietaryType !== 'Veg' && !item.isVeg) return false;
+    if (isFilterActive('Non Veg') && item.dietaryType !== 'Non-Veg' && !item.isNonVeg) return false;
+    if (isFilterActive('Egg') && item.dietaryType !== 'Egg' && !item.isEgg) return false;
     if (isFilterActive('Ratings 4.0+') && item.rating < 4.0) return false;
     if (isFilterActive('Buy 1 Get 1') && !item.hasOffer) return false;
     return true;

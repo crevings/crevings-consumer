@@ -126,6 +126,7 @@ function useAllDishes(restaurants: Restaurant[], enabled: boolean) {
           if (!itemId || seen.has(dedupeKey)) return;
           seen.add(dedupeKey);
 
+          const dt = item?.dietaryType ?? "";
           records.push({
             itemId,
             name: item?.name ?? "",
@@ -133,8 +134,10 @@ function useAllDishes(restaurants: Restaurant[], enabled: boolean) {
             description: item?.description,
             price: item?.price,
             images: item?.image ? [item.image] : [],
-            isVeg: item?.isVeg,
-            isEgg: item?.isEgg,
+            dietaryType: dt,
+            isVeg: dt ? dt === "Veg" : item?.isVeg === true,
+            isEgg: dt ? dt === "Egg" : item?.isEgg === true,
+            isNonVeg: dt ? dt === "Non-Veg" : item?.isNonVeg === true,
             restaurant: { id: restaurantId, name: restaurantName, distanceKm },
           });
         });

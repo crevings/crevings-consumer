@@ -9,8 +9,10 @@ interface MenuItem {
   rating: number;
   ratingCount: string;
   image: string;
+  dietaryType?: string;
   isVeg: boolean;
   isEgg?: boolean;
+  isNonVeg?: boolean;
   description?: string;
   category: string;
   bestseller?: boolean;
@@ -81,9 +83,17 @@ export const MenuItemDetailBottomSheet: React.FC<MenuItemDetailBottomSheetProps>
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     {/* Veg/Non-Veg Icon */}
-                    <div className={`w-4 h-4 border flex items-center justify-center rounded-sm mb-2 ${item.isVeg ? 'border-green-500' : item.isEgg ? 'border-yellow-500' : 'border-red-500'}`}>
-                      <div className={`w-2 h-2 rounded-full ${item.isVeg ? 'bg-green-500' : item.isEgg ? 'bg-yellow-500' : 'bg-red-500'}`} />
-                    </div>
+                    {(item.dietaryType === 'Veg' || item.dietaryType === 'Non-Veg' || item.dietaryType === 'Egg' || item.isVeg || item.isEgg || item.isNonVeg) && (
+                      <div className={`w-4 h-4 border flex items-center justify-center rounded-sm mb-2 ${
+                        item.dietaryType === 'Veg' || (item.isVeg && item.dietaryType !== 'Non-Veg' && item.dietaryType !== 'Egg' && item.dietaryType !== '') ? 'border-green-500' :
+                        item.dietaryType === 'Egg' || item.isEgg ? 'border-yellow-500' : 'border-red-500'
+                      }`}>
+                        <div className={`w-2 h-2 rounded-full ${
+                          item.dietaryType === 'Veg' || (item.isVeg && item.dietaryType !== 'Non-Veg' && item.dietaryType !== 'Egg' && item.dietaryType !== '') ? 'bg-green-500' :
+                          item.dietaryType === 'Egg' || item.isEgg ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                      </div>
+                    )}
                     
                     <h2 className="text-xl font-bold text-slate-900 leading-tight mb-2">{item.name}</h2>
                     

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { SWRConfig } from "swr";
 import { AppProvider } from "@/contexts/AppContext";
 import { UserProvider, useUser } from "@/contexts/UserContext";
@@ -11,35 +11,69 @@ import { initBackButtonListener } from "@/services/backButton";
 import { LoginView } from "@/shared/components/LoginView";
 import { TermsAndConditionsView } from "@/features/profile/pages/TermsAndConditionsView";
 import { PrivacyPolicyView } from "@/features/profile/pages/PrivacyPolicyView";
+import { RefundPolicyView } from "@/features/profile/pages/RefundPolicyView";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoadingAuth, onLoginSuccess } = useUser();
   const location = useLocation();
   const navigate = useNavigate();
+  const [minLoadingDone, setMinLoadingDone] = useState(false);
 
-  if (isLoadingAuth) {
+  useEffect(() => {
+    return initBackButtonListener();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinLoadingDone(true);
+    }, 2000); // 2s compulsory display
+    return () => clearTimeout(timer);
+  }, []);
+
+  const showLoadingScreen = isLoadingAuth || !minLoadingDone;
+
+  if (showLoadingScreen) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        <div className="w-10 h-10 border-3 border-slate-200 border-t-[#00bd6f] rounded-full animate-spin mb-3" />
-        <p className="text-slate-500 font-bold text-sm">Loading...</p>
+      <div className="fixed inset-0 bg-[#00bd6f] z-[99999] flex flex-col items-center justify-between overflow-hidden p-0 m-0 border-none outline-none select-none">
+        <img
+          src="/app loading screen.svg"
+          alt="Crevings Loading"
+          className="absolute inset-0 w-full h-full object-cover object-center border-none p-0 m-0 outline-none"
+        />
+
+        {/* Bottom Network Notice Overlay */}
+        <div className="relative z-10 mt-auto mb-8 px-5 w-full max-w-sm">
+          <div className="bg-black/35 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white shadow-2xl text-center space-y-1.5">
+            <div className="flex items-center justify-center gap-2 text-amber-300 font-bold text-xs tracking-wide">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span>Temporary Network Issue</span>
+            </div>
+            <p className="text-[11px] text-white/95 leading-relaxed font-medium">
+              Crevings may not open properly on some Wi-Fi networks, especially Airtel Wi-Fi. Please switch to mobile data to continue using the app. We’re working to fix this issue. Sorry for the inconvenience.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
     // Legal pages must be reachable BEFORE login (they are linked from the
-    // login screen — Terms of Service / Privacy Policy).
+    // login screen — Terms of Service / Privacy Policy / Refund Policy).
     const isTerms = location.pathname === "/terms" || location.pathname === "/terms-and-conditions";
     const isPrivacy = location.pathname === "/privacy-policy";
+    const isRefund = location.pathname === "/refund-policy";
 
-    if (isTerms || isPrivacy) {
+    if (isTerms || isPrivacy || isRefund) {
       return (
         <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto shadow-2xl relative">
           {isTerms ? (
             <TermsAndConditionsView onBack={() => navigate(-1)} />
-          ) : (
+          ) : isPrivacy ? (
             <PrivacyPolicyView onBack={() => navigate(-1)} />
+          ) : (
+            <RefundPolicyView onBack={() => navigate(-1)} />
           )}
         </div>
       );

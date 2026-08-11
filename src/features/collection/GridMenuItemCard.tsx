@@ -72,15 +72,21 @@ const GridMenuItemCardUnmemoized: React.FC<GridMenuItemCardProps> = ({ item, qua
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
                {/* Veg/Nonveg/Egg indicator & Serves */}
                <div className="flex items-center gap-1 px-1.5 py-[3px] rounded-full border border-slate-200 bg-white">
-                   <div className={`w-2.5 h-2.5 border flex items-center justify-center rounded-[2px] ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-                      {item.isVeg ? (
-                        <div className="w-1 h-1 rounded-full bg-green-600" />
-                      ) : item.isEgg ? (
-                        <div className="w-1 h-1 rounded-full bg-yellow-500" />
-                      ) : (
-                        <div className="w-0 h-0 border-l-[2px] border-l-transparent border-r-[2px] border-r-transparent border-b-[3px] border-b-red-600" />
-                      )}
-                   </div>
+                   {(item.dietaryType === 'Veg' || item.dietaryType === 'Non-Veg' || item.dietaryType === 'Egg' || item.isVeg || item.isEgg || item.isNonVeg) && (
+                     item.dietaryType === 'Veg' || (item.isVeg && item.dietaryType !== 'Non-Veg' && item.dietaryType !== 'Egg' && item.dietaryType !== '') ? (
+                       <div className="w-2.5 h-2.5 border border-green-600 flex items-center justify-center rounded-[2px]">
+                         <div className="w-1 h-1 rounded-full bg-green-600" />
+                       </div>
+                     ) : item.dietaryType === 'Egg' || item.isEgg ? (
+                       <div className="w-2.5 h-2.5 border border-yellow-500 flex items-center justify-center rounded-[2px]">
+                         <div className="w-1 h-1 rounded-full bg-yellow-500" />
+                       </div>
+                     ) : (
+                       <div className="w-2.5 h-2.5 border border-red-600 flex items-center justify-center rounded-[2px]">
+                         <div className="w-0 h-0 border-l-[2px] border-l-transparent border-r-[2px] border-r-transparent border-b-[3px] border-b-red-600" />
+                       </div>
+                     )
+                   )}
                    <span className="text-[9px] font-bold text-slate-700">
                      Serves 1
                    </span>

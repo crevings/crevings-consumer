@@ -60,19 +60,24 @@ const dishRestaurant = (dish: DishSearchRecord): Restaurant => ({
 });
 
 /** Shape a dish record for the GridMenuItemCard. */
-const dishToMenuItem = (dish: DishSearchRecord): MenuItem => ({
-  id: dish.itemId,
-  name: dish.name,
-  price: dish.price ?? 0,
-  rating: 0,
-  ratingCount: '0',
-  image: dish.images?.[0] ?? '',
-  isVeg: dish.isVeg ?? false,
-  isEgg: dish.isEgg,
-  description: dish.description,
-  category: dish.category || 'Special',
-  available: true,
-});
+const dishToMenuItem = (dish: DishSearchRecord): MenuItem => {
+  const dt = dish.dietaryType ?? "";
+  return {
+    id: dish.itemId,
+    name: dish.name,
+    price: dish.price ?? 0,
+    rating: 0,
+    ratingCount: '0',
+    image: dish.images?.[0] ?? '',
+    dietaryType: dt,
+    isVeg: dt ? dt === 'Veg' : dish.isVeg === true,
+    isEgg: dt ? dt === 'Egg' : dish.isEgg === true,
+    isNonVeg: dt ? dt === 'Non-Veg' : dish.isNonVeg === true,
+    description: dish.description,
+    category: dish.category || 'Special',
+    available: true,
+  };
+};
 
 export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
   onBack,
@@ -161,14 +166,18 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
     let list = fuzzyDishes;
 
     if (quickFilters.veg) {
-      list = list.filter((d) => d.isVeg !== false);
+      list = list.filter((d) => (d.dietaryType ? d.dietaryType === 'Veg' : d.isVeg === true));
     }
     if (quickFilters.near) {
       list = list.filter((d) => (d.restaurant.distanceKm ?? Infinity) <= 15);
     }
 
     if (activeFilters.dietary === 'veg') {
-      list = list.filter((d) => d.isVeg !== false);
+      list = list.filter((d) => (d.dietaryType ? d.dietaryType === 'Veg' : d.isVeg === true));
+    } else if (activeFilters.dietary === 'non-veg') {
+      list = list.filter((d) => (d.dietaryType ? d.dietaryType === 'Non-Veg' : d.isNonVeg === true));
+    } else if (activeFilters.dietary === 'egg') {
+      list = list.filter((d) => (d.dietaryType ? d.dietaryType === 'Egg' : d.isEgg === true));
     }
     if (activeFilters.priceRange === 'under49') {
       list = list.filter((d) => (d.price ?? 0) <= 49);

@@ -54,6 +54,10 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
     }
   };
 
+  const bannerImage = (restaurant.images && restaurant.images.length > 0 && restaurant.images[0])
+    ? restaurant.images[0]
+    : (restaurant as any).image;
+
   return (
     <>
       {/* Top Navigation Bar */}
@@ -77,6 +81,17 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
             {isCopied ? <Check className="w-5 h-5 text-emerald-500 stroke-[2]" /> : <Share2 className="w-5 h-5 stroke-[2]" />}
           </button>
         </div>
+      </div>
+
+      {/* Restaurant Hero Banner Image */}
+      <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-100 mb-2">
+        <img
+          loading="lazy"
+          src={bannerImage}
+          alt={restaurant.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
       </div>
 
       {/* Restaurant Header Info */}

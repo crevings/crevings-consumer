@@ -1,9 +1,7 @@
-import React, { useMemo, useState } from "react";
-import { ChevronLeft, Store, SlidersHorizontal } from "lucide-react";
-import { AnimatePresence } from "motion/react";
+import React, { useMemo } from "react";
+import { ChevronLeft, Store } from "lucide-react";
 import { useItemsUnder99 } from "@/api/restaurant";
-import { MenuItem, Restaurant, FilterOptions } from "@/types";
-import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
+import { MenuItem, Restaurant } from "@/types";
 
 interface ItemsUnder99ViewProps {
   onBack: () => void;
@@ -50,10 +48,10 @@ const toMenuItem = (raw: Under99Item): MenuItem => {
     rating: raw.rating ?? 4.2,
     ratingCount: "",
     image: raw.image ?? "",
-    // Unknown dietary type (schema allows "") defaults to veg so the card
-    // doesn't mislabel items as non-veg.
-    isVeg: dietaryType !== "Non-Veg" && dietaryType !== "Egg",
+    dietaryType: dietaryType,
+    isVeg: dietaryType === "Veg",
     isEgg: dietaryType === "Egg",
+    isNonVeg: dietaryType === "Non-Veg",
     description: original?.description,
     category: original?.category ?? "Popular",
     bestseller: badges.includes("bestseller") || badges.includes("Bestseller"),
@@ -90,16 +88,9 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
     setSize,
   } = useItemsUnder99(12);
 
-  const [priceRange, setPriceRange] = useState<FilterOptions["priceRange"]>(null);
-  const [vegOnly, setVegOnly] = useState(false);
-  const [minRating, setMinRating] = useState(0);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-
   // Client-side price guard as a safety net on top of the backend's
   // cheapest-option filter — an item priced at ₹99+ can never surface here.
-  // Nameless items are also skipped: without a name the card would show only
-  // the restaurant subtext, which reads as "restaurant names instead of items".
-  const rows = useMemo(
+  const visibleRows = useMemo(
     () =>
       (items as Under99Item[])
         .map((raw) => ({
@@ -117,24 +108,10 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
     [items]
   );
 
-  const visibleRows = useMemo(() => {
-    return rows.filter(({ menuItem }) => {
-      if (priceRange === "under49" && menuItem.price > 49) return false;
-      if (priceRange === "49to99" && !(menuItem.price > 49 && menuItem.price <= 99)) return false;
-      if (vegOnly && !menuItem.isVeg) return false;
-      if (minRating > 0 && (menuItem.rating ?? 0) < minRating) return false;
-      return true;
-    });
-  }, [rows, priceRange, vegOnly, minRating]);
-
-  const togglePriceRange = (value: NonNullable<FilterOptions["priceRange"]>) => {
-    setPriceRange((prev) => (prev === value ? null : value));
-  };
-
   return (
     <div className="w-full min-h-screen bg-white pb-24 relative left-0 right-0 p-0 m-0">
       {/* Header matching the "Item under ₹99" pill style */}
-      <div className="bg-white border-b border-slate-100 px-4 pb-4 pt-safe-4 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="bg-white border-b border-slate-100 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button
           type="button"
           onClick={onBack}
@@ -150,54 +127,6 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
           </span>
           <span className="text-[#00bd6f]">₹99</span>
         </h1>
-      </div>
-
-      {/* Filter pills — client-side on the loaded under-99 items */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar px-4 pt-4 pb-1 items-center">
-        <button
-          type="button"
-          onClick={() => setIsFilterOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0 active:bg-slate-50"
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          Filter
-        </button>
-        <button
-          type="button"
-          onClick={() => togglePriceRange("under49")}
-          className={`flex items-center px-4 py-2 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${
-            priceRange === "under49"
-              ? "bg-green-50 border-green-500 text-green-700"
-              : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <span className="text-sm font-medium">₹49 & under</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => togglePriceRange("49to99")}
-          className={`flex items-center px-4 py-2 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${
-            priceRange === "49to99"
-              ? "bg-green-50 border-green-500 text-green-700"
-              : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <span className="text-sm font-medium">₹49 - ₹99</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setVegOnly((prev) => !prev)}
-          className={`flex items-center px-4 py-2 border rounded-full transition-all shrink-0 active:scale-95 shadow-sm ${
-            vegOnly
-              ? "bg-green-50 border-green-500 text-green-700"
-              : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
-          }`}
-        >
-          <div className="w-3.5 h-3.5 border border-green-600 flex items-center justify-center rounded-sm bg-white mr-2">
-            <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
-          </div>
-          <span className="text-sm font-bold">Veg</span>
-        </button>
       </div>
 
       {/* Grid */}
@@ -301,29 +230,6 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
           </div>
         )}
       </div>
-
-      <AnimatePresence>
-        {isFilterOpen && (
-          <FilterBottomSheet
-            onClose={() => setIsFilterOpen(false)}
-            initialFilters={{
-              maxTime: 60,
-              maxDistance: 15,
-              minRating: 1,
-              dietary: vegOnly ? "veg" : "all",
-              offersOnly: false,
-              sortBy: "default",
-              priceRange,
-            }}
-            onApply={(f) => {
-              setPriceRange(f.priceRange ?? null);
-              setVegOnly(f.dietary === "veg");
-              setMinRating(f.minRating ?? 0);
-              setIsFilterOpen(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };

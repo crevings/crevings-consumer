@@ -409,10 +409,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </div>
         )}
 
-        <div className="mt-6 text-center border-t border-slate-100 pt-4">
-          <p className="text-[12px] text-slate-500 leading-relaxed">
-            By continuing, you agree to our<br />
-            <button type="button" onClick={() => navigate("/terms")} className="text-[#00bd6f] hover:underline font-medium">Terms of Service</button> and <button type="button" onClick={() => navigate("/privacy-policy")} className="text-[#00bd6f] hover:underline font-medium">Privacy Policy</button>
+        <div className="mt-5 text-center border-t border-slate-100 pt-3.5 px-2">
+          <p className="text-[8px] text-slate-400 leading-snug">
+            By continuing, you agree to receive important updates and promotional communications from CREVINGS via RCS, SMS, WhatsApp, email, and phone calls. By continuing, you also agree to our{" "}
+            <button type="button" onClick={() => navigate("/privacy-policy")} className="text-[#00bd6f] hover:underline font-semibold">Privacy Policy</button>,{" "}
+            <button type="button" onClick={() => navigate("/terms")} className="text-[#00bd6f] hover:underline font-semibold">Terms of Service</button>, and{" "}
+            <button type="button" onClick={() => navigate("/refund-policy")} className="text-[#00bd6f] hover:underline font-semibold">Refund Policy</button>.
           </p>
         </div>
       </div>

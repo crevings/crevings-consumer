@@ -354,8 +354,10 @@ export interface CategoryMenuItem {
   name: string;
   price: number;
   rating?: number;
+  dietaryType?: string;
   veg?: boolean;
   isEgg?: boolean;
+  isNonVeg?: boolean;
   image?: string;
 }
 

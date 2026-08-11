@@ -4,7 +4,7 @@ import {
   requestLocationAndGetPosition,
   openDeviceLocationSettings,
 } from '@/services/geolocation';
-import { isCapacitorNative, openAppSettings } from '@/services/permissions';
+import { isCapacitorNative } from '@/services/permissions';
 
 interface PermissionDef {
   id: 'location' | 'notification';
@@ -18,8 +18,7 @@ export const PermissionManager = () => {
   const [step, setStep] = useState(0);
   const [show, setShow] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  // Non-null when the OS denied the current permission — drives the error card
-  // with an "Open Settings" escape hatch instead of silently moving on.
+  // Non-null when location or notification request failed
   const [deniedError, setDeniedError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isGpsOff, setIsGpsOff] = useState(false);
@@ -87,12 +86,12 @@ export const PermissionManager = () => {
       if (err?.code === 1) {
         setIsGpsOff(false);
         setDeniedError(
-          'Location access is turned off. Allow it in your device settings to see restaurants near you.'
+          'Location access is required to see restaurants near you. Please allow location access.'
         );
       } else {
         setIsGpsOff(true);
         setDeniedError(
-          'Your device\'s location service (GPS) is turned off. Please enable it to discover nearby restaurants.'
+          'Your device\'s location service (GPS) is turned off. Please turn on GPS to discover nearby restaurants.'
         );
       }
       setShow(true);
@@ -142,28 +141,30 @@ export const PermissionManager = () => {
               <div className="flex flex-col gap-3 w-full">
                 {isCapacitorNative() && isGpsOff && (
                   <button
-                    onClick={() => void openDeviceLocationSettings()}
+                    onClick={async () => {
+                      try {
+                        await openDeviceLocationSettings();
+                        void handleAllow();
+                      } catch {
+                        // User dismissed in-app dialog
+                      }
+                    }}
                     className="w-full py-4 rounded-2xl font-bold text-white text-[15px] transition-transform active:scale-[0.98] bg-[#00bd6f] flex items-center justify-center gap-2"
                   >
                     <Settings className="w-4 h-4" />
                     Turn on GPS
                   </button>
                 )}
-                {isCapacitorNative() && !isGpsOff && (
-                  <button
-                    onClick={() => void openAppSettings()}
-                    className="w-full py-4 rounded-2xl font-bold text-white text-[15px] transition-transform active:scale-[0.98] bg-[#00bd6f] flex items-center justify-center gap-2"
-                  >
-                    <Settings className="w-4 h-4" />
-                    Open Settings
-                  </button>
-                )}
                 <button
                     onClick={() => void handleAllow()}
                     disabled={isRequesting}
-                    className="w-full py-4 rounded-2xl font-bold text-slate-700 text-[15px] transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:opacity-60"
+                    className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-transform active:scale-[0.98] disabled:opacity-60 ${
+                      isCapacitorNative() && isGpsOff
+                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        : 'bg-[#00bd6f] text-white'
+                    }`}
                 >
-                    {isRequesting ? 'Requesting...' : 'Try Again'}
+                    {isRequesting ? 'Requesting...' : (isGpsOff ? 'Try Again' : 'Allow Access')}
                 </button>
                 <button
                     onClick={advance}

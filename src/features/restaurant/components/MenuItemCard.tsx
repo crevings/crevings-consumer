@@ -19,6 +19,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
 }) => {
   const quantity = getItemQuantity(item.id);
 
+  const displayImage = item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=400&fit=crop';
+
   return (
     <div 
       className={`flex border border-gray-200 rounded-2xl p-2.5 bg-white relative transition-all ${
@@ -26,43 +28,31 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
       } ${item.available === false ? 'opacity-50 grayscale' : ''}`}
     >
       {/* Image side */}
-      {item.image && (
-        <div 
-          className="relative w-[130px] h-[130px] shrink-0 mr-3 cursor-pointer"
-          onClick={() => onItemClick(item)}
-        >
-          <img loading="lazy" src={item.image} alt={item.name} className="w-full h-full object-cover rounded-[14px]" />
-          
-          {/* Veg/Nonveg badge top-left */}
+      <div 
+        className="relative w-[130px] h-[130px] shrink-0 mr-3 cursor-pointer"
+        onClick={() => onItemClick(item)}
+      >
+        <img loading="lazy" src={displayImage} alt={item.name} className="w-full h-full object-cover rounded-[14px]" />
+        
+        {/* Veg/Nonveg badge top-left */}
+        {(item.dietaryType === 'Veg' || item.dietaryType === 'Non-Veg' || item.dietaryType === 'Egg' || item.isVeg || item.isEgg || item.isNonVeg) && (
           <div className="absolute top-1.5 left-1.5 bg-white p-0.5 rounded shadow-sm">
-            <div className={`w-3.5 h-3.5 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-              {item.isVeg ? (
+            {item.dietaryType === 'Veg' || (item.isVeg && item.dietaryType !== 'Non-Veg' && item.dietaryType !== 'Egg' && item.dietaryType !== '') ? (
+              <div className="w-3.5 h-3.5 border border-green-600 flex items-center justify-center rounded-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
-              ) : item.isEgg ? (
+              </div>
+            ) : item.dietaryType === 'Egg' || item.isEgg ? (
+              <div className="w-3.5 h-3.5 border border-yellow-500 flex items-center justify-center rounded-sm">
                 <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              ) : (
+              </div>
+            ) : (
+              <div className="w-3.5 h-3.5 border border-red-600 flex items-center justify-center rounded-sm">
                 <div className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[5px] border-b-red-600" />
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
-
-      {!item.image && (
-        <div className="relative shrink-0 mr-3 w-[24px]">
-          <div className="absolute top-1 bg-white p-0.5 rounded shadow-sm">
-            <div className={`w-3.5 h-3.5 border flex items-center justify-center rounded-sm ${item.isVeg ? 'border-green-600' : item.isEgg ? 'border-yellow-500' : 'border-red-600'}`}>
-              {item.isVeg ? (
-                <div className="w-1.5 h-1.5 rounded-full bg-green-600" />
-              ) : item.isEgg ? (
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              ) : (
-                <div className="w-0 h-0 border-l-[3.5px] border-l-transparent border-r-[3.5px] border-r-transparent border-b-[5px] border-b-red-600" />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Content side */}
       <div className="flex-1 flex flex-col pt-1">

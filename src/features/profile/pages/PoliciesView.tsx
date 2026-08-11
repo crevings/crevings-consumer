@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, FileText, Lock, RotateCcw } from 'lucide-react';
 import { BRAND } from "@/config/brand";
+import { RefundPolicyView } from './RefundPolicyView';
 
 interface PoliciesViewProps {
   onBack: () => void;
@@ -8,6 +9,10 @@ interface PoliciesViewProps {
 
 export const PoliciesView: React.FC<PoliciesViewProps> = ({ onBack }) => {
   const [selectedPolicy, setSelectedPolicy] = useState<number | null>(null);
+
+  if (selectedPolicy === 3) {
+    return <RefundPolicyView onBack={() => setSelectedPolicy(null)} />;
+  }
 
   const policies = [
     {

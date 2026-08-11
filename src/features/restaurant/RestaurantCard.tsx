@@ -120,13 +120,21 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
             
             <div className="px-1">
               <div className="flex items-start gap-1.5">
-                <div className={`mt-0.5 w-3.5 h-3.5 border flex items-center justify-center shrink-0 rounded-sm ${item.isVeg ? 'border-green-600' : 'border-red-600'}`}>
-                  {item.isVeg ? (
-                    <div className="w-2 h-2 rounded-full bg-green-600" />
+                {(item.dietaryType === 'Veg' || item.dietaryType === 'Non-Veg' || item.dietaryType === 'Egg' || item.isVeg || item.isEgg || item.isNonVeg) && (
+                  item.dietaryType === 'Veg' || (item.isVeg && item.dietaryType !== 'Non-Veg' && item.dietaryType !== 'Egg' && item.dietaryType !== '') ? (
+                    <div className="mt-0.5 w-3.5 h-3.5 border border-green-600 flex items-center justify-center shrink-0 rounded-sm">
+                      <div className="w-2 h-2 rounded-full bg-green-600" />
+                    </div>
+                  ) : item.dietaryType === 'Egg' || item.isEgg ? (
+                    <div className="mt-0.5 w-3.5 h-3.5 border border-yellow-500 flex items-center justify-center shrink-0 rounded-sm">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                    </div>
                   ) : (
-                    <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-red-600" />
-                  )}
-                </div>
+                    <div className="mt-0.5 w-3.5 h-3.5 border border-red-600 flex items-center justify-center shrink-0 rounded-sm">
+                      <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-b-[6px] border-b-red-600" />
+                    </div>
+                  )
+                )}
                 <h4 className="text-[12px] font-bold text-slate-800 leading-tight line-clamp-2">
                   {item.name}
                 </h4>

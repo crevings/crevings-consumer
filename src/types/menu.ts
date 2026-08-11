@@ -41,8 +41,10 @@ export interface MenuItem {
   rating: number;
   ratingCount: string;
   image: string;
+  dietaryType?: string;
   isVeg: boolean;
   isEgg?: boolean;
+  isNonVeg?: boolean;
   description?: string;
   category: string;
   bestseller?: boolean;

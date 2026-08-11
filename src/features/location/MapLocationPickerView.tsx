@@ -5,7 +5,6 @@ import { ArrowLeft, Search, MapPin, Home, Briefcase, X, Loader2, ChevronRight } 
 import { useJsApiLoader } from '@react-google-maps/api';
 import {
   isCapacitorNative,
-  openLocationSettings,
   requestLocationAndGetPosition,
   openDeviceLocationSettings,
 } from '@/services/geolocation';
@@ -321,13 +320,13 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
         // App-level permission denied
         setIsGpsOff(false);
         setLocationError(
-          'Location permission is turned off in your browser or device settings. Please allow location access and try again.'
+          'Location permission is required to drop the pin at your delivery address. Please allow location access.'
         );
       } else {
         // GPS / Location Services toggle is OFF on the device
         setIsGpsOff(true);
         setLocationError(
-          'Your device\'s location service (GPS) is turned off. Please enable it to get your current location.'
+          'Your device\'s location service (GPS) is turned off. Please turn on GPS to get your current location.'
         );
       }
       setShowLocationModal(true);
@@ -593,28 +592,31 @@ export const MapLocationPickerView: React.FC<MapLocationPickerViewProps> = ({
               <div className="mt-5 space-y-2">
                 {isCapacitorNative() && isGpsOff && (
                   <button
-                    onClick={openDeviceLocationSettings}
+                    onClick={async () => {
+                      try {
+                        await openDeviceLocationSettings();
+                        // User tapped "Turn on" in the in-app dialog → auto-retry
+                        handleLocateMe();
+                      } catch {
+                        // User dismissed the dialog — stay on the error screen
+                      }
+                    }}
                     disabled={isLocating}
                     className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all disabled:opacity-60"
                   >
                     Turn on GPS
                   </button>
                 )}
-                {isCapacitorNative() && !isGpsOff && (
-                  <button
-                    onClick={openLocationSettings}
-                    disabled={isLocating}
-                    className="w-full bg-[#00bd6f] hover:bg-[#00a862] text-white py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all disabled:opacity-60"
-                  >
-                    Open Settings
-                  </button>
-                )}
                 <button
                   onClick={handleAllowLocation}
                   disabled={isLocating}
-                  className="w-full border border-slate-200 text-slate-700 py-3 rounded-xl font-bold text-[13px] hover:bg-slate-50 active:scale-[0.99] transition-all disabled:opacity-60"
+                  className={`w-full ${
+                    isCapacitorNative() && isGpsOff
+                      ? 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      : 'bg-[#00bd6f] hover:bg-[#00a862] text-white shadow-md shadow-green-500/20'
+                  } py-3 rounded-xl font-bold text-[13px] active:scale-[0.99] transition-all disabled:opacity-60`}
                 >
-                  {isLocating ? 'Requesting...' : 'Try Again'}
+                  {isLocating ? 'Requesting...' : (isGpsOff ? 'Try Again' : 'Allow Access')}
                 </button>
                 <button
                   onClick={() => { setShowLocationModal(false); setLocationError(null); setIsGpsOff(false); }}

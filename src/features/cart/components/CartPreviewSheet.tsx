@@ -95,11 +95,19 @@ export const CartPreviewSheet: React.FC<CartPreviewSheetProps> = ({
                 <div key={cartItem.cartItemId} className="flex items-center gap-3 bg-slate-50/80 rounded-2xl p-3 border border-slate-100">
                   <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 relative bg-white">
                     <img loading="lazy" src={cartItem.item.image} alt={cartItem.item.name} className="w-full h-full object-cover" />
-                    <div className="absolute top-0.5 right-0.5 bg-white/90 p-0.5 rounded">
-                      <div className={`w-2 h-2 border flex items-center justify-center rounded-sm ${cartItem.item.isVeg ? 'border-green-500' : 'border-red-500'}`}>
-                        <div className={`w-1 h-1 rounded-full ${cartItem.item.isVeg ? 'bg-green-500' : 'bg-red-500'}`} />
+                    {(cartItem.item.dietaryType === 'Veg' || cartItem.item.dietaryType === 'Non-Veg' || cartItem.item.dietaryType === 'Egg' || cartItem.item.isVeg || cartItem.item.isEgg || cartItem.item.isNonVeg) && (
+                      <div className="absolute top-0.5 right-0.5 bg-white/90 p-0.5 rounded">
+                        <div className={`w-2 h-2 border flex items-center justify-center rounded-sm ${
+                          cartItem.item.dietaryType === 'Veg' || (cartItem.item.isVeg && cartItem.item.dietaryType !== 'Non-Veg' && cartItem.item.dietaryType !== 'Egg' && cartItem.item.dietaryType !== '') ? 'border-green-500' :
+                          cartItem.item.dietaryType === 'Egg' || cartItem.item.isEgg ? 'border-yellow-500' : 'border-red-500'
+                        }`}>
+                          <div className={`w-1 h-1 rounded-full ${
+                            cartItem.item.dietaryType === 'Veg' || (cartItem.item.isVeg && cartItem.item.dietaryType !== 'Non-Veg' && cartItem.item.dietaryType !== 'Egg' && cartItem.item.dietaryType !== '') ? 'bg-green-500' :
+                            cartItem.item.dietaryType === 'Egg' || cartItem.item.isEgg ? 'bg-yellow-500' : 'bg-red-500'
+                          }`} />
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-[13px] font-bold text-slate-900 truncate">{cartItem.item.name}</h4>

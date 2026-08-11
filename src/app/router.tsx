@@ -33,6 +33,7 @@ const RefundsView = lazy(() => import("@/features/profile/pages/RefundsView").th
 const PoliciesView = lazy(() => import("@/features/profile/pages/PoliciesView").then((m) => ({ default: m.PoliciesView })));
 const PrivacyPolicyView = lazy(() => import("@/features/profile/pages/PrivacyPolicyView").then((m) => ({ default: m.PrivacyPolicyView })));
 const TermsAndConditionsView = lazy(() => import("@/features/profile/pages/TermsAndConditionsView").then((m) => ({ default: m.TermsAndConditionsView })));
+const RefundPolicyView = lazy(() => import("@/features/profile/pages/RefundPolicyView").then((m) => ({ default: m.RefundPolicyView })));
 const LicensesView = lazy(() => import("@/features/profile/pages/LicensesView").then((m) => ({ default: m.LicensesView })));
 const GstDetailsView = lazy(() => import("@/features/profile/pages/GstDetailsView").then((m) => ({ default: m.GstDetailsView })));
 const AccessibilityView = lazy(() => import("@/features/profile/pages/AccessibilityView").then((m) => ({ default: m.AccessibilityView })));
@@ -150,7 +151,7 @@ export const AppRoutes: React.FC = () => {
               onLogout={logout}
               onHelpClick={() => navigate("/help")}
               onNotificationsClick={() => navigate("/notifications")}
-              onRefundsClick={() => navigate("/refunds")}
+              onRefundsClick={() => navigate("/refund-policy")}
               onPoliciesClick={() => navigate("/terms")}
               onPrivacyClick={() => navigate("/privacy-policy")}
               onLicensesClick={() => navigate("/licenses")}
@@ -262,6 +263,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="/help" element={<HelpSupportView onBack={() => navigate(-1)} />} />
         <Route path="/notifications" element={<NotificationsView onBack={() => navigate(-1)} />} />
         <Route path="/refunds" element={<RefundsView onBack={() => navigate(-1)} />} />
+        <Route path="/refund-policy" element={<RefundPolicyView onBack={() => navigate(-1)} />} />
         <Route path="/policies" element={<PoliciesView onBack={() => navigate(-1)} />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyView onBack={() => navigate(-1)} />} />
         <Route path="/terms" element={<TermsAndConditionsView onBack={() => navigate(-1)} />} />
