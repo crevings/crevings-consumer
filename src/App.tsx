@@ -9,10 +9,12 @@ import { AppRoutes } from "@/app/router";
 import { fetcher } from "@/api/fetcher";
 import { initBackButtonListener } from "@/services/backButton";
 import { LoginView } from "@/shared/components/LoginView";
-import { TermsAndConditionsView } from "@/features/profile/pages/TermsAndConditionsView";
-import { PrivacyPolicyView } from "@/features/profile/pages/PrivacyPolicyView";
-import { RefundPolicyView } from "@/features/profile/pages/RefundPolicyView";
+import { RotateDeviceOverlay } from "@/shared/components/RotateDeviceOverlay";
 import { useLocation, useNavigate } from "react-router-dom";
+
+const TermsAndConditionsView = React.lazy(() => import("@/features/profile/pages/TermsAndConditionsView").then(m => ({ default: m.TermsAndConditionsView })));
+const PrivacyPolicyView = React.lazy(() => import("@/features/profile/pages/PrivacyPolicyView").then(m => ({ default: m.PrivacyPolicyView })));
+const RefundPolicyView = React.lazy(() => import("@/features/profile/pages/RefundPolicyView").then(m => ({ default: m.RefundPolicyView })));
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoadingAuth, onLoginSuccess } = useUser();
@@ -67,27 +69,30 @@ const AppContent: React.FC = () => {
 
     if (isTerms || isPrivacy || isRefund) {
       return (
-        <div className="min-h-screen bg-white flex flex-col max-w-md mx-auto shadow-2xl relative">
-          {isTerms ? (
-            <TermsAndConditionsView onBack={() => navigate(-1)} />
-          ) : isPrivacy ? (
-            <PrivacyPolicyView onBack={() => navigate(-1)} />
-          ) : (
-            <RefundPolicyView onBack={() => navigate(-1)} />
-          )}
-        </div>
+        <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+          <div className="min-h-screen bg-white flex flex-col app-container shadow-2xl relative">
+            {isTerms ? (
+              <TermsAndConditionsView onBack={() => navigate(-1)} />
+            ) : isPrivacy ? (
+              <PrivacyPolicyView onBack={() => navigate(-1)} />
+            ) : (
+              <RefundPolicyView onBack={() => navigate(-1)} />
+            )}
+          </div>
+        </React.Suspense>
       );
     }
 
     return <LoginView onLoginSuccess={onLoginSuccess} />;
   }
 
-  return (
-    <>
-      <AppRoutes />
-    </>
-  );
-};
+    return (
+      <>
+        <RotateDeviceOverlay />
+        <AppRoutes />
+      </>
+    );
+  };
 
 /**
  * Wraps the providers with router-driven navigation callbacks so the

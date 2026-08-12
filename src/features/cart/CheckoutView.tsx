@@ -407,7 +407,8 @@ export const CheckoutView: React.FC = () => {
   return (
     <div className="min-h-screen bg-white pb-32 font-sans">
       {/* Header */}
-      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100/50">
+      <div className="bg-white px-4 pt-safe-3 pb-3 sticky top-0 z-20 shadow-sm border-b border-slate-100/50">
+        <div className="app-container flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {
@@ -434,9 +435,12 @@ export const CheckoutView: React.FC = () => {
         >
           <Trash2 className="w-4 h-4" />
         </button>
+        </div>
       </div>
 
-      <div className="p-4 space-y-4 max-w-md mx-auto">
+      <div className="px-4 pt-4 pb-8">
+      <div className="app-container md:grid md:grid-cols-[1fr_340px] md:gap-6 lg:grid-cols-[1fr_400px]">
+        <div className="space-y-4 min-w-0">
         {/* Order Type Toggle */}
         <div className="bg-slate-100 p-1 rounded-2xl flex relative h-[52px]">
           <div
@@ -755,6 +759,10 @@ loading="lazy"                         src={item.image || "https://images.unspla
           </div>
         )}
 
+        </div>
+
+        {/* Bill Summary — sticky sidebar on tablet/desktop */}
+        <div className="space-y-4 mt-4 md:mt-0 md:sticky md:top-24 md:self-start">
         <CouponRow
           appliedCoupon={appliedCoupon}
           discountAmount={discountAmount}
@@ -799,11 +807,13 @@ loading="lazy"                         src={item.image || "https://images.unspla
             </p>
           </div>
         </div>
+        </div>
+      </div>
       </div>
 
       {/* Bottom Cart Bar */}
       {totalItems > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 bg-white border-t border-slate-100 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 md:left-1/2 md:-translate-x-1/2 md:right-auto md:w-full md:px-4 xl:max-w-6xl z-40 bg-white border-t border-slate-100 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
           {orderType === "Delivery" && (!currentLocation || !currentLocation.address) ? (
             <button 
               onClick={() => navigate("/location", { state: { from: "/checkout" } })}
@@ -858,7 +868,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
           onClick={() => setShowNoteSheet(false)}
         >
           <div
-            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300"
+            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300 md:max-w-md md:rounded-b-[24px] md:mb-8 md:shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -946,7 +956,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
           onClick={() => setShowTaxesSheet(false)}
         >
           <div
-            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300"
+            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300 md:max-w-md md:rounded-b-[24px] md:mb-8 md:shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">
@@ -1024,7 +1034,7 @@ loading="lazy"                         src={item.image || "https://images.unspla
           onClick={() => setShowPaymentSheet(false)}
         >
           <div
-            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300"
+            className="w-full bg-white rounded-t-[24px] p-6 animate-in slide-in-from-bottom-full duration-300 md:max-w-md md:rounded-b-[24px] md:mb-8 md:shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-6">

@@ -10,8 +10,6 @@ interface RestaurantCardProps {
   rating: number;
   time: string;
   price: string;
-  image?: string;
-  images?: string[];
   distance: string;
   offer?: string;
   offers?: string[];

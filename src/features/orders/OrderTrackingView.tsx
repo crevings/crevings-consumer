@@ -25,7 +25,14 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   // User chose to Skip the remaining cancellation window — this ends the
   // backend buffer early so the restaurant is notified immediately.
-  const [isSkipped, setIsSkipped] = useState(false);
+  const orderKey = order.realOrderId || order.id;
+  const [isSkipped, setIsSkipped] = useState<boolean>(() => {
+    try {
+      return Boolean(orderKey && localStorage.getItem(`skipped_wait_${orderKey}`));
+    } catch {
+      return false;
+    }
+  });
   const [isSkippingWait, setIsSkippingWait] = useState(false);
 
   const {
@@ -57,11 +64,16 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
     setIsSkippingWait(true);
     try {
       const result = await post<{ success: boolean; message?: string }>(
-        `/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/skip-cancel-window`,
+        `/consumer/restaurants/${order.restaurantId}/orders/${orderKey}/skip-cancel-window`,
         {}
       );
       if (result.success) {
         setIsSkipped(true);
+        if (orderKey) {
+          try {
+            localStorage.setItem(`skipped_wait_${orderKey}`, 'true');
+          } catch {}
+        }
       } else {
         alert(result.message || "Failed to skip the wait.");
       }
@@ -93,7 +105,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 sticky top-0 z-30 shadow-sm">
+        <div className="app-container-tracking flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform">
             <ArrowLeft className="w-6 h-6 text-slate-700" />
@@ -112,10 +125,11 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             Help
           </a>
         </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-safe">
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 app-container-tracking">
           
           {/* Order Accepted Success Banner */}
           {showAcceptedBanner && (
@@ -267,7 +281,8 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             )}
           </div>
 
-          {/* OTP Card (MOST IMPORTANT) */}
+          {/* OTP / PIN + Status Timeline — side by side on tablet+ */}
+          <div className="md:grid md:grid-cols-2 md:gap-4">
           {order.type === 'Takeaway' ? (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-center">
               <h2 className="text-sm font-bold text-slate-900 mb-2">Enter Restaurant PIN</h2>
@@ -315,6 +330,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
             progress={progress}
             assignedPartner={assignedPartner}
           />
+          </div>
 
           {/* Restaurant / Delivery Partner Info */}
           {order.type === 'Delivery' && (

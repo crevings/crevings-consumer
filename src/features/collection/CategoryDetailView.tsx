@@ -34,8 +34,9 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
     if (!liveRestaurants || liveRestaurants.length === 0) return [];
 
     let items = liveRestaurants.flatMap((rest: CategoryRestaurant) =>
-      (rest.menu || []).map((item: CategoryMenuItem) => ({
+      (rest.items || rest.menu || []).map((item: CategoryMenuItem) => ({
         ...item,
+        image: item.image || (item.images && item.images[0]) || item.imageUrl || rest.images?.[0] || "",
         restaurant: rest,
       }))
     );
@@ -61,8 +62,8 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
 
   return (
     <div className="w-full min-h-screen bg-white pb-20 relative left-0 right-0 p-0 m-0">
-      {/* Header matching Settings View layout */}
-      <div className="bg-white border-b border-slate-100 px-4 pt-safe-3 pb-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      {/* Sticky Header */}
+      <div className="bg-white border-b border-slate-100 px-4 pt-safe-3 pb-3 flex items-center gap-3 sticky top-0 z-30 shadow-sm">
         <button
           type="button"
           onClick={onBack}
@@ -86,34 +87,37 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({ category
         ) : allItems.length > 0 ? (
           <>
             <div className="grid grid-cols-2 gap-3 pb-6">
-              {allItems.map((item) => (
-                <GridMenuItemCard
-                  key={`${item.restaurant.id}-${item.id}`}
-                  item={{
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    rating: item.rating || 4.2,
-                    ratingCount: "100+",
-                    image: item.image || "",
-                    dietaryType: item.dietaryType || (item.veg ? "Veg" : ""),
-                    isVeg: item.dietaryType === "Veg" || Boolean(item.veg),
-                    isEgg: item.dietaryType === "Egg",
-                    isNonVeg: item.dietaryType === "Non-Veg",
-                    category: "Special",
-                  }}
-                  quantity={0}
-                  restaurantName={item.restaurant.name}
-                  onAdd={(id) => {
-                    onRestaurantClick(item.restaurant);
-                    onItemAdd(item.restaurant, id);
-                  }}
-                  onRemove={() => {}}
-                  onClick={() => {
-                    onRestaurantClick(item.restaurant);
-                  }}
-                />
-              ))}
+              {allItems.map((item) => {
+                const itemImg = item.image || (item.images && item.images[0]) || item.imageUrl || "";
+                return (
+                  <GridMenuItemCard
+                    key={`${item.restaurant.id}-${item.id}`}
+                    item={{
+                      id: item.id,
+                      name: item.name,
+                      price: item.price,
+                      rating: item.rating || 4.2,
+                      ratingCount: "100+",
+                      image: itemImg,
+                      dietaryType: item.dietaryType || (item.veg ? "Veg" : ""),
+                      isVeg: item.dietaryType === "Veg" || Boolean(item.veg),
+                      isEgg: item.dietaryType === "Egg",
+                      isNonVeg: item.dietaryType === "Non-Veg",
+                      category: "Special",
+                    }}
+                    quantity={0}
+                    restaurantName={item.restaurant.name}
+                    onAdd={(id) => {
+                      onRestaurantClick(item.restaurant);
+                      onItemAdd(item.restaurant, id);
+                    }}
+                    onRemove={() => {}}
+                    onClick={() => {
+                      onRestaurantClick(item.restaurant);
+                    }}
+                  />
+                );
+              })}
             </div>
 
             {/* Cursor-based pagination: fetch the next page of restaurants/items.

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { AnimatePresence } from "motion/react";
 import { SlidersHorizontal, UtensilsCrossed, Store, ChevronRight } from "lucide-react";
 import { Restaurant, FilterOptions, Collection } from "@/types";
@@ -10,6 +10,7 @@ import { FilterBottomSheet } from "@/shared/components/FilterBottomSheet";
 import { SortBottomSheet } from "@/shared/components/SortBottomSheet";
 import { PromotionsCarousel } from "@/features/home/PromotionsCarousel";
 import { FreeDeliveryItemsSlider } from "@/features/home/FreeDeliveryItemsSlider";
+import { ItemsUnder99Slider } from "@/features/home/ItemsUnder99Slider";
 
 interface HomeFeedProps {
   onCategoryClick: (name: string) => void;
@@ -32,25 +33,41 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
   onSeeAllUnder99,
 }) => {
   const { restaurants, isLoading: isApiLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurants();
-  const {
-    items: itemsUnder99,
-    isLoadingMore: isLoadingMoreUnder99,
-    isReachingEnd: isReachingEndUnder99,
-    setSize: setUnder99Page
-  } = useItemsUnder99(10);
+  const { items: itemsUnder99 } = useItemsUnder99(10);
 
-  // Explore Categories rail: curated static list with correct icons (as before).
-  // Area filtering is enforced backend-side for category detail pages and
-  // items-under-₹99, not on this rail.
+  // Trigger native permission requests immediately after landing on home page
+  useEffect(() => {
+    const triggerHomePermissions = async () => {
+      // 1. Precise location
+      try {
+        const { requestLocationAndGetPosition } = await import("@/services/geolocation");
+        await requestLocationAndGetPosition();
+      } catch {}
+
+      // 2. Push notifications
+      try {
+        if ('Notification' in window && Notification.permission === 'default') {
+          await Notification.requestPermission();
+        }
+      } catch {}
+
+      // 3. Voice / microphone pre-check
+      try {
+        const { getSpeechService } = await import("@/services/speech");
+        const speech = getSpeechService();
+        if (speech.supported) {
+          await speech.requestPermission();
+        }
+      } catch {}
+    };
+
+    const timer = setTimeout(triggerHomePermissions, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   const categories = MIND_CATEGORIES;
 
-  const handleUnder99Scroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const scrollRight = target.scrollWidth - target.scrollLeft - target.clientWidth;
-    if (scrollRight < 100 && !isLoadingMoreUnder99 && !isReachingEndUnder99) {
-      setUnder99Page(prev => prev + 1);
-    }
-  };
+
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
@@ -141,17 +158,17 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
           onItemAdd={onItemAdd}
         />
 
-        {/* Explore Categories - 2-Row Horizontal Touch Slider */}
+        {/* Explore Categories - 2-Row Horizontal Touch Slider (mobile) / wrapping grid (tablet+) */}
         <div className="mb-10 px-4">
           <h3 className="text-lg font-black text-slate-900 mb-4 tracking-tight">
             Explore Categories
           </h3>
-          <div className="grid grid-rows-2 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x">
+          <div className="grid grid-rows-2 grid-flow-col gap-x-4 gap-y-2 overflow-x-auto no-scrollbar pb-3 -mx-4 px-4 snap-x md:grid-rows-none md:grid-flow-row md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 md:overflow-visible md:snap-none md:mx-0 md:px-0 md:pb-0 md:gap-y-4">
             {categories.map((cat, i) => (
               <div
                 key={i}
                 onClick={() => onCategoryClick(cat.name)}
-                className="w-[90px] flex flex-col items-center gap-0.5 shrink-0 group cursor-pointer active:scale-95 transition-transform snap-start"
+                className="w-[90px] flex flex-col items-center gap-0.5 shrink-0 group cursor-pointer active:scale-95 transition-transform snap-start md:w-full"
               >
                 <div className="w-[80px] h-[72px] flex items-center justify-center">
                   <img
@@ -168,120 +185,19 @@ loading="lazy"                     src={cat.image}
           </div>
         </div>
 
-        {/* Items Under ₹99 Section */}
-        <div className="mb-10 px-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="flex items-center gap-1.5 text-[19px] font-black text-slate-900 tracking-tight">
-              <span>Item</span>
-              <span className="bg-[#00bd6f] text-white text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full leading-none">
-                under
-              </span>
-              <span className="text-[#00bd6f]">₹99</span>
-            </h3>
-            <button
-              type="button"
-              onClick={onSeeAllUnder99}
-              className="text-[13px] font-bold text-[#00a862] active:scale-95 transition-transform flex items-center gap-0.5 cursor-pointer"
-            >
-              See all <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div
-            onScroll={handleUnder99Scroll}
-            className="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 snap-x -mt-1"
-          >
-            {itemsUnder99.map((item) => {
-              // Resolve the restaurant from the loaded feed when available;
-              // otherwise build a minimal stub from the item's own payload.
-              // The feed is paginated by distance, so a restaurant beyond the
-              // first page used to hide ALL of its items here — the home
-              // slider rendered empty while "See all" showed the full list.
-              const rest =
-                restaurants.find((r) => r.id === item.restaurantId) || {
-                  id: item.restaurantId ?? "",
-                  name: item.restaurant || "Restaurant",
-                  cuisine: "",
-                  rating: 4.2,
-                  time: "",
-                  timeValue: 0,
-                  price: "",
-                  images: item.image ? [item.image] : [],
-                  distance: "",
-                  distanceValue: 0,
-                  offer: "",
-                  dietary: [],
-                };
-
-              // Safety net on top of the backend's cheapest-option filter:
-              // never surface an item that isn't actually under ₹99.
-              const itemPrice = parseFloat(String(item.price ?? "").replace(/[^\d.]/g, ""));
-              if (!Number.isNaN(itemPrice) && itemPrice >= 99) return null;
-
-              const handleAddClick = (e: React.MouseEvent) => {
-                e.stopPropagation();
-                onItemAdd(rest, item.id);
-              };
-
-              const handleCardClick = () => {
-                onRestaurantClick(rest);
-              };
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={handleCardClick}
-                  className="min-w-[140px] w-[140px] flex flex-col shrink-0 snap-center cursor-pointer group"
-                >
-                  {/* Image Container */}
-                  <div className="relative rounded-[20px] overflow-hidden aspect-square border border-slate-100/50 mb-2.5 transform transition-all duration-300 group-active:scale-95 bg-slate-100">
-                    {item.image && (
-                      <img
-loading="lazy"                         src={item.image}
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        alt={item.name}
-                      />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-
-                    {/* Price + ADD button */}
-                    <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-end justify-between z-10">
-                      <div className="flex flex-col">
-                        <span className="text-white font-black text-[16px] leading-none">
-                          {item.price}
-                        </span>
-                      </div>
-                      <button
-                        onClick={handleAddClick}
-                        className="bg-white text-[#00bd6f] border border-white px-3 py-1.5 rounded-[10px] text-[12px] font-bold shadow-md hover:bg-slate-50 active:scale-90 transition-transform"
-                      >
-                        ADD
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex flex-col gap-0.5 px-0.5">
-                    <h4 className="text-slate-900 font-bold text-[15px] leading-snug line-clamp-1 group-hover:text-[#00bd6f] transition-colors">
-                      {item.name}
-                    </h4>
-                    <div className="flex items-center gap-1 text-slate-500 text-[12px] font-medium leading-tight">
-                      <Store className="w-3 h-3 opacity-70" />
-                      <span className="truncate">{item.restaurant}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {isLoadingMoreUnder99 && (
-              <div className="min-w-[80px] flex items-center justify-center shrink-0">
-                <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
-              </div>
-            )}
-          </div>
+        {/* Items Under ₹99 — auto-slider */}
+        <div className="px-4">
+          <ItemsUnder99Slider
+            items={itemsUnder99 as any}
+            restaurants={restaurants}
+            onSeeAll={onSeeAllUnder99}
+            onRestaurantClick={onRestaurantClick}
+            onItemAdd={onItemAdd}
+          />
         </div>
 
         <div id="all-restaurants-section" className="px-4 mb-6">
-          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center -mx-4 px-4">
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 items-center -mx-4 px-4 md:flex-wrap md:overflow-visible md:mx-0 md:px-0 md:pb-0">
             <button
               onClick={() => setIsFilterOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm font-medium text-slate-700 shrink-0 active:bg-slate-50"
@@ -417,26 +333,28 @@ loading="lazy"                         src={item.image}
             </div>
           ) : visibleRestaurants.length > 0 ? (
             <>
-              {firstFive.map((rest) => (
-                <RestaurantCard
-                  key={rest.id}
-                  {...rest}
-                  onHide={onHide}
-                  onFavourite={onFavourite}
-                  onClick={() => onRestaurantClick(rest)}
-                  onItemAdd={(itemId) => onItemAdd(rest, itemId)}
-                />
-              ))}
-              {remaining.map((rest) => (
-                <RestaurantCard
-                  key={rest.id}
-                  {...rest}
-                  onHide={onHide}
-                  onFavourite={onFavourite}
-                  onClick={() => onRestaurantClick(rest)}
-                  onItemAdd={(itemId) => onItemAdd(rest, itemId)}
-                />
-              ))}
+              <div className="md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-5">
+                {firstFive.map((rest) => (
+                  <RestaurantCard
+                    key={rest.id}
+                    {...rest}
+                    onHide={onHide}
+                    onFavourite={onFavourite}
+                    onClick={() => onRestaurantClick(rest)}
+                    onItemAdd={(itemId) => onItemAdd(rest, itemId)}
+                  />
+                ))}
+                {remaining.map((rest) => (
+                  <RestaurantCard
+                    key={rest.id}
+                    {...rest}
+                    onHide={onHide}
+                    onFavourite={onFavourite}
+                    onClick={() => onRestaurantClick(rest)}
+                    onItemAdd={(itemId) => onItemAdd(rest, itemId)}
+                  />
+                ))}
+              </div>
 
               <div ref={lastElementRef} className="pt-6 pb-2 flex items-center justify-center">
                 {feedIsLoadingMore && (
@@ -448,7 +366,7 @@ loading="lazy"                         src={item.image}
               {(!isLoadingMore || isReachingEnd) && visibleRestaurants.length > 0 && (
                 <div className="mt-8 mb-6 flex flex-col items-center text-center px-2">
                   {/* Home Page Bottom Art SVG */}
-                  <div className="w-[calc(100%+2rem)] -mx-4 mb-6 overflow-hidden bg-white flex items-center justify-center">
+                  <div className="w-[calc(100%+2rem)] -mx-4 mb-6 overflow-hidden bg-white flex items-center justify-center md:w-full md:mx-0">
                     <img loading="lazy" 
                       src="/home-page-bottom-art.svg" 
                       alt="Crevings Bottom Art" 

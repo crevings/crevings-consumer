@@ -21,7 +21,7 @@ export const FloatingCartBar: React.FC<FloatingCartBarProps> = ({
   if (totalItems <= 0) return null;
 
   return (
-    <div className={`fixed ${className} left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-md z-40 animate-[slideUp_0.3s_ease-out]`}>
+    <div className={`fixed ${className} left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:right-auto md:w-full md:px-4 xl:max-w-6xl z-40 animate-[slideUp_0.3s_ease-out]`}>
       <div className="bg-white rounded-2xl p-3.5 flex items-center justify-between text-black shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
         <button 
           onClick={onPreviewClick}

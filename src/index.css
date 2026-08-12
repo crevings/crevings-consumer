@@ -88,6 +88,45 @@
   }
 }
 
+@layer components {
+  /*
+    Responsive app frame: the app used to be locked to a phone-width
+    (max-w-md) column on every device. These containers keep the mobile
+    feel on phones, then widen fluidly for tablets and desktop so the
+    Home / Checkout / Order Tracking flows use the available space.
+
+    Stepped caps (sm:xl, md:3xl, lg:5xl ...) used to leave visible side gaps on
+    tablets — e.g. iPad Air portrait (820px) got a 768px column and landscape
+    (1180px) a 1024px column. Instead the frame is full-width from small
+    landscape phones all the way up to large desktop, and only capped on
+    big desktop screens (>=1280px) where a centered column reads better.
+
+    app-container          -> full width <1280px, xl:6xl (1152px) centered >=1280px
+    app-container-tracking -> full width <1280px, xl:4xl (896px)  centered >=1280px
+  */
+  .app-container {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+  @media (min-width: 80rem) {
+    .app-container {
+      max-width: 72rem;
+    }
+  }
+
+  .app-container-tracking {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+  @media (min-width: 80rem) {
+    .app-container-tracking {
+      max-width: 56rem;
+    }
+  }
+}
+
 @layer utilities {
   /*
     Safe-area helpers for edge-to-edge Android (Capacitor 8.4 injects

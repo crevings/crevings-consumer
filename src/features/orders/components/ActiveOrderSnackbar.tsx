@@ -25,14 +25,24 @@ export const ActiveOrderSnackbar: React.FC<ActiveOrderSnackbarProps> = ({ order,
             <h4 className="text-slate-900 font-bold text-[15px] truncate pr-2">
               {order.restaurantName}
             </h4>
-            <div className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-0.5 rounded-md shrink-0">
-              <Clock className="w-3 h-3" />
-              <span className="text-xs font-bold">{order.timeEstimate}</span>
-            </div>
+            {order.timeEstimate && (
+              <div className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-0.5 rounded-md shrink-0">
+                <Clock className="w-3 h-3" />
+                <span className="text-xs font-bold">{order.timeEstimate}</span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
-            <span className="text-green-600 font-bold">Arriving soon</span>
+            <span className="text-green-600 font-bold">
+              {order.statusDisplay || (
+                order.status === 'PREPARING' ? 'Preparing order' :
+                order.status === 'OUT_FOR_DELIVERY' || order.status === 'OUT FOR DELIVERY' ? 'Out for delivery' :
+                order.status === 'DELIVERED' || order.status === 'COMPLETED' ? 'Delivered' :
+                order.status === 'CANCELLED' ? 'Order cancelled' :
+                'Order placed'
+              )}
+            </span>
             <span className="w-1 h-1 bg-slate-300 rounded-full shrink-0" />
             <span className="truncate">{joinItemNames(order)}</span>
           </div>

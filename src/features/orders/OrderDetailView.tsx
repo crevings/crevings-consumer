@@ -35,7 +35,7 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
   const isCancelled = statusStr === 'Cancelled' || statusStr === 'CANCELLED';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-24 max-w-md mx-auto shadow-2xl">
+    <div className="min-h-screen bg-slate-50 font-sans pb-24 app-container shadow-2xl">
       {/* Top Header Bar */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 pt-safe-3 pb-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">

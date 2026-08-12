@@ -107,7 +107,7 @@ export const MainLayout: React.FC = () => {
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto shadow-2xl relative"
+      className="min-h-screen bg-slate-50 flex flex-col app-container shadow-2xl relative"
     >
       {/* Pull Loading Overlay */}
       {isPullLoading && (
@@ -142,7 +142,7 @@ export const MainLayout: React.FC = () => {
       {isHome && (
         <button
           onClick={scrollToTop}
-          className={`fixed z-40 right-4 bg-slate-900 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+          className={`fixed z-40 right-4 xl:right-[max(1rem,calc(50%_-_35rem))] bg-slate-900 text-white w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
             activeOrder ? "bottom-[160px]" : "bottom-[100px]"
           } ${
             showBackToTop

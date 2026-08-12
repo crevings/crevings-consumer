@@ -359,10 +359,13 @@ export interface CategoryMenuItem {
   isEgg?: boolean;
   isNonVeg?: boolean;
   image?: string;
+  images?: string[];
+  imageUrl?: string;
 }
 
 export interface CategoryRestaurant extends Restaurant {
   menu?: CategoryMenuItem[];
+  items?: CategoryMenuItem[];
 }
 
 export interface CategoryResponse {

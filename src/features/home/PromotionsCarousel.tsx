@@ -29,7 +29,7 @@ const PromotionCard: React.FC<{ promo: CompanyPromotion; onClick: () => void }> 
   return (
     <div
       onClick={onClick}
-      className="w-[335px] sm:w-[360px] h-[175px] rounded-[28px] p-4 text-white relative overflow-hidden shrink-0 snap-start shadow-md flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition-transform"
+      className="w-[335px] sm:w-[360px] h-[175px] rounded-[28px] p-4 text-white relative overflow-hidden shrink-0 snap-start shadow-md flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition-transform md:w-full md:h-[190px]"
       style={{
         backgroundColor: d.backgroundColor || "#4e2718",
         border: `1px solid ${d.borderColor || "rgba(15,23,42,0.05)"}`,
@@ -156,7 +156,7 @@ export const PromotionsCarousel: React.FC<PromotionsCarouselProps> = ({ onOrderC
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto no-scrollbar -ml-4 px-4 snap-x snap-mandatory"
+        className="flex gap-4 overflow-x-auto no-scrollbar -ml-4 px-4 snap-x snap-mandatory md:grid md:grid-cols-2 lg:grid-cols-3 md:overflow-visible md:snap-none md:ml-0 md:px-0 md:gap-4"
         style={{ scrollSnapType: "x mandatory" }}
       >
         {activePromotions.map((promo) => (
@@ -164,9 +164,9 @@ export const PromotionsCarousel: React.FC<PromotionsCarouselProps> = ({ onOrderC
         ))}
       </div>
 
-      {/* Pagination Indicators */}
+      {/* Pagination Indicators (mobile carousel only) */}
       {activePromotions.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-4">
+        <div className="flex justify-center gap-1.5 mt-4 md:hidden">
           {activePromotions.map((_, idx) => (
             <div
               key={idx}

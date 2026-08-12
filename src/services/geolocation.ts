@@ -122,15 +122,15 @@ export const requestLocationAndGetPosition = async (): Promise<GeoPosition> => {
       const checked = await Geolocation.checkPermissions();
       let perm = checked;
       if (perm.location !== "granted") {
-        perm = await Geolocation.requestPermissions();
+        perm = await Geolocation.requestPermissions({ permissions: ['location'] });
       }
       if (perm.location !== "granted") {
         // 'denied' or 'prompt' (dialog dismissed) → treat as denial.
         throw new LocationError("Location permission denied", 1);
       }
-      // Permission granted — now try to get the actual position.
+      // Permission granted — now get the precise position using hardware GPS (enableHighAccuracy: true).
       try {
-        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
         return { lat: pos.coords.latitude, lng: pos.coords.longitude };
       } catch (posErr) {
         throw new LocationError(
