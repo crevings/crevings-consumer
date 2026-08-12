@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, MessageCircle, HelpCircle, Copy, AlertCircle, ChevronRight, X, Loader2, SkipForward } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Store, Phone, MessageSquare, MessageCircle, Copy, AlertCircle, ChevronRight, X, Loader2, SkipForward } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { Order } from "@/types";
 import { ACCEPTED_ORDER_STATUSES, CANCEL_WINDOW_SECONDS, ORDER_STATUS } from "@/config/constants";
@@ -93,7 +93,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-3">
           <button onClick={onBack} className="p-2 -ml-2 active:scale-95 transition-transform">
             <ArrowLeft className="w-6 h-6 text-slate-700" />
@@ -104,9 +104,13 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsSupportOpen(true)} className="p-2 active:scale-95 transition-transform bg-blue-50 text-blue-600 rounded-full flex items-center justify-center w-10 h-10">
-            <HelpCircle className="w-5 h-5" />
-          </button>
+          <a 
+            href={`mailto:support@crevings.com?subject=Support%20Request%20-%20Order%20%23${encodeURIComponent(order.displayOrderNumber || order.id)}`}
+            aria-label="Contact Support via Email"
+            className="px-3.5 py-1.5 active:scale-95 transition-all bg-emerald-50 text-[#00bd6f] hover:bg-emerald-100 rounded-full flex items-center border border-emerald-200/60 shadow-sm text-xs font-bold"
+          >
+            Help
+          </a>
         </div>
       </div>
 

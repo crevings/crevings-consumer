@@ -407,7 +407,7 @@ export const CheckoutView: React.FC = () => {
   return (
     <div className="min-h-screen bg-white pb-32 font-sans">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100/50">
+      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center justify-between sticky top-0 z-20 shadow-sm border-b border-slate-100/50">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => {

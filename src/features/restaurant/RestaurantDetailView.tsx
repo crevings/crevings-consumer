@@ -308,7 +308,7 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
   if (isMenuError && customMenus.length === 0) {
     return (
       <div className="fixed inset-0 bg-white z-50 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <div className="flex items-center justify-between px-4 pt-safe-3 pb-3 bg-white border-b border-slate-100">
           <button
             onClick={onBack}
             className="p-2 -ml-2 text-slate-800 active:scale-90 transition-transform"

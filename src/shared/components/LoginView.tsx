@@ -237,7 +237,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[500] bg-white flex flex-col font-sans overflow-hidden max-w-md mx-auto shadow-2xl">
+    <div className="fixed inset-0 z-[500] bg-white flex flex-col font-sans overflow-hidden max-w-md mx-auto shadow-2xl pt-safe-3">
       {/* Top Hero Section with Full Background Image */}
       <div 
         className="flex-1 w-full bg-cover bg-center bg-no-repeat relative"

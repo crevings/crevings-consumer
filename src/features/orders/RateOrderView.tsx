@@ -101,7 +101,7 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
       {/* Top Navigation Bar */}
-      <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 flex items-center justify-between shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 sticky top-0 z-30 flex items-center justify-between shadow-sm">
         <button 
           onClick={onBack}
           className="w-10 h-10 rounded-full flex items-center justify-center text-slate-700 active:bg-slate-100 transition-colors shrink-0"

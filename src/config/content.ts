@@ -12,7 +12,7 @@ export const MIND_CATEGORIES: Category[] = [
   { name: "Burgers", image: "/categories/Burger.png" },
   { name: "Pizzas", image: "/categories/Pizza.png" },
   { name: "Chole Bhature", image: "/categories/Chola Bhatura.png" },
-  { name: "Dimsums", image: "/categories/Dimsums.png" },
+  { name: "Momos", image: "/categories/Dimsums.png" },
   { name: "Idli", image: "/categories/Idli.png" },
   { name: "Juices", image: "/categories/Juices.png" },
   { name: "Noodles", image: "/categories/Noodles.png" },

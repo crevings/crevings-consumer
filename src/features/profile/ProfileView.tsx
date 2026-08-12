@@ -47,7 +47,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdateProfileImage,
   onUpdateProfile,
   onLogout,
-  onHelpClick,
+  onHelpClick: _onHelpClick,
   onRefundsClick,
   onPoliciesClick,
   onPrivacyClick,
@@ -167,7 +167,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   return (
     <div className="bg-white min-h-screen animate-fadeInUp pb-12 font-sans relative">
        {/* App Bar */}
-       <div className="bg-white px-4 py-3.5 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100">
+       <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center justify-between sticky top-0 z-40 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform">
               <ChevronLeft className="w-6 h-6 text-slate-800" />
@@ -275,18 +275,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                        </div>
                        <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
                    </button>
-                   <button onClick={onHelpClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
-                       <div className="flex items-center gap-3.5">
-                           <div className="text-[#00bd6f] px-1">
-                               <Headphones className="w-[22px] h-[22px]" strokeWidth={1.5} />
-                           </div>
-                           <div className="flex flex-col gap-0.5">
-                               <span className="text-[15px] font-semibold text-slate-900">Support</span>
-                               <span className="text-[12px] text-slate-500">Get help with your orders and account</span>
-                           </div>
-                       </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
-                   </button>
+                    <a href="mailto:support@crevings.com" className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                        <div className="flex items-center gap-3.5">
+                            <div className="text-[#00bd6f] px-1">
+                                <Headphones className="w-[22px] h-[22px]" strokeWidth={1.5} />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[15px] font-semibold text-slate-900">Support</span>
+                                <span className="text-[12px] text-slate-500">Get help with your orders and account</span>
+                            </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
+                    </a>
                </div>
            </div>
 

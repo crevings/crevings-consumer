@@ -46,11 +46,9 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children, onNavigate
     if (data && data.success && data.user) {
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
-    } else if (error) {
+    } else if (error || (data && !data.success)) {
       setIsAuthenticated(false);
       setIsLoadingAuth(false);
-    } else if (data === undefined && !error) {
-      setIsLoadingAuth(true);
     }
   }, [data, error]);
 
@@ -70,14 +68,15 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children, onNavigate
       image: user.profileImage || null,
     });
     setIsAuthenticated(true);
+    setIsLoadingAuth(false);
     mutate(); // Mutate SWR cache to update
     mutateProfile(); // Mutate profile SWR cache
   };
 
   const logout = async () => {
     try {
-      await apiLogout();
       setIsAuthenticated(false);
+      setIsLoadingAuth(false);
       setUserProfile({
         name: "",
         email: "",
@@ -87,6 +86,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children, onNavigate
         image: null,
       });
       mutate(undefined, false); // Clear SWR token verification cache
+      apiLogout().catch(() => {}); // Fire backend logout API asynchronously
       onNavigateHome();
     } catch (err) {
       console.error("Logout failed:", err);

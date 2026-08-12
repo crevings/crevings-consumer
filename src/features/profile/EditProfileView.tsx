@@ -32,7 +32,7 @@ export const EditProfileView: React.FC<EditProfileViewProps> = ({ initialData, o
 
   return (
     <div className="min-h-screen bg-slate-50 animate-[slideUp_0.3s_ease-out] flex flex-col">
-      <div className="px-5 py-6 flex items-center gap-4 bg-white sticky top-0 z-10 border-b border-slate-100">
+      <div className="px-5 pt-safe-3 pb-3 flex items-center gap-4 bg-white sticky top-0 z-10 border-b border-slate-100">
         <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-700 active:scale-95 transition-transform">
           <ArrowLeft className="w-5 h-5" />
         </button>

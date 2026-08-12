@@ -214,7 +214,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
-      <div className="bg-white sticky top-0 z-30 pt-10 pb-3 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+      <div className="bg-white sticky top-0 z-30 pt-safe-3 pb-3 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
         <div className="px-4 mb-5">
           <div className="w-full flex items-center justify-between pl-2 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-2xl group transition-colors focus-within:bg-white focus-within:border-slate-200">
             <div className="flex items-center gap-2 truncate flex-1">

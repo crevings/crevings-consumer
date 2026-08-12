@@ -9,6 +9,9 @@ interface OrderPriceSummaryProps {
 
 /** Presentational order-details card: line items, honest totals and payment status. */
 export const OrderPriceSummary: React.FC<OrderPriceSummaryProps> = ({ order, paymentStatus }) => {
+  const method = (order.paymentMethod || order.payment?.method || "").toLowerCase();
+  const isCod = method === "cod" || method === "cash" || paymentStatus === "PENDING" || paymentStatus === "DUE";
+
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
       <h3 className="text-sm font-bold text-slate-900 mb-3">Order Details</h3>
@@ -39,12 +42,12 @@ export const OrderPriceSummary: React.FC<OrderPriceSummaryProps> = ({ order, pay
           <span className="text-slate-900">Final Amount</span>
           <span className="text-slate-900">₹{order.total || 0}</span>
         </div>
-        <div className="flex justify-between text-xs pt-2">
+        <div className="flex justify-between text-xs pt-2 items-center">
           <span className="text-slate-500">Payment Status</span>
-          {paymentStatus === 'PAID' ? (
-            <span className="font-bold text-[#00bd6f] bg-[#00bd6f]/10 px-2 py-0.5 rounded">PAID</span>
+          {isCod ? (
+            <span className="font-bold text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded tracking-wide text-[11px]">DUE</span>
           ) : (
-            <span className="font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">CASH ON DELIVERY</span>
+            <span className="font-bold text-[#00bd6f] bg-[#00bd6f]/10 px-2 py-0.5 rounded tracking-wide text-[11px]">PAID</span>
           )}
         </div>
       </div>

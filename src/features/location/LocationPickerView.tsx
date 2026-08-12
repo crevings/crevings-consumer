@@ -289,7 +289,7 @@ export const LocationPickerView: React.FC<LocationPickerViewProps> = ({ addresse
       className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div className="bg-white pt-3 pb-3 px-4 sticky top-0 z-20 border-b border-slate-100">
+      <div className="bg-white pt-safe-3 pb-3 px-4 sticky top-0 z-20 border-b border-slate-100">
         <div className="flex items-center gap-4">
           {addresses && addresses.length > 0 && (
             <button onClick={onClose} className="p-2 -ml-2 active:scale-95 transition-transform" aria-label="Go back">

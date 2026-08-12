@@ -61,7 +61,7 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
   return (
     <>
       {/* Top Navigation Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100">
+      <div className="flex items-center justify-between px-4 pt-safe-3 pb-3 bg-white border-b border-slate-100 sticky top-0 z-30 shadow-xs">
         <button onClick={onBack} className="p-2 -ml-2 text-slate-800 active:scale-90 transition-transform" aria-label="Go back">
           <ArrowLeft className="w-6 h-6 stroke-[2]" />
         </button>

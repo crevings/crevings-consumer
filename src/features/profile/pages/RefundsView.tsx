@@ -29,7 +29,7 @@ export const RefundsView: React.FC<RefundsViewProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-[#f4f5f7] font-sans animate-[fadeInUp_0.3s_ease-out]">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button onClick={onBack} className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform">
           <ChevronLeft className="w-6 h-6 text-slate-800" />
         </button>

@@ -98,8 +98,7 @@ export const GstWaiverSheet: React.FC<GstWaiverSheetProps> = ({
         </div>
 
         <p className="text-[11px] text-slate-400 leading-snug mb-5">
-          Applicable on orders where GST is already included in item prices. This offer is applied
-          automatically and does not change your order total.
+         Tax Included: We pay all applicable GST on your behalf. All listed prices are inclusive of tax, so your order total will not change at checkout.
         </p>
 
         {applied ? (

@@ -111,7 +111,7 @@ export const ItemsUnder99View: React.FC<ItemsUnder99ViewProps> = ({
   return (
     <div className="w-full min-h-screen bg-white pb-24 relative left-0 right-0 p-0 m-0">
       {/* Header matching the "Item under ₹99" pill style */}
-      <div className="bg-white border-b border-slate-100 px-4 py-3.5 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+      <div className="bg-white border-b border-slate-100 px-4 pt-safe-3 pb-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
         <button
           type="button"
           onClick={onBack}

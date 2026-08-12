@@ -29,8 +29,6 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   cuisine,
   rating,
   time,
-  image,
-  images = [],
   distance,
   offers = [],
   address,
@@ -39,13 +37,11 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   onItemAdd,
   menuItems: propMenuItems = [],
 }) => {
-  const displayImages = images.length > 0 ? images : (image ? [image] : []);
-
-  const menuItems = (propMenuItems || []).slice(0, 3).map((item, index) => ({
+  const menuItems = (propMenuItems || []).slice(0, 3).map((item) => ({
     ...item,
     price: `${formatINR(item.price)}`,
     isPopular: item.bestseller || false,
-    image: item.image || (displayImages.length > 0 ? displayImages[index % displayImages.length] : undefined),
+    image: item.image || (item as any).images?.[0] || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop',
   }));
 
   const isPureVeg = dietary.length === 1 && dietary[0] === 'veg';
@@ -88,9 +84,13 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
         {menuItems.map((item, idx) => (
           <div key={idx} className="shrink-0 w-[140px] bg-slate-50 rounded-[16px] p-2 border border-slate-100/50">
             <div className="relative w-full aspect-[4/3] rounded-[12px] overflow-hidden mb-2">
-              <img loading="lazy" 
-                src={item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop'} 
+              <img 
+                loading="lazy" 
+                src={item.image} 
                 alt={item.name} 
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&h=200&fit=crop';
+                }}
                 className="w-full h-full object-cover"
               />
               {/* Gradient overlay for better text visibility */}

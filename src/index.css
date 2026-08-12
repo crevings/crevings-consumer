@@ -103,13 +103,16 @@
     (never stack them on the same side — both set the same property).
   */
   .pt-safe {
-    padding-top: 0px;
+    padding-top: env(safe-area-inset-top);
+  }
+  .pt-safe-3 {
+    padding-top: calc(env(safe-area-inset-top) + 0.75rem);
   }
   .pt-safe-4 {
-    padding-top: 0.875rem;
+    padding-top: calc(env(safe-area-inset-top) + 1rem);
   }
   .pt-safe-6 {
-    padding-top: 1rem;
+    padding-top: calc(env(safe-area-inset-top) + 1.5rem);
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);

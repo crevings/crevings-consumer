@@ -56,7 +56,7 @@ export const PlatformFeedbackView: React.FC<PlatformFeedbackViewProps> = ({ onBa
   return (
     <div className="min-h-screen bg-[#f4f5f7] flex flex-col font-sans animate-[fadeInUp_0.3s_ease-out]">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center gap-3 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 flex items-center gap-3 sticky top-0 z-30 shadow-sm">
         <button 
           onClick={onBack}
           className="p-2 -ml-2 bg-white rounded-full active:scale-95 transition-transform"

@@ -80,7 +80,7 @@ export const CollectionDetailView: React.FC<CollectionDetailViewProps> = ({
     <div className="min-h-screen bg-white pb-20 animate-fadeInRight">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-slate-100">
-        <div className="flex items-center gap-3 px-4 py-4">
+        <div className="flex items-center gap-3 px-4 pt-safe-3 pb-3">
           <button 
             onClick={onBack}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 active:scale-95 transition-transform"

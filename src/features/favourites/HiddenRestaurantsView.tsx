@@ -110,7 +110,7 @@ export const HiddenRestaurantsView: React.FC<HiddenRestaurantsViewProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans relative">
       {/* Top Navigation Bar */}
-      <div className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm">
+      <div className="bg-white px-4 pt-safe-3 pb-3 sticky top-0 z-30 shadow-sm">
         <div className="flex items-center justify-between mb-1">
           <button 
             onClick={onBack}
