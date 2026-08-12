@@ -2,13 +2,19 @@ import React from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
+export interface SortOption {
+  id: string;
+  label: string;
+}
+
 interface SortBottomSheetProps {
   onClose: () => void;
   onSelect: (mode: string) => void;
   currentSort: string;
+  options?: SortOption[];
 }
 
-const SORT_OPTIONS = [
+const DEFAULT_SORT_OPTIONS: SortOption[] = [
   { id: 'default', label: 'Relevance (Default)' },
   { id: 'priceLow', label: 'Cost: Low to High' },
   { id: 'priceHigh', label: 'Cost: High to Low' },
@@ -18,7 +24,7 @@ const SORT_OPTIONS = [
   { id: 'distanceFar', label: 'Distance: Far to Near' }
 ];
 
-export const SortBottomSheet: React.FC<SortBottomSheetProps> = ({ onClose, onSelect, currentSort }) => {
+export const SortBottomSheet: React.FC<SortBottomSheetProps> = ({ onClose, onSelect, currentSort, options = DEFAULT_SORT_OPTIONS }) => {
   return (
     <>
       <motion.div
@@ -48,7 +54,7 @@ export const SortBottomSheet: React.FC<SortBottomSheetProps> = ({ onClose, onSel
 
         {/* Options */}
         <div className="p-4 overflow-y-auto">
-          {SORT_OPTIONS.map((opt) => (
+          {options.map((opt) => (
             <button
               key={opt.id}
               onClick={() => onSelect(opt.id)}

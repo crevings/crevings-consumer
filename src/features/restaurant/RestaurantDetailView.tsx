@@ -559,6 +559,11 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
       {isSortOpen && (
         <SortBottomSheet 
           currentSort={sortBy}
+          options={[
+            { id: 'default', label: 'Relevance (Default)' },
+            { id: 'priceLow', label: 'Cost: Low to High' },
+            { id: 'priceHigh', label: 'Cost: High to Low' },
+          ]}
           onSelect={(sort) => {
             setSortBy(sort);
             setIsSortOpen(false);

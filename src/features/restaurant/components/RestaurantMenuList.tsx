@@ -56,10 +56,15 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
       {/* 1. Custom Menu Sections (Show menu items first in arranged order with menu name) */}
       {customMenus.map((menu) => {
         const isExpanded = expandedCategories[menu.name] !== false;
-        // Keep arranged order of items in this menu while respecting active filters
+        // Filter items in this section based on active search/filters
         const sectionItems = (menu.items || []).filter((item) => filteredItemIds.has(item.id));
 
         if (sectionItems.length === 0) return null;
+
+        // Sort section items according to the order of filteredMenu (which holds price/rating sorting)
+        const sortedSectionItems = [...sectionItems].sort(
+          (a, b) => filteredMenu.findIndex((i) => i.id === a.id) - filteredMenu.findIndex((i) => i.id === b.id)
+        );
 
         return (
           <div
@@ -75,7 +80,7 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
                 <div className="flex items-center gap-2">
                   <h3 className="text-[18px] font-bold text-gray-900">{menu.name}</h3>
                 </div>
-                <p className="text-[13px] text-gray-500 font-medium mt-0.5">{sectionItems.length} items</p>
+                <p className="text-[13px] text-gray-500 font-medium mt-0.5">{sortedSectionItems.length} items</p>
               </div>
               {isExpanded ? (
                 <ChevronUp className="w-5 h-5 text-gray-500" />
@@ -86,7 +91,7 @@ export const RestaurantMenuList: React.FC<RestaurantMenuListProps> = ({
 
             {isExpanded && (
               <div className="flex flex-col gap-4 pb-4 px-4 -mx-4">
-                {sectionItems.map((item) => (
+                {sortedSectionItems.map((item) => (
                   <MenuItemCard
                     key={`custom-${menu.name}-${item.id}`}
                     item={item}

@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import {
   ArrowLeft,
   Search,
-  SlidersHorizontal,
   History,
   TrendingUp,
   X,
@@ -32,17 +31,6 @@ interface QuickFilters {
   rating: boolean;
   near: boolean;
 }
-
-const FILTER_CHIPS: Array<{
-  label: string;
-  action: 'filter' | 'veg' | 'rating' | 'near';
-  icon?: React.ReactNode;
-}> = [
-  { label: 'Filters', action: 'filter', icon: <SlidersHorizontal className="w-4 h-4" /> },
-  { label: 'Veg Only', action: 'veg' },
-  { label: 'Rating 4.0+', action: 'rating' },
-  { label: 'Under 15 km', action: 'near' },
-];
 
 /** Build the lightweight Restaurant object needed to open/add from a dish card. */
 const dishRestaurant = (dish: DishSearchRecord): Restaurant => ({
@@ -278,27 +266,6 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
               </div>
             </div>
 
-            {/* Filter Chips */}
-            <div className="px-4">
-              <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 items-center">
-                {FILTER_CHIPS.map((chip) => (
-                  <button
-                    key={chip.action}
-                    onClick={() => (chip.action === 'filter' ? setIsFilterOpen(true) : toggleQuickFilter(chip.action))}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 border rounded-[12px] text-[13px] font-bold whitespace-nowrap active:scale-95 transition-all ${
-                      chip.action === 'filter'
-                        ? 'border-slate-200 bg-white text-slate-800 shadow-[0_2px_8px_rgba(0,0,0,0.03)]'
-                        : chipIsActive(chip.action)
-                          ? 'border-[#00BD6F] bg-[#00BD6F]/10 text-[#008A52]'
-                          : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:border-slate-200'
-                    }`}
-                  >
-                    {chip.icon && chip.icon}
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </>
         )}
       </div>
