@@ -266,7 +266,8 @@ export const CheckoutView: React.FC = () => {
           deliveryAddress: orderType === "Delivery" ? (currentLocation?.address || "") : "Takeaway",
           appliedOffer: appliedCoupon ? appliedCoupon.code : undefined,
           tipAmount: tipAmount,
-          notes: deliveryNote
+          notes: note,
+          deliveryNotes: deliveryNote
         }
       );
       if (!result.success) {

@@ -129,9 +129,16 @@ export const AppRoutes: React.FC = () => {
                   navigate("/");
                 }}
                 onOrderComplete={() => {
-                  setSelectedOrder(activeOrder);
+                  const completedOrder = activeOrder;
                   setActiveOrder(null);
-                  navigate("/rate-order");
+                  // Takeaway orders end at home after the consumer confirms the
+                  // pickup PIN — never send them to the rating flow.
+                  if (completedOrder?.type === "Takeaway") {
+                    navigate("/");
+                  } else {
+                    setSelectedOrder(completedOrder);
+                    navigate("/rate-order");
+                  }
                 }}
               />
             ) : (

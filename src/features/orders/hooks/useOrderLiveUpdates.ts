@@ -98,7 +98,15 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
             }
           }
           if (data.status === "COMPLETED") {
-            onOrderCompleteRef.current();
+            // Takeaway orders only finish when the CONSUMER confirms the
+            // pickup PIN (handlePickupComplete in OrderTrackingView) — the
+            // restaurant/partner can mark the order complete server-side, but
+            // the consumer must enter the PIN first. So don't auto-complete
+            // (and auto-redirect to rating) for Takeaway here; Delivery still
+            // completes automatically when the rider marks it delivered.
+            if (order.type !== "Takeaway") {
+              onOrderCompleteRef.current();
+            }
           }
         }
         if (data.prepTime) {
@@ -116,7 +124,7 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
     return () => {
       eventSource.close();
     };
-  }, [order.id, order.realOrderId, order.restaurantId]);
+  }, [order.id, order.realOrderId, order.restaurantId, order.type]);
 
   // Derive progress from the current status.
   useEffect(() => {
