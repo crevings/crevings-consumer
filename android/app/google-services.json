@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "700014392744",
+    "project_id": "crevings-69",
+    "storage_bucket": "crevings-69.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700014392744:android:30e744d0d7d55dd636d99d",
+        "android_client_info": {
+          "package_name": "com.crevings.consumer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBd1G67sD6LhFMaeOqp5kV0V1m3Yn-l30"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:700014392744:android:1c2fa2e83b79ec4036d99d",
+        "android_client_info": {
+          "package_name": "com.crevings.partner.lite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDBd1G67sD6LhFMaeOqp5kV0V1m3Yn-l30"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

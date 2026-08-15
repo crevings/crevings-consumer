@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Percent, CheckCircle2, Info } from 'lucide-react';
 import { Offer } from "@/types";
 import { formatINR } from "@/utils/currency";
+import { buildOfferTerms } from "@/utils/offerTerms";
 
 interface OfferDetailsSheetProps {
   selectedOffer: Offer | null;
@@ -20,7 +21,7 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
   if (!selectedOffer) return null;
 
   let title = selectedOffer.name;
-  let subtitle = selectedOffer.description || "";
+  let subtitle = "";
   let code = selectedOffer.offerId;
   const minOrder = selectedOffer.minOrder || 0;
 
@@ -40,30 +41,8 @@ export const OfferDetailsSheet: React.FC<OfferDetailsSheetProps> = ({
     subtitle = `On orders above ${formatINR(minOrder)}`;
   }
 
-  // Generate dynamic terms and conditions
-  const terms: string[] = [];
-  if (minOrder > 0) {
-    terms.push(`Minimum order value to qualify is ${formatINR(minOrder)}.`);
-  }
-  if (selectedOffer.offerType === 'percentage' && selectedOffer.maxCap) {
-    terms.push(`Maximum discount is capped at ${formatINR(selectedOffer.maxCap)}.`);
-  }
-  if (selectedOffer.applicableScope === 'category') {
-    terms.push(`Applicable only on items from categories: ${selectedOffer.applicableIds.join(', ')}.`);
-  } else if (selectedOffer.applicableScope === 'items') {
-    terms.push(`Applicable only on specific selected items.`);
-  } else {
-    terms.push(`Applicable across all items on the menu.`);
-  }
-  if (selectedOffer.paymentMode === 'prepaid') {
-    terms.push(`Valid only on online prepaid payment options.`);
-  } else {
-    terms.push(`Valid on all payment methods including UPI, Card, and Cash on Delivery.`);
-  }
-  if (!selectedOffer.allowClubbing) {
-    terms.push(`Cannot be combined with other active restaurant offers or promo codes.`);
-  }
-  terms.push(`Applicable once per user during the campaign validity.`);
+  // Full auto-generated terms (mirrors the partner app's Live Terms & Conditions)
+  const terms = buildOfferTerms(selectedOffer);
 
   return (
     <AnimatePresence>

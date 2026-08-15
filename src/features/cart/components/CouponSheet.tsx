@@ -1,7 +1,8 @@
-import { X, Search, ChevronRight, Loader2 } from "lucide-react";
+import { X, Search, ChevronRight, Loader2, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Offer } from "@/types";
 import { formatINR } from "@/utils/currency";
+import { buildOfferTerms } from "@/utils/offerTerms";
 import { AppliedCoupon } from "@/features/cart/hooks/useCoupon";
 
 interface CouponSheetProps {
@@ -79,27 +80,23 @@ export const CouponSheet: React.FC<CouponSheetProps> = ({
             offers.map((offer) => {
               const isApplied = appliedCoupon?.code === offer.offerId;
               let title = offer.name;
-              let desc = offer.description || "";
-              let terms = "";
+              let desc = "";
+              const terms = buildOfferTerms(offer);
 
               if (offer.offerType === "percentage") {
                 title = `${offer.discountPercent}% OFF`;
                 desc = offer.maxCap
                   ? `Get ${offer.discountPercent}% off up to ${formatINR(offer.maxCap)}`
                   : `Get ${offer.discountPercent}% off on your order`;
-                terms = `Minimum order value must be ${formatINR(offer.minOrder || 0)}. Maximum discount is ${formatINR(offer.maxCap || "unlimited")}.`;
               } else if (offer.offerType === "flat") {
                 title = `Flat ${formatINR(offer.discountAmount)} OFF`;
                 desc = `Flat ${formatINR(offer.discountAmount)} off on orders above ${formatINR(offer.minOrder || 0)}`;
-                terms = `Minimum order value must be ${formatINR(offer.minOrder || 0)}.`;
               } else if (offer.offerType === "bogo") {
                 title = "BUY 1 GET 1";
                 desc = "Buy 1 get 1 free on selected items";
-                terms = "Applicable on selected BOGO items.";
               } else if (offer.offerType === "free_item") {
                 title = `FREE ${offer.freeItemName}`;
                 desc = `Get a free ${offer.freeItemName} on orders above ${formatINR(offer.minOrder || 0)}`;
-                terms = `Minimum order value must be ${formatINR(offer.minOrder || 0)}.`;
               }
 
               const typeKey = orderType.toLowerCase() as "delivery" | "takeaway";
@@ -188,8 +185,21 @@ export const CouponSheet: React.FC<CouponSheetProps> = ({
                               isApplied ? "border-green-200" : "border-slate-100"
                             }`}
                           >
-                            <span className="font-semibold block mb-1 text-slate-900">Terms & Conditions:</span>
-                            {terms}
+                            <span className="font-semibold block mb-2 text-slate-900">Terms & Conditions:</span>
+                            {terms.length > 0 ? (
+                              <ul className="space-y-1.5">
+                                {terms.map((term, idx) => (
+                                  <li key={idx} className="flex items-start gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-green-100 text-green-600 shrink-0 mt-0.5 flex items-center justify-center">
+                                      <Check size={10} strokeWidth={3} />
+                                    </span>
+                                    <span>{term}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span>No additional terms.</span>
+                            )}
                           </div>
                         </motion.div>
                       )}

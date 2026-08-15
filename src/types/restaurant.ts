@@ -60,7 +60,6 @@ export interface Offer {
   offerId: string;
   restaurantId: string;
   name: string;
-  description?: string;
   offerType: "percentage" | "flat" | "bogo" | "free_item";
   discountPercent?: number;
   maxCap?: number;
@@ -77,6 +76,8 @@ export interface Offer {
   paymentMode: "all" | "prepaid";
   allowClubbing: boolean;
   minOrder?: number;
+  perUserLimit?: number;
+  totalUsageLimit?: number;
   startDate?: string;
   endDate?: string;
   status: "Active" | "Paused" | "Scheduled" | "Expired";

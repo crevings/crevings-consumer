@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronRight, Clock } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Order } from "@/types";
 import { joinItemNames } from "@/utils/orderItems";
 
@@ -25,12 +25,6 @@ export const ActiveOrderSnackbar: React.FC<ActiveOrderSnackbarProps> = ({ order,
             <h4 className="text-slate-900 font-bold text-[15px] truncate pr-2">
               {order.restaurantName}
             </h4>
-            {order.timeEstimate && (
-              <div className="flex items-center gap-1 text-green-700 bg-green-100 px-2 py-0.5 rounded-md shrink-0">
-                <Clock className="w-3 h-3" />
-                <span className="text-xs font-bold">{order.timeEstimate}</span>
-              </div>
-            )}
           </div>
           
           <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">

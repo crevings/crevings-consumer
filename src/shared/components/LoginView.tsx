@@ -169,6 +169,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
 
       if (data.user) {
         setAuthenticatedUser(data.user);
+        if (onLoginSuccess) {
+          onLoginSuccess(data.user);
+        }
       }
 
       const isNew = Boolean(data.isNewUser || !data.user?.name || data.user.name === "New User" || data.user.name === "Valued Customer");
@@ -180,9 +183,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         if (isNew) {
           setView("name");
         } else {
-          if (data.user && onLoginSuccess) {
-            onLoginSuccess(data.user);
-          }
           navigate("/");
         }
       }
@@ -211,8 +211,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         throw new Error(data.message || "Failed to update profile name");
       }
 
-      if (!authenticatedUser) return;
-      const updatedUser = { ...authenticatedUser, name: nameInput.trim() };
+      const baseUser = authenticatedUser || { name: nameInput.trim(), phone: phoneNumber, email: "" };
+      const updatedUser = { ...baseUser, name: nameInput.trim() };
       if (onLoginSuccess) {
         onLoginSuccess(updatedUser);
       }
