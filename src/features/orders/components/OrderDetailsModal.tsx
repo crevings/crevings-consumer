@@ -3,7 +3,8 @@ import {
   X, 
   Download, 
   Receipt,
-  Building
+  Building,
+  Phone
 } from 'lucide-react';
 import { Order } from '@/types';
 import { downloadInvoice, parseOrderItems, getOrderTotals } from "@/lib/invoice";
@@ -56,9 +57,20 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, onC
               <h3 className="font-bold text-slate-900 text-base truncate">{order.restaurantName}</h3>
               <p className="text-xs text-slate-500 truncate">{order.location || 'Restaurant Branch Address'}</p>
             </div>
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
-              {order.status}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {order.restaurantPhone && (
+                <a
+                  href={`tel:${order.restaurantPhone.replace(/[^\d+]/g, '')}`}
+                  aria-label={`Call ${order.restaurantName}`}
+                  className="w-8 h-8 rounded-full bg-emerald-50 text-[#00bd6f] border border-emerald-200/60 flex items-center justify-center active:scale-95 transition-all hover:bg-emerald-100"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                </a>
+              )}
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
+                {order.status}
+              </span>
+            </div>
           </div>
 
           {/* Items Summary */}

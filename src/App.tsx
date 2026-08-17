@@ -8,6 +8,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AppRoutes } from "@/app/router";
 import { fetcher } from "@/api/fetcher";
 import { initBackButtonListener } from "@/services/backButton";
+import { initPushNotifications } from "@/services/push";
 import { LoginView } from "@/shared/components/LoginView";
 import { RotateDeviceOverlay } from "@/shared/components/RotateDeviceOverlay";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -23,6 +24,7 @@ const AppContent: React.FC = () => {
   const [minLoadingDone, setMinLoadingDone] = useState(false);
 
   useEffect(() => {
+    initPushNotifications();
     return initBackButtonListener();
   }, []);
 

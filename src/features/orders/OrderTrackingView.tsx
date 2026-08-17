@@ -344,9 +344,22 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   <p className="text-xs text-slate-500 line-clamp-1">{order.location}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
-                    <Phone className="w-4 h-4" />
-                  </button>
+                  {order.restaurantPhone ? (
+                    <a
+                      href={`tel:${order.restaurantPhone.replace(/[^\d+]/g, '')}`}
+                      aria-label={`Call ${order.restaurantName}`}
+                      className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform hover:bg-green-100"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  ) : (
+                    <span
+                      title="Restaurant phone number not available"
+                      className="w-10 h-10 bg-green-50/50 text-green-600/40 rounded-full flex items-center justify-center cursor-not-allowed"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -365,7 +378,7 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                 </div>
                 <div className="flex gap-2">
                   {assignedPartner?.phone ? (
-                    <a href={`tel:${assignedPartner.phone}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                    <a href={`tel:${assignedPartner.phone.replace(/[^\d+]/g, '')}`} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform hover:bg-green-100">
                     <Phone className="w-4 h-4" />
                   </a>
                   ) : (
@@ -399,12 +412,30 @@ export const OrderTrackingView: React.FC<OrderTrackingViewProps> = ({ order, onB
                   <p className="text-xs text-slate-500 line-clamp-1">{order.location}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+                  <a
+                    href={`https://maps.google.com/maps?q=${encodeURIComponent(order.restaurantName + ", " + order.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center active:scale-95 transition-transform hover:bg-blue-100"
+                  >
                     <MapPin className="w-4 h-4" />
-                  </button>
-                  <button className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform">
-                    <Phone className="w-4 h-4" />
-                  </button>
+                  </a>
+                  {order.restaurantPhone ? (
+                    <a
+                      href={`tel:${order.restaurantPhone.replace(/[^\d+]/g, '')}`}
+                      aria-label={`Call ${order.restaurantName}`}
+                      className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center active:scale-95 transition-transform hover:bg-green-100"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </a>
+                  ) : (
+                    <span
+                      title="Restaurant phone number not available"
+                      className="w-10 h-10 bg-green-50/50 text-green-600/40 rounded-full flex items-center justify-center cursor-not-allowed"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </span>
+                  )}
                 </div>
               </div>
             )}

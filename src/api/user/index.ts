@@ -8,12 +8,14 @@ interface PastOrderItem {
 }
 
 interface BranchProfile {
-  restaurantInfo?: { name?: string; address?: string; legalName?: string };
+  restaurantInfo?: { name?: string; address?: string; legalName?: string; phone?: string };
+  ownerInfo?: { phone?: string };
 }
 
 interface BranchDetails {
   name?: string;
   address?: string | { street?: string; city?: string };
+  contact?: { phone?: string };
   profile?: BranchProfile;
 }
 
@@ -24,6 +26,7 @@ interface PastOrderDto {
   items?: PastOrderItem[];
   createdAt?: string;
   restaurantName?: string;
+  restaurantPhone?: string;
   branchDetails?: BranchDetails;
   branchName?: string;
   restaurantAddress?: string;
@@ -156,6 +159,7 @@ export const getPastOrders = async (limit: number = 10, cursor?: string) => {
       id: order.orderId || "", 
       displayOrderNumber: order.displayOrderNumber,
       restaurantName: order.restaurantName || order.branchDetails?.profile?.restaurantInfo?.name || order.branchDetails?.name || order.branchDetails?.profile?.restaurantInfo?.legalName || order.branchName || "",
+      restaurantPhone: order.restaurantPhone || order.branchDetails?.contact?.phone || order.branchDetails?.profile?.restaurantInfo?.phone || order.branchDetails?.profile?.ownerInfo?.phone || "",
       location: order.restaurantAddress || order.branchDetails?.profile?.restaurantInfo?.address || (typeof order.branchDetails?.address === 'string' ? order.branchDetails.address : [order.branchDetails?.address?.street, order.branchDetails?.address?.city].filter(Boolean).join(', ')) || "",
       rating: 0,
       items: lineItems,

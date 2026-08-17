@@ -300,6 +300,7 @@ export const CheckoutView: React.FC = () => {
             displayOrderNumber: result.data.displayOrderNumber,
             restaurantId: selectedRestaurant?.id || result.data.branchId,
             restaurantName: selectedRestaurant?.name || "Restaurant",
+            restaurantPhone: selectedRestaurant?.phone || (selectedRestaurant as any)?.contact?.phone || "",
             location: result.data.customerDetails?.address || "",
             rating: selectedRestaurant?.rating ?? 0,
             items: (Array.isArray(result.data.items) ? result.data.items : []).map((item) => ({

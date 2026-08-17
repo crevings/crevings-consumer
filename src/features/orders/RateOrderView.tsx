@@ -315,9 +315,19 @@ export const RateOrderView: React.FC<RateOrderViewProps> = ({ order, onBack, onS
                 <p className="text-xs text-slate-500">{order.location}</p>
               </div>
             </div>
-            <button className="w-10 h-10 bg-slate-50 text-slate-600 rounded-full flex items-center justify-center border border-slate-100 active:scale-95 transition-transform shrink-0">
-              <Phone className="w-4 h-4" />
-            </button>
+            {order.restaurantPhone ? (
+              <a
+                href={`tel:${order.restaurantPhone.replace(/[^\d+]/g, '')}`}
+                aria-label={`Call ${order.restaurantName}`}
+                className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center border border-green-100 active:scale-95 transition-transform hover:bg-green-100 shrink-0"
+              >
+                <Phone className="w-4 h-4" />
+              </a>
+            ) : (
+              <span className="w-10 h-10 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center border border-slate-100 shrink-0 cursor-not-allowed">
+                <Phone className="w-4 h-4" />
+              </span>
+            )}
           </div>
 
           <div className="mb-5 border-b border-slate-100 pb-4">

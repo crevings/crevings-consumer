@@ -87,6 +87,7 @@ export interface CreatedOrder {
   payment?: OrderPayment;
   restaurantCoordinates?: { lat: number; lng: number } | null;
   deliveryCoordinates?: { lat: number; lng: number } | null;
+  restaurantPhone?: string;
 }
 
 export interface Order {
@@ -94,6 +95,7 @@ export interface Order {
   deliveryPartner?: DeliveryPartner | null;
   id: string;
   restaurantName: string;
+  restaurantPhone?: string;
   location: string;
   rating: number;
   timeEstimate?: string;

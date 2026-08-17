@@ -6,7 +6,8 @@ import {
   Building,
   RotateCcw,
   Star,
-  Clock
+  Clock,
+  Phone
 } from 'lucide-react';
 import { Order } from '@/types';
 import { downloadInvoice, parseOrderItems, getOrderTotals } from "@/lib/invoice";
@@ -74,15 +75,26 @@ export const OrderDetailView: React.FC<OrderDetailViewProps> = ({
               </div>
             )}
           </div>
-          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-            isCompleted 
-              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-              : isCancelled 
-              ? 'bg-red-50 text-red-600 border border-red-100' 
-              : 'bg-blue-50 text-blue-600 border border-blue-100'
-          }`}>
-            {order.status}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {order.restaurantPhone && (
+              <a
+                href={`tel:${order.restaurantPhone.replace(/[^\d+]/g, '')}`}
+                aria-label={`Call ${order.restaurantName}`}
+                className="w-8 h-8 rounded-full bg-emerald-50 text-[#00bd6f] border border-emerald-200/60 flex items-center justify-center active:scale-95 transition-all hover:bg-emerald-100"
+              >
+                <Phone className="w-3.5 h-3.5" />
+              </a>
+            )}
+            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+              isCompleted 
+                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                : isCancelled 
+                ? 'bg-red-50 text-red-600 border border-red-100' 
+                : 'bg-blue-50 text-blue-600 border border-blue-100'
+            }`}>
+              {order.status}
+            </span>
+          </div>
         </div>
 
         {/* Items Summary */}
