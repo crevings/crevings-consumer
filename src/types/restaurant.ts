@@ -47,6 +47,8 @@ export interface Restaurant {
   registeredName?: string;
   deliveryFee?: number;
   deliveryFeeSlabs?: DeliveryFeeSlab[];
+  isOnline?: boolean;
+  isOpen?: boolean;
 }
 
 export interface Brand {

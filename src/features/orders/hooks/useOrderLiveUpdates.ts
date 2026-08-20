@@ -78,18 +78,35 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
           // progress switch's default (progress -> 0, timeline resets) and leaks
           // the raw status code into the UI.
           if (data.status !== "DRIVER_LOCATION" && data.status !== "NO_DRIVERS_AVAILABLE") {
+            const STATUS_RANK: Record<string, number> = {
+              "NEW": 0, "PENDING_ACCEPT": 1, "ACCEPTED": 2, "PREPARING": 3,
+              "READY": 4, "READY_FOR_PICKUP": 4,
+              "DRIVER_ASSIGNED": 5, "DRIVER_ARRIVED": 6,
+              "OUT FOR DELIVERY": 7, "OUT_FOR_DELIVERY": 7, "ORDER_PICKED_UP": 7,
+              "REACHED_CUSTOMER": 8, "ARRIVING_SOON": 8,
+              "DELIVERED": 9, "COMPLETED": 10,
+              "CANCELLED": 99, "REJECTED": 99,
+            };
             setOrderStatus((prev) => {
+              const prevRank = STATUS_RANK[prev] ?? -1;
+              const nextRank = STATUS_RANK[data.status] ?? -1;
+
+              // Block regression: don't let a lower-rank status overwrite a higher one
+              // (except terminal statuses like CANCELLED/COMPLETED which always apply)
+              if (nextRank < prevRank && nextRank < 99) {
+                return prev;
+              }
+
               if ((data.status === "PREPARING" || data.status === "ACCEPTED") && (prev === "NEW" || prev === "PENDING_ACCEPT")) {
                 setShowAcceptedBanner(true);
               }
               return data.status;
             });
-          }
-          // Only terminal statuses end the cancellation window. When the
-          // restaurant confirms the order (ACCEPTED/PREPARING/...), the window
-          // stays open so the user can Skip the remaining wait or Cancel.
-          if (data.status === "CANCELLED" || data.status === "REJECTED" || data.status === "COMPLETED") {
-            setCancelTimeLeft(0);
+
+            // Any status change away from NEW means the 60s cancellation window has completed or ended
+            if (data.status !== "NEW") {
+              setCancelTimeLeft(0);
+            }
           }
           if (data.status === "CANCELLED") {
             setIsCancelled(true);
@@ -174,24 +191,35 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
     }
   }, [isCancelled, onCancelOrder]);
 
-  // Countdown for the 60-second cancellation window.
+  // Countdown for the 60-second cancellation window:
+  // Derived directly from the order creation timestamp to prevent clock drift.
   useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    if (cancelTimeLeft > 0 && !isCancelled) {
-      timer = setInterval(() => {
-        setCancelTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (isCancelled || orderStatus !== "NEW") {
+      setCancelTimeLeft(0);
+      return;
     }
-    return () => {
-      if (timer) clearInterval(timer);
+
+    const calculateTimeLeft = () => {
+      if (order.type !== "Delivery") return 0;
+      if (!order.createdAt) return 0;
+      const createdTime = new Date(order.createdAt).getTime();
+      const secondsElapsed = Math.floor((Date.now() - createdTime) / 1000);
+      const timeLeft = CANCEL_WINDOW_SECONDS - secondsElapsed;
+      return timeLeft > 0 ? timeLeft : 0;
     };
-  }, [cancelTimeLeft, isCancelled]);
+
+    setCancelTimeLeft(calculateTimeLeft());
+
+    const timer = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setCancelTimeLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, [order.createdAt, order.type, isCancelled, orderStatus]);
 
   useEffect(() => {
     const timer = setInterval(() => {

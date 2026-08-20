@@ -2,12 +2,11 @@ import useSWRInfinite from "swr/infinite";
 import { Restaurant, MenuItem } from "@/types";
 import { fetcher } from "@/api/fetcher";
 
-// L1 SWR cache policy (see backend caching-strategy.md). staleTime keeps the
-// in-memory cache fresh for the category's expected volatility; the global
-// dedupingInterval in App.tsx coalesces concurrent requests for the same key.
-const SWR_HOT = { revalidateOnFocus: false, staleTime: 60_000 }; // feed / filter / search
-const SWR_WARM = { revalidateOnFocus: false, staleTime: 300_000 }; // menu / categories / promotions
-const SWR_LIVE = { revalidateOnFocus: false, staleTime: 30_000 }; // items-under-* / suggestions / category detail
+// L1 SWR cache policy: revalidateOnFocus ensures the user sees live online/offline status
+// immediately when switching back to the app, with single-flight deduping.
+const SWR_HOT = { revalidateOnFocus: true, staleTime: 10_000, dedupingInterval: 4_000 }; // feed / filter / search
+const SWR_WARM = { revalidateOnFocus: false, staleTime: 180_000 }; // menu / categories / promotions
+const SWR_LIVE = { revalidateOnFocus: true, staleTime: 10_000 }; // items-under-* / suggestions / category detail
 
 interface PaginatedResponse<T> {
   success: boolean;

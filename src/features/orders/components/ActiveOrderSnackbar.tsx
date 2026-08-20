@@ -29,9 +29,9 @@ export const ActiveOrderSnackbar: React.FC<ActiveOrderSnackbarProps> = ({ order,
           
           <div className="flex items-center gap-1.5 text-xs text-slate-500 truncate">
             <span className="text-green-600 font-bold">
-              {order.statusDisplay || (
+              {(order as any).statusDisplay || (
                 order.status === 'PREPARING' ? 'Preparing order' :
-                order.status === 'OUT_FOR_DELIVERY' || order.status === 'OUT FOR DELIVERY' ? 'Out for delivery' :
+                (order.status as string) === 'OUT_FOR_DELIVERY' || order.status === 'OUT FOR DELIVERY' ? 'Out for delivery' :
                 order.status === 'DELIVERED' || order.status === 'COMPLETED' ? 'Delivered' :
                 order.status === 'CANCELLED' ? 'Order cancelled' :
                 'Order placed'

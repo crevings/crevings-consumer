@@ -15,6 +15,8 @@ interface RestaurantCardProps {
   offers?: string[];
   address?: string | RestaurantAddress;
   dietary?: string[];
+  isOnline?: boolean;
+  isOpen?: boolean;
   onClick?: () => void;
   onHide?: (id: string | number) => void;
   onFavourite?: (id: string | number) => void;
@@ -31,10 +33,14 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   offers = [],
   address,
   dietary = [],
+  isOnline,
+  isOpen,
   onClick,
   onItemAdd,
   menuItems: propMenuItems = [],
 }) => {
+  const isClosed = isOnline === false || isOpen === false;
+
   const menuItems = (propMenuItems || []).slice(0, 3).map((item) => ({
     ...item,
     price: `${formatINR(item.price)}`,
@@ -47,7 +53,11 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
   return (
     <div 
       onClick={onClick}
-      className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm mb-6 relative p-4 cursor-pointer"
+      className={`rounded-[24px] overflow-hidden border shadow-sm mb-6 relative p-4 cursor-pointer transition-all ${
+        isClosed 
+          ? 'bg-slate-50/90 border-slate-200 grayscale-[85%] opacity-65' 
+          : 'bg-white border-slate-100'
+      }`}
     >
       {/* Top Section */}
       <div className="mb-4">
@@ -67,13 +77,24 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
             <div className="text-[13px] text-slate-500 truncate max-w-[220px]">
               {cuisine}
             </div>
+            {isClosed && (
+              <div className="text-[12px] font-bold text-red-600 mt-1 flex items-center gap-1">
+                <span>Currently not accepting orders</span>
+              </div>
+            )}
           </div>
-          <div className="flex flex-col items-center justify-center bg-green-700 rounded-xl px-2 py-1 shadow-sm shrink-0 ml-2">
-            <div className="flex items-center gap-1">
-              <span className="text-white font-bold text-sm">{rating}</span>
-              <Star className="w-3 h-3 text-white fill-white" />
+          {isClosed ? (
+            <div className="flex items-center bg-slate-800 text-white rounded-xl px-2.5 py-1 shadow-sm shrink-0 ml-2">
+              <span className="font-black text-xs uppercase tracking-wider">Closed</span>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center bg-green-700 rounded-xl px-2 py-1 shadow-sm shrink-0 ml-2">
+              <div className="flex items-center gap-1">
+                <span className="text-white font-bold text-sm">{rating}</span>
+                <Star className="w-3 h-3 text-white fill-white" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -105,11 +126,17 @@ const RestaurantCardUnmemoized: React.FC<RestaurantCardProps> = ({
                   {item.price}
                 </div>
                 <button 
+                  disabled={isClosed}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onItemAdd) onItemAdd(item.id);
+                    if (!isClosed && onItemAdd) onItemAdd(item.id);
                   }}
-                  className="w-6 h-6 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md border border-slate-100/50 text-green-600 hover:bg-green-50 transition-colors"
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shadow-md border transition-colors ${
+                    isClosed
+                      ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
+                      : 'bg-white/95 backdrop-blur-sm border-slate-100/50 text-green-600 hover:bg-green-50'
+                  }`}
+                  aria-label={isClosed ? 'Restaurant is closed' : 'Add item'}
                 >
                   <Plus className="w-3.5 h-3.5" strokeWidth={3} />
                 </button>

@@ -86,7 +86,7 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
   const debouncedQuery = useDebounce(query, 300);
   const [searchType, setSearchType] = useState<'restaurant' | 'dish'>('restaurant');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [quickFilters, setQuickFilters] = useState<QuickFilters>({ veg: false, rating: false, near: false });
+  const [quickFilters] = useState<QuickFilters>({ veg: false, rating: false, near: false });
   const [activeFilters, setActiveFilters] = useState<FilterOptions>({
     maxTime: 60,
     maxDistance: 15,
@@ -188,17 +188,6 @@ export const SearchResultsView: React.FC<SearchResultsViewProps> = ({
 
   const currentResultsLength =
     searchType === 'restaurant' ? filteredRestaurants.length : filteredDishes.length;
-
-  const toggleQuickFilter = (action: 'veg' | 'rating' | 'near') => {
-    setQuickFilters((prev) => ({ ...prev, [action]: !prev[action] }));
-  };
-
-  const chipIsActive = (action: string): boolean => {
-    if (action === 'veg' || action === 'rating' || action === 'near') {
-      return quickFilters[action];
-    }
-    return false;
-  };
 
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">

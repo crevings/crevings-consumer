@@ -155,7 +155,7 @@ export const MainLayout: React.FC = () => {
       )}
 
       {/* Active Order Snackbar */}
-      {currentPath !== "/order-tracking" && activeOrder && (
+      {currentPath !== "/order-tracking" && activeOrder && !["DELIVERED", "COMPLETED", "CANCELLED", "REJECTED"].includes((activeOrder.status || "").toUpperCase()) && (
         <ActiveOrderSnackbar
           order={activeOrder}
           onClick={() => navigate("/order-tracking")}

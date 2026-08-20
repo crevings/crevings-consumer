@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { AnimatePresence } from "motion/react";
+import { useSWRConfig } from "swr";
 import { SlidersHorizontal, UtensilsCrossed } from "lucide-react";
 import { Restaurant, FilterOptions, Collection } from "@/types";
 import { FILTER_DEFAULTS } from "@/config/constants";
@@ -33,6 +34,21 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 }) => {
   const { restaurants, isLoading: isApiLoading, isLoadingMore, isReachingEnd, size, setSize } = useRestaurants();
   const { items: itemsUnder99 } = useItemsUnder99(10);
+  const { mutate } = useSWRConfig();
+
+  // Periodic silent background sync: seamlessly checks open/closed statuses every 5s without screen flash
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        mutate(
+          (key) => typeof key === "string" && key.startsWith("/consumer/restaurants"),
+          undefined,
+          { revalidate: true }
+        );
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [mutate]);
 
   // Trigger native permission requests immediately after landing on home page
   useEffect(() => {
@@ -54,9 +70,13 @@ export const HomeFeed: React.FC<HomeFeedProps> = ({
 
       // 3. Voice / microphone pre-check
       try {
-        const { getSpeechService } = await import("@/services/speech");
-        const speech = getSpeechService();
-        if (speech.supported) {
+        const { createSpeechService } = await import("@/services/speech");
+        const speech = createSpeechService({
+          onResult: () => {},
+          onError: () => {},
+          onEnd: () => {},
+        });
+        if (speech.supported && speech.requestPermission) {
           await speech.requestPermission();
         }
       } catch { }

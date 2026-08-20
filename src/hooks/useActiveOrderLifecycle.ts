@@ -23,24 +23,39 @@ export const useActiveOrderLifecycle = (
 ) => {
   const navigate = useNavigate();
 
-  // Load active order on mount from the server
+  // Load and sync active order dynamically with server
   useEffect(() => {
     let cancelled = false;
     const fetchActiveOrder = async () => {
       try {
-        const res = await get<{ success: boolean; order?: Order }>(
+        const res = await get<{ success: boolean; order?: Order | null }>(
           "/consumer/profile/orders/active"
         );
-        if (!cancelled && res.success && res.order) {
-          setActiveOrder(res.order);
+        if (cancelled) return;
+        if (res && res.success && res.order) {
+          const status = (res.order.status || "").toUpperCase();
+          if (TERMINAL_ORDER_STATUSES.includes(status)) {
+            setActiveOrder(null);
+          } else {
+            setActiveOrder(res.order);
+          }
+        } else {
+          setActiveOrder(null);
         }
       } catch (err) {
-        console.error("Error loading active order on mount:", err);
+        if (!cancelled) {
+          setActiveOrder(null);
+        }
+        console.error("Error loading active order:", err);
       }
     };
+
     fetchActiveOrder();
+    const interval = setInterval(fetchActiveOrder, 5000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [setActiveOrder]);
 

@@ -54,9 +54,7 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
     }
   };
 
-  const bannerImage = (restaurant.images && restaurant.images.length > 0 && restaurant.images[0])
-    ? restaurant.images[0]
-    : (restaurant as any).image;
+  const isClosed = restaurant.isOnline === false || restaurant.isOpen === false;
 
   return (
     <>
@@ -83,16 +81,12 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
         </div>
       </div>
 
-      {/* Restaurant Hero Banner Image */}
-      <div className="relative w-full h-44 sm:h-52 overflow-hidden bg-slate-100 mb-2">
-        <img
-          loading="lazy"
-          src={bannerImage}
-          alt={restaurant.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-      </div>
+      {/* Closed Warning Banner */}
+      {isClosed && (
+        <div className="bg-red-500 text-white px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-1.5 shadow-sm">
+          <span>This restaurant is currently closed and not accepting orders</span>
+        </div>
+      )}
 
       {/* Restaurant Header Info */}
       <div className="px-4 py-2 mb-2">
@@ -117,7 +111,11 @@ export const RestaurantHeader: React.FC<React.PropsWithChildren<RestaurantHeader
             <div className="flex items-center gap-1.5 text-[10px] font-medium mt-0.5">
               {restaurant.price && <span className="text-slate-500">{restaurant.price}</span>}
               {restaurant.price && <span className="text-slate-300">|</span>}
-              <span className="text-[#1db83e] font-bold">Open until 11 PM</span>
+              {isClosed ? (
+                <span className="text-red-600 font-bold">Closed • Not taking orders</span>
+              ) : (
+                <span className="text-[#1db83e] font-bold">Open until 11 PM</span>
+              )}
             </div>
           </div>
 

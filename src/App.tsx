@@ -126,11 +126,11 @@ export default function App() {
     <SWRConfig
       value={{
         fetcher,
-        // No refetch on window focus (mobile — avoid noisy background polls);
-        // remounting a page (navigation back/forward) revalidates instead, so
-        // the feed/menu/category data is auto-refreshed on every visit without
-        // needing a hard refresh.
-        revalidateOnFocus: false,
+        // Auto-revalidate on window focus & network reconnect so open/closed
+        // statuses, menus, and orders refresh automatically without a hard refresh.
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+        revalidateIfStale: true,
         // Bounded retries: a single transient failure (cold backend, timeout)
         // must not permanently leave the feed empty until a hard refresh —
         // SWR retries a couple of times, then self-heals on the next remount.

@@ -16,13 +16,19 @@ function useSelectedRestaurant(id: string | undefined) {
 
   React.useEffect(() => {
     if (!id) return;
-    // Keep the context in sync with the URL: if a stale restaurant from a
-    // previous visit is still selected (navigating back, or deep-linking to a
-    // different restaurant), replace it so the page never shows the old one.
-    if (selectedRestaurant && String(selectedRestaurant.id) === id) return;
     const found = restaurants.find((r) => String(r.id) === id);
-    if (found) setSelectedRestaurant(found);
-    else if (selectedRestaurant) setSelectedRestaurant(null);
+    if (found) {
+      if (
+        !selectedRestaurant ||
+        String(selectedRestaurant.id) !== id ||
+        selectedRestaurant.isOnline !== found.isOnline ||
+        selectedRestaurant.isOpen !== found.isOpen
+      ) {
+        setSelectedRestaurant(found);
+      }
+    } else if (selectedRestaurant && String(selectedRestaurant.id) !== id) {
+      setSelectedRestaurant(null);
+    }
   }, [id, restaurants, selectedRestaurant, setSelectedRestaurant]);
 
   return { restaurants, selectedRestaurant, isLoading };

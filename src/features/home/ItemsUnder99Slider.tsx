@@ -47,7 +47,7 @@ export const ItemsUnder99Slider: React.FC<ItemsUnder99SliderProps> = ({
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const indexRef = useRef(0);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [, setActiveIndex] = useState(0);
 
   const visibleItems = useMemo(() => {
     return items

@@ -23,6 +23,8 @@ import {
   Heart,
   Banknote,
   Check,
+  AlertTriangle,
+  Store,
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useLocation as useAppLocation } from "@/contexts/LocationContext";
@@ -228,8 +230,37 @@ export const CheckoutView: React.FC = () => {
     return { lat: coords[1], lng: coords[0] };
   };
 
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+    confirmText?: string;
+    isClosedNotice?: boolean;
+  }>({
+    isOpen: false,
+    title: "",
+    message: ""
+  });
+
   const handleConfirmOrder = async () => {
     if (!selectedPaymentMethod || !selectedRestaurant) return;
+
+    if (selectedRestaurant.isOnline === false || selectedRestaurant.isOpen === false) {
+      setShowProcessing(false);
+      setErrorModal({
+        isOpen: true,
+        title: "Restaurant Currently Closed",
+        message: "Unfortunately, your order cannot be placed as the restaurant is currently closed or not accepting orders.",
+        confirmText: "Back to Restaurants",
+        isClosedNotice: true,
+        onConfirm: () => {
+          setCart([]);
+          navigate("/");
+        }
+      });
+      return;
+    }
 
     setOrderError("");
     setIsPlacingOrder(true);
@@ -271,9 +302,34 @@ export const CheckoutView: React.FC = () => {
         }
       );
       if (!result.success) {
-        setOrderError(result.message || "Failed to place order");
+        const errorMsg = result.message || "Failed to place order";
+        setOrderError(errorMsg);
         setShowProcessing(false);
-        alert(result.message || "Failed to place order. Please try again.");
+        if (
+          errorMsg.toLowerCase().includes("closed") || 
+          errorMsg.toLowerCase().includes("offline") ||
+          (result as any).code === "RESTAURANT_CLOSED"
+        ) {
+          setErrorModal({
+            isOpen: true,
+            title: "Restaurant Currently Closed",
+            message: "Unfortunately, your order cannot be placed as the restaurant has just gone offline or closed.",
+            confirmText: "Back to Restaurants",
+            isClosedNotice: true,
+            onConfirm: () => {
+              setCart([]);
+              navigate("/");
+            }
+          });
+          return;
+        }
+        setErrorModal({
+          isOpen: true,
+          title: "Unable to Place Order",
+          message: errorMsg,
+          confirmText: "Okay",
+          onConfirm: () => setErrorModal(prev => ({ ...prev, isOpen: false }))
+        });
       } else {
         // Fetch the fully populated active order from the server to get restaurant/delivery coordinates
         let orderPayload: Order | null = null;
@@ -335,10 +391,35 @@ export const CheckoutView: React.FC = () => {
           navigate("/order-tracking");
         }
       }
-    } catch {
-      setOrderError("An error occurred while connecting to the server.");
+    } catch (err: any) {
+      const errorMsg = err?.message || "An error occurred while connecting to the server.";
+      setOrderError(errorMsg);
       setShowProcessing(false);
-      alert("Failed to place order due to network issue. Please try again.");
+      if (
+        errorMsg.toLowerCase().includes("closed") || 
+        errorMsg.toLowerCase().includes("offline") ||
+        err?.info?.code === "RESTAURANT_CLOSED"
+      ) {
+        setErrorModal({
+          isOpen: true,
+          title: "Restaurant Currently Closed",
+          message: "Unfortunately, your order cannot be placed as the restaurant is closed.",
+          confirmText: "Back to Restaurants",
+          isClosedNotice: true,
+          onConfirm: () => {
+            setCart([]);
+            navigate("/");
+          }
+        });
+        return;
+      }
+      setErrorModal({
+        isOpen: true,
+        title: "Network Issue",
+        message: "Failed to place order due to a network issue. Please check your connection and try again.",
+        confirmText: "Try Again",
+        onConfirm: () => setErrorModal(prev => ({ ...prev, isOpen: false }))
+      });
     } finally {
       setIsPlacingOrder(false);
     }
@@ -443,6 +524,13 @@ export const CheckoutView: React.FC = () => {
       <div className="px-4 pt-4 pb-8">
       <div className="app-container md:grid md:grid-cols-[1fr_340px] md:gap-6 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4 min-w-0">
+        {selectedRestaurant && (selectedRestaurant.isOnline === false || selectedRestaurant.isOpen === false) && (
+          <div className="bg-red-500 text-white px-4 py-3 rounded-2xl text-xs font-bold text-center flex items-center justify-center gap-2 shadow-sm">
+            <DoorClosed size={16} />
+            <span>This restaurant is currently closed and not accepting orders.</span>
+          </div>
+        )}
+
         {/* Order Type Toggle */}
         <div className="bg-slate-100 p-1 rounded-2xl flex relative h-[52px]">
           <div
@@ -848,7 +936,16 @@ loading="lazy"                         src={item.image || "https://images.unspla
           if (orderType === "Delivery" && (!currentLocation || !currentLocation.address)) {
             navigate("/location", { state: { from: "/checkout" } });
           } else if (orderType === "Delivery" && !isServiceable) {
-            alert("Crevings is not available in your city.");
+            setErrorModal({
+              isOpen: true,
+              title: "Location Not Serviceable",
+              message: "Crevings is currently not available in your city or delivery location.",
+              confirmText: "Change Location",
+              onConfirm: () => {
+                setErrorModal(prev => ({ ...prev, isOpen: false }));
+                navigate("/location", { state: { from: "/checkout" } });
+              }
+            });
           } else {
             setShowPaymentSheet(true);
           }
@@ -1128,6 +1225,49 @@ loading="lazy"                         src={item.image || "https://images.unspla
           />
         )}
       </AnimatePresence>
+
+      {/* In-Screen Error & Closed Restaurant Modal Popup */}
+      {errorModal.isOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div 
+            className="w-full max-w-sm bg-white rounded-[28px] p-6 shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200 text-center flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-sm ${
+              errorModal.isClosedNotice
+                ? "bg-rose-50 border border-rose-100 text-rose-600"
+                : "bg-amber-50 border border-amber-100 text-amber-600"
+            }`}>
+              {errorModal.isClosedNotice ? (
+                <Store size={32} className="stroke-[2.2]" />
+              ) : (
+                <AlertTriangle size={32} className="stroke-[2.2]" />
+              )}
+            </div>
+
+            <h3 className="text-[19px] font-bold text-slate-900 mb-2 tracking-tight">
+              {errorModal.title}
+            </h3>
+
+            <p className="text-[14px] text-slate-600 font-normal leading-relaxed mb-6 px-1">
+              {errorModal.message}
+            </p>
+
+            <button
+              onClick={() => {
+                if (errorModal.onConfirm) {
+                  errorModal.onConfirm();
+                } else {
+                  setErrorModal(prev => ({ ...prev, isOpen: false }));
+                }
+              }}
+              className="w-full h-[50px] bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-[15px] active:scale-[0.98] transition-all shadow-md flex items-center justify-center"
+            >
+              {errorModal.confirmText || "Okay"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

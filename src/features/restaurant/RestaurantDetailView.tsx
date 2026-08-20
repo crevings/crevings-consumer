@@ -163,11 +163,14 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
 
   const isFilterActive = (filter: string) => activeFilters.includes(filter);
 
+  const isClosed = restaurant.isOnline === false || restaurant.isOpen === false;
+
   const getItemQuantity = (id: string) => {
     return cart.filter(c => c.item.id === id).reduce((sum, c) => sum + c.quantity, 0);
   };
 
   const handleAdd = (id: string) => {
+    if (isClosed) return;
     const item = menuItems.find(i => i.id === id);
     if (item) {
       const hasPricingOptions = item.pricing_options && item.pricing_options.length > 1;
@@ -360,52 +363,58 @@ export const RestaurantDetailView: React.FC<RestaurantDetailViewProps> = ({
         selectedOutlet={selectedOutlet}
         onOutletClick={() => setIsOutletsOpen(true)}
       >
-        {isInitialMenuLoad ? (
-          <MenuLoadingSkeleton />
-        ) : (
-          <>
-            <RestaurantOffers 
-              offers={offers}
-              isLoadingMore={!!isOffersLoadingMore}
-              isReachingEnd={!!isOffersReachingEnd}
-              onLoadMore={() => setOffersSize(offersSize + 1)}
-              onSelectOffer={setSelectedOffer}
-            />
+        <div className={isClosed ? "opacity-60 grayscale-[35%] pointer-events-none select-none transition-all" : ""}>
+          {isInitialMenuLoad ? (
+            <MenuLoadingSkeleton />
+          ) : (
+            <>
+              <RestaurantOffers 
+                offers={offers}
+                isLoadingMore={!!isOffersLoadingMore}
+                isReachingEnd={!!isOffersReachingEnd}
+                onLoadMore={() => setOffersSize(offersSize + 1)}
+                onSelectOffer={setSelectedOffer}
+              />
 
-            <RestaurantFilters 
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              setIsVoiceSearchOpen={setIsVoiceSearchOpen}
-              sortBy={sortBy}
-              setIsSortOpen={setIsSortOpen}
-              isFilterActive={isFilterActive}
-              toggleFilter={toggleFilter}
-            />
+              <RestaurantFilters 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                setIsVoiceSearchOpen={setIsVoiceSearchOpen}
+                sortBy={sortBy}
+                setIsSortOpen={setIsSortOpen}
+                isFilterActive={isFilterActive}
+                toggleFilter={toggleFilter}
+              />
 
-            <RestaurantMenuList 
-              customMenus={customMenus}
-              filteredMenu={filteredMenu}
-              categories={categories}
-              expandedCategories={expandedCategories}
-              toggleCategory={toggleCategory}
-              getItemQuantity={getItemQuantity}
-              handleAdd={handleAdd}
-              handleRemove={handleRemove}
-              onItemClick={(item) => {
-                setSelectedMenuItemDetail(item);
-                setIsMenuItemDetailOpen(true);
-              }}
-            />
-          </>
-        )}
+              <RestaurantMenuList 
+                customMenus={customMenus}
+                filteredMenu={filteredMenu}
+                categories={categories}
+                expandedCategories={expandedCategories}
+                toggleCategory={toggleCategory}
+                getItemQuantity={getItemQuantity}
+                handleAdd={handleAdd}
+                handleRemove={handleRemove}
+                onItemClick={(item) => {
+                  if (!isClosed) {
+                    setSelectedMenuItemDetail(item);
+                    setIsMenuItemDetailOpen(true);
+                  }
+                }}
+              />
+            </>
+          )}
+        </div>
       </RestaurantHeader>
 
-      <FloatingCartBar 
-        totalItems={totalItems}
-        totalPrice={totalPrice}
-        onPreviewClick={() => setShowCartPreview(true)}
-        onCheckoutClick={() => onCheckout(cart, menuItems)}
-      />
+      {!isClosed && (
+        <FloatingCartBar 
+          totalItems={totalItems}
+          totalPrice={totalPrice}
+          onPreviewClick={() => setShowCartPreview(true)}
+          onCheckoutClick={() => onCheckout(cart, menuItems)}
+        />
+      )}
 
       <CartPreviewSheet 
         showCartPreview={showCartPreview}
