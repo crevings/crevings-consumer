@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { UserProfile, Review, AuthUser } from "@/types";
 import { useVerifyToken, logout as apiLogout } from "@/api/auth/index";
+import { unregisterPushNotifications } from "@/services/push";
 import { useUserProfile } from "@/api/user/index";
 
 interface UserContextType {
@@ -86,6 +87,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children, onNavigate
         image: null,
       });
       mutate(undefined, false); // Clear SWR token verification cache
+      unregisterPushNotifications().catch(() => {}); // Unregister FCM token (fire-and-forget)
       apiLogout().catch(() => {}); // Fire backend logout API asynchronously
       onNavigateHome();
     } catch (err) {

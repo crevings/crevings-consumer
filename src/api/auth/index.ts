@@ -52,7 +52,8 @@ export const register = async (payload: Record<string, unknown>) => {
  * Log out the authenticated consumer.
  */
 export const logout = async () => {
-  // Empty body or JSON — both are handled by the client.
-  const data = await post<{ success?: boolean } | undefined>("/consumer/auth/logout");
-  return data || { success: true };
+  // Call role-specific logout + refresh token revocation
+  await post<{ success?: boolean } | undefined>("/consumer/auth/logout").catch(() => {});
+  await post("/auth/logout").catch(() => {});
+  return { success: true };
 };

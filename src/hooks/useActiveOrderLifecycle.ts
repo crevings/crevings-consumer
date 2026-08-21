@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Order } from "@/types";
 import { BASE_URL, get } from "@/api/fetcher";
 import { ORDER_STATUS, TERMINAL_ORDER_STATUSES, TRACKING_TRIGGER_STATUSES } from "@/config/constants";
+import { createSSEClient } from "@/lib/sse-client";
 
 type SetOrder = React.Dispatch<React.SetStateAction<Order | null>>;
 
@@ -74,43 +75,41 @@ export const useActiveOrderLifecycle = (
       return;
     }
 
-    const eventSource = new EventSource(
-      `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
-      { withCredentials: true }
-    );
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.status) {
-          const upperStatus = data.status.toUpperCase();
-          setActiveOrder((prev) => {
-            if (!prev) return null;
-            if (prev.status !== data.status) {
-              if (
-                (prev.status === ORDER_STATUS.NEW || prev.status === ORDER_STATUS.PENDING_ACCEPT) &&
-                TRACKING_TRIGGER_STATUSES.includes(data.status)
-              ) {
-                setTimeout(() => {
-                  navigate("/order-tracking");
-                }, 0);
+    const sseClient = createSSEClient({
+      url: `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
+      events: {
+        message: (data: any) => {
+          if (data.status) {
+            const upperStatus = data.status.toUpperCase();
+            setActiveOrder((prev) => {
+              if (!prev) return null;
+              if (prev.status !== data.status) {
+                if (
+                  (prev.status === ORDER_STATUS.NEW || prev.status === ORDER_STATUS.PENDING_ACCEPT) &&
+                  TRACKING_TRIGGER_STATUSES.includes(data.status)
+                ) {
+                  setTimeout(() => {
+                    navigate("/order-tracking");
+                  }, 0);
+                }
+                return { ...prev, status: data.status };
               }
-              return { ...prev, status: data.status };
-            }
-            return prev;
-          });
+              return prev;
+            });
 
-          if (TERMINAL_ORDER_STATUSES.includes(upperStatus)) {
-            eventSource.close();
+            if (TERMINAL_ORDER_STATUSES.includes(upperStatus)) {
+              sseClient.close();
+            }
           }
-        }
-      } catch (err) {
-        console.error("Error parsing live status in context:", err);
-      }
-    };
+        },
+      },
+      maxRetries: 20,
+    });
+
+    sseClient.connect();
 
     return () => {
-      eventSource.close();
+      sseClient.close();
     };
   }, [activeOrder?.id, navigate, setActiveOrder]);
 

@@ -11,7 +11,8 @@ import {
   X,
   Mail,
   Clock,
-  Lock
+  Lock,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Order, Review } from '@/types';
@@ -47,6 +48,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdateProfileImage,
   onUpdateProfile,
   onLogout,
+  onNotificationsClick,
   onHelpClick: _onHelpClick,
   onRefundsClick,
   onPoliciesClick,
@@ -239,6 +241,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
            <div className="pt-2">
                <h3 className="text-[17px] font-bold text-slate-900 tracking-tight mb-3 px-1">Info & Support</h3>
                <div className="bg-white rounded-[20px] border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                   <button onClick={onNotificationsClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
+                       <div className="flex items-center gap-3.5">
+                           <div className="text-[#00bd6f] px-1">
+                               <Bell className="w-[22px] h-[22px]" strokeWidth={1.5} />
+                           </div>
+                           <div className="flex flex-col gap-0.5">
+                               <span className="text-[15px] font-semibold text-slate-900">Notifications</span>
+                               <span className="text-[12px] text-slate-500">Order updates and offers</span>
+                           </div>
+                       </div>
+                       <ChevronRight className="w-5 h-5 text-slate-300" strokeWidth={2} />
+                   </button>
                    <button onClick={onPoliciesClick} className="w-full flex items-center justify-between p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors text-left">
                        <div className="flex items-center gap-3.5">
                            <div className="text-[#00bd6f] px-1">

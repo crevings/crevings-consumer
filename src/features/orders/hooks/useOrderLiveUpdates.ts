@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Order, DeliveryPartner } from "@/types";
 import { CANCEL_WINDOW_SECONDS } from "@/config/constants";
 import { BASE_URL, post } from "@/api/fetcher";
+import { createSSEClient } from "@/lib/sse-client";
 
 interface UseOrderLiveUpdatesOptions {
   onOrderComplete: () => void;
@@ -54,92 +55,86 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
 
     if (!orderId || !restaurantId) return;
 
-    const eventSource = new EventSource(
-      `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
-      { withCredentials: true }
-    );
+    const sseClient = createSSEClient({
+      url: `${BASE_URL}/consumer/restaurants/${restaurantId}/orders/${orderId}/live`,
+      events: {
+        message: (data: any) => {
+          if (data.customerPin) {
+            setDeliveryPin(data.customerPin);
+          }
+          if (data.deliveryPartner) {
+            setAssignedPartner(data.deliveryPartner);
+          }
+          if (data.lat && data.lng) {
+            setDriverLocation({ lat: Number(data.lat), lng: Number(data.lng) });
+          }
+          if (data.status) {
+            // Location-only and informational pings — DRIVER_LOCATION fires on
+            // every driver movement and NO_DRIVERS_AVAILABLE is a search notice —
+            // must not overwrite the lifecycle status. Doing so falls through the
+            // progress switch's default (progress -> 0, timeline resets) and leaks
+            // the raw status code into the UI.
+            if (data.status !== "DRIVER_LOCATION" && data.status !== "NO_DRIVERS_AVAILABLE") {
+              const STATUS_RANK: Record<string, number> = {
+                "NEW": 0, "PENDING_ACCEPT": 1, "ACCEPTED": 2, "PREPARING": 3,
+                "READY": 4, "READY_FOR_PICKUP": 4,
+                "DRIVER_ASSIGNED": 5, "DRIVER_ARRIVED": 6,
+                "OUT FOR DELIVERY": 7, "OUT_FOR_DELIVERY": 7, "ORDER_PICKED_UP": 7,
+                "REACHED_CUSTOMER": 8, "ARRIVING_SOON": 8,
+                "DELIVERED": 9, "COMPLETED": 10,
+                "CANCELLED": 99, "REJECTED": 99,
+              };
+              setOrderStatus((prev) => {
+                const prevRank = STATUS_RANK[prev] ?? -1;
+                const nextRank = STATUS_RANK[data.status] ?? -1;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.customerPin) {
-          setDeliveryPin(data.customerPin);
-        }
-        if (data.deliveryPartner) {
-          setAssignedPartner(data.deliveryPartner);
-        }
-        if (data.lat && data.lng) {
-          setDriverLocation({ lat: Number(data.lat), lng: Number(data.lng) });
-        }
-        if (data.status) {
-          // Location-only and informational pings — DRIVER_LOCATION fires on
-          // every driver movement and NO_DRIVERS_AVAILABLE is a search notice —
-          // must not overwrite the lifecycle status. Doing so falls through the
-          // progress switch's default (progress -> 0, timeline resets) and leaks
-          // the raw status code into the UI.
-          if (data.status !== "DRIVER_LOCATION" && data.status !== "NO_DRIVERS_AVAILABLE") {
-            const STATUS_RANK: Record<string, number> = {
-              "NEW": 0, "PENDING_ACCEPT": 1, "ACCEPTED": 2, "PREPARING": 3,
-              "READY": 4, "READY_FOR_PICKUP": 4,
-              "DRIVER_ASSIGNED": 5, "DRIVER_ARRIVED": 6,
-              "OUT FOR DELIVERY": 7, "OUT_FOR_DELIVERY": 7, "ORDER_PICKED_UP": 7,
-              "REACHED_CUSTOMER": 8, "ARRIVING_SOON": 8,
-              "DELIVERED": 9, "COMPLETED": 10,
-              "CANCELLED": 99, "REJECTED": 99,
-            };
-            setOrderStatus((prev) => {
-              const prevRank = STATUS_RANK[prev] ?? -1;
-              const nextRank = STATUS_RANK[data.status] ?? -1;
+                // Block regression: don't let a lower-rank status overwrite a higher one
+                // (except terminal statuses like CANCELLED/COMPLETED which always apply)
+                if (nextRank < prevRank && nextRank < 99) {
+                  return prev;
+                }
 
-              // Block regression: don't let a lower-rank status overwrite a higher one
-              // (except terminal statuses like CANCELLED/COMPLETED which always apply)
-              if (nextRank < prevRank && nextRank < 99) {
-                return prev;
+                if ((data.status === "PREPARING" || data.status === "ACCEPTED") && (prev === "NEW" || prev === "PENDING_ACCEPT")) {
+                  setShowAcceptedBanner(true);
+                }
+                return data.status;
+              });
+
+              // Any status change away from NEW means the 60s cancellation window has completed or ended
+              if (data.status !== "NEW") {
+                setCancelTimeLeft(0);
               }
-
-              if ((data.status === "PREPARING" || data.status === "ACCEPTED") && (prev === "NEW" || prev === "PENDING_ACCEPT")) {
-                setShowAcceptedBanner(true);
+            }
+            if (data.status === "CANCELLED") {
+              setIsCancelled(true);
+              if (data.reason) {
+                setRejectionReason(data.reason);
               }
-              return data.status;
-            });
+            }
+            if (data.status === "COMPLETED") {
+              // Takeaway orders only finish when the CONSUMER confirms the
+              // pickup PIN (handlePickupComplete in OrderTrackingView) — the
+              // restaurant/partner can mark the order complete server-side, but
+              // the consumer must enter the PIN first. So don't auto-complete
+              // (and auto-redirect to rating) for Takeaway here; Delivery still
+              // completes automatically when the rider marks it delivered.
+              if (order.type !== "Takeaway") {
+                onOrderCompleteRef.current();
+              }
+            }
+          }
+          if (data.prepTime) {
+            setPrepTime(data.prepTime);
+          }
+        },
+      },
+      maxRetries: 30,
+    });
 
-            // Any status change away from NEW means the 60s cancellation window has completed or ended
-            if (data.status !== "NEW") {
-              setCancelTimeLeft(0);
-            }
-          }
-          if (data.status === "CANCELLED") {
-            setIsCancelled(true);
-            if (data.reason) {
-              setRejectionReason(data.reason);
-            }
-          }
-          if (data.status === "COMPLETED") {
-            // Takeaway orders only finish when the CONSUMER confirms the
-            // pickup PIN (handlePickupComplete in OrderTrackingView) — the
-            // restaurant/partner can mark the order complete server-side, but
-            // the consumer must enter the PIN first. So don't auto-complete
-            // (and auto-redirect to rating) for Takeaway here; Delivery still
-            // completes automatically when the rider marks it delivered.
-            if (order.type !== "Takeaway") {
-              onOrderCompleteRef.current();
-            }
-          }
-        }
-        if (data.prepTime) {
-          setPrepTime(data.prepTime);
-        }
-      } catch (err) {
-        console.error("Error parsing SSE status message:", err);
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Connection Error:", err);
-    };
+    sseClient.connect();
 
     return () => {
-      eventSource.close();
+      sseClient.close();
     };
   }, [order.id, order.realOrderId, order.restaurantId, order.type]);
 
@@ -199,50 +194,43 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
       return;
     }
 
-    const calculateTimeLeft = () => {
-      if (order.type !== "Delivery") return 0;
-      if (!order.createdAt) return 0;
-      const createdTime = new Date(order.createdAt).getTime();
-      const secondsElapsed = Math.floor((Date.now() - createdTime) / 1000);
-      const timeLeft = CANCEL_WINDOW_SECONDS - secondsElapsed;
-      return timeLeft > 0 ? timeLeft : 0;
-    };
-
-    setCancelTimeLeft(calculateTimeLeft());
-
     const timer = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setCancelTimeLeft(remaining);
-      if (remaining <= 0) {
-        clearInterval(timer);
+      if (!order.createdAt) {
+        setCancelTimeLeft(0);
+        return;
       }
-    }, 500);
+      const createdTime = new Date(order.createdAt).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - createdTime) / 1000);
+      const remaining = CANCEL_WINDOW_SECONDS - elapsed;
+      setCancelTimeLeft(remaining > 0 ? remaining : 0);
+    }, 1000);
 
     return () => clearInterval(timer);
-  }, [order.createdAt, order.type, isCancelled, orderStatus]);
+  }, [isCancelled, orderStatus, order.createdAt]);
 
+  // Track elapsed seconds since order creation
   useEffect(() => {
+    if (!order.createdAt) return;
     const timer = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
+      const createdTime = new Date(order.createdAt!).getTime();
+      const now = Date.now();
+      setSecondsElapsed(Math.max(0, Math.floor((now - createdTime) / 1000)));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [order.createdAt]);
 
-  const handleCancelOrderApi = async () => {
+  // Cancel order API call
+  const cancelOrder = async () => {
     if (isCancellingOrder) return;
     setIsCancellingOrder(true);
     try {
-      const result = await post<{ success: boolean; message?: string }>(
-        `/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/cancel`,
-        {}
-      );
-      if (result.success) {
-        setIsCancelled(true);
-      } else {
-        alert(result.message || "Failed to cancel order.");
-      }
-    } catch {
-      alert("Failed to cancel order due to network issue.");
+      await post(`/consumer/restaurants/${order.restaurantId}/orders/${order.realOrderId || order.id}/cancel`, {});
+      setIsCancelled(true);
+      setRejectionReason("Cancelled by you");
+    } catch (err: any) {
+      console.error("Failed to cancel order:", err);
+      throw err;
     } finally {
       setIsCancellingOrder(false);
     }
@@ -262,6 +250,7 @@ export const useOrderLiveUpdates = (order: Order, { onOrderComplete, onCancelOrd
     secondsElapsed,
     prepTime,
     driverLocation,
-    handleCancelOrderApi,
+    cancelOrder,
+    handleCancelOrderApi: cancelOrder,
   };
 };
